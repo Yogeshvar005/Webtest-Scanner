@@ -1,7 +1,7 @@
 import type { Scenario, Severity } from '@wts/dsl';
 import type { PolicyDecision } from '@wts/policy';
 import type { InjectionSignal } from '@wts/nlp';
-import type { BlockedRequest } from './egress-guard';
+import type { BlockedRequest, ThirdPartyContact } from './egress-guard';
 
 export type StepStatus = 'passed' | 'failed' | 'blocked' | 'skipped';
 
@@ -35,6 +35,7 @@ export interface StepResult {
 export type FindingType =
   | 'prompt_injection_attempt'
   | 'blocked_egress'
+  | 'third_party_contact'
   | 'accessibility'
   | 'console_error'
   | 'policy_denial'
@@ -59,6 +60,7 @@ export interface RunResult {
   steps: StepResult[];
   findings: Finding[];
   blockedRequests: BlockedRequest[];
+  thirdParties: ThirdPartyContact[];
   injectionSignals: InjectionSignal[];
   policyDecision: PolicyDecision;
   totals: { total: number; passed: number; failed: number; blocked: number; skipped: number };

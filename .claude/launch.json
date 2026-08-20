@@ -7,5 +7,6 @@
       "runtimeArgs": ["run", "dev", "--workspace", "@wts/web"],
       "port": 3000
     }
-  ]
+  ],
+  "autoVerify": true
 }

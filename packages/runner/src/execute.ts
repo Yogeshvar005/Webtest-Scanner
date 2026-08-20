@@ -4,7 +4,7 @@ import { chromium, type Browser, type Page } from 'playwright';
 import type { Scenario, Step, WaitCondition } from '@wts/dsl';
 import { detectInjection, sanitizeText, type InjectionSignal } from '@wts/nlp';
 import { evaluate, type PolicyRequest } from '@wts/policy';
-import { installEgressGuard, type BlockedRequest } from './egress-guard';
+import { installEgressGuard, type BlockedRequest, type EgressMode, type ThirdPartyContact } from './egress-guard';
 import { resolveTarget, targetDescription } from './resolve';
 import type { AssertionResult, Finding, RunResult, StepResult } from './types';
 
@@ -19,6 +19,8 @@ export interface ExecuteOptions {
   artifactUrlPrefix: string;
   runId: string;
   headless?: boolean;
+  /** See EgressMode: 'balanced' keeps screenshots faithful, 'strict' blocks all off-site requests. */
+  egressMode?: EgressMode;
   onStep?: (result: StepResult) => void;
 }
 
@@ -130,6 +132,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
 
   const policyDecision = evaluate(policyRequest);
   const blockedRequests: BlockedRequest[] = [];
+  const thirdPartyByOrigin = new Map<string, ThirdPartyContact>();
   const injectionSignals: InjectionSignal[] = [];
   const findings: Finding[] = [];
   const steps: StepResult[] = [];
@@ -169,7 +172,17 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         userAgent: 'Mozilla/5.0 (compatible; WebtestScanner/0.1; +https://github.com/webtest-scanner)',
       });
 
-      installEgressGuard(context, [targetUrl], (blocked) => blockedRequests.push(blocked));
+      installEgressGuard(context, {
+        allowedOrigins: [targetUrl],
+        mode: options.egressMode ?? 'balanced',
+        onBlocked: (blocked) => blockedRequests.push(blocked),
+        onThirdParty: ({ origin, resourceType }) => {
+          const key = `${origin}|${resourceType}`;
+          const existing = thirdPartyByOrigin.get(key);
+          if (existing) existing.count += 1;
+          else thirdPartyByOrigin.set(key, { origin, resourceType, count: 1 });
+        },
+      });
 
       const page = await context.newPage();
       const consoleErrors: string[] = [];
@@ -223,13 +236,35 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
     });
   }
 
-  for (const blocked of blockedRequests.slice(0, 20)) {
+  // One finding per distinct reason, not per request: a page can easily make
+  // a hundred blocked asset requests and that is one fact, not a hundred.
+  const blockedByReason = new Map<string, BlockedRequest[]>();
+  for (const blocked of blockedRequests) {
+    const list = blockedByReason.get(blocked.reason) ?? [];
+    list.push(blocked);
+    blockedByReason.set(blocked.reason, list);
+  }
+  for (const [reason, group] of blockedByReason) {
     findings.push({
       type: 'blocked_egress',
       severity: 'medium',
-      title: 'Request to an off-allowlist origin was blocked',
-      detail: blocked.reason,
-      evidence: blocked.url.slice(0, 300),
+      title: `${group.length} request${group.length === 1 ? '' : 's'} blocked: ${reason}`,
+      detail: reason,
+      evidence: group.slice(0, 5).map((b) => b.url.slice(0, 200)).join('\n'),
+    });
+  }
+
+  const thirdParties = [...thirdPartyByOrigin.values()];
+  if (thirdParties.length > 0) {
+    const byOrigin = new Map<string, number>();
+    for (const c of thirdParties) byOrigin.set(c.origin, (byOrigin.get(c.origin) ?? 0) + c.count);
+    findings.push({
+      type: 'third_party_contact',
+      severity: 'low',
+      title: `Page contacted ${byOrigin.size} third-party origin${byOrigin.size === 1 ? '' : 's'}`,
+      detail:
+        'These origins are outside the target site. They loaded normally so the screenshots are faithful, but they are recorded here because third-party contact is often a privacy or supply-chain concern.',
+      evidence: [...byOrigin.entries()].sort((a, b) => b[1] - a[1]).map(([o, n]) => `${n}x ${o}`).join('\n'),
     });
   }
 
@@ -264,6 +299,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
     steps,
     findings,
     blockedRequests,
+    thirdParties,
     injectionSignals,
     policyDecision,
     totals,
