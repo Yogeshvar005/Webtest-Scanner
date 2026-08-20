@@ -1,11 +1,15 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { chromium, type Browser, type Page } from 'playwright';
+import { chromium, type Browser, type Page, type Response } from 'playwright';
 import type { Scenario, Step, WaitCondition } from '@wts/dsl';
 import { detectInjection, sanitizeText, type InjectionSignal } from '@wts/nlp';
 import { evaluate, type PolicyRequest } from '@wts/policy';
+import {
+  overallStatus, runAnalyzers, setObservedApiCalls,
+  type CategoryResult, type ObservedApiCall, type TestCategory,
+} from '@wts/analyzers';
 import { installEgressGuard, type BlockedRequest, type EgressMode, type ThirdPartyContact } from './egress-guard';
-import { resolveTarget, targetDescription } from './resolve';
+import { explainFailure, resolveTarget, targetDescription } from './resolve';
 import type { AssertionResult, Finding, RunResult, StepResult } from './types';
 
 export interface ExecuteOptions {
@@ -21,8 +25,20 @@ export interface ExecuteOptions {
   headless?: boolean;
   /** See EgressMode: 'balanced' keeps screenshots faithful, 'strict' blocks all off-site requests. */
   egressMode?: EgressMode;
+  /** Categories the tester selected. The report covers these and nothing else. */
+  categories?: TestCategory[];
+  /** Strict mode promotes every warning to a failure. */
+  strict?: boolean;
   onStep?: (result: StepResult) => void;
 }
+
+/**
+ * A single action gets far less than the step budget. Resolution has already
+ * confirmed the element can accept the action, so a long wait here means
+ * something is wrong rather than slow, and failing fast keeps one bad step
+ * from consuming the whole run.
+ */
+const ACTION_TIMEOUT_MS = 10_000;
 
 /** Resolves a literal value expression; non-literals are not yet supported here. */
 function literalValue(value: { kind: string; value?: unknown }): string {
@@ -48,13 +64,13 @@ async function applyWait(page: Page, condition: WaitCondition): Promise<void> {
       await page.waitForResponse((r) => r.url().includes(condition.urlPattern), { timeout: 15_000 }).catch(() => undefined);
       return;
     case 'elementVisible': {
-      const resolved = await resolveTarget(page, condition.target);
-      if (resolved) await resolved.locator.waitFor({ state: 'visible', timeout: condition.timeoutMs }).catch(() => undefined);
+      const resolved = await resolveTarget(page, condition.target, 'wait');
+      if (resolved.ok) await resolved.resolution.locator.waitFor({ state: 'visible', timeout: condition.timeoutMs }).catch(() => undefined);
       return;
     }
     case 'elementHidden': {
-      const resolved = await resolveTarget(page, condition.target);
-      if (resolved) await resolved.locator.waitFor({ state: 'hidden', timeout: condition.timeoutMs }).catch(() => undefined);
+      const resolved = await resolveTarget(page, condition.target, 'wait');
+      if (resolved.ok) await resolved.resolution.locator.waitFor({ state: 'hidden', timeout: condition.timeoutMs }).catch(() => undefined);
       return;
     }
   }
@@ -81,8 +97,8 @@ async function runAssertions(page: Page, step: Step): Promise<AssertionResult[]>
       }
 
       if (assertion.type === 'elementVisible') {
-        const resolved = await resolveTarget(page, assertion.target);
-        const visible = resolved ? await resolved.locator.isVisible().catch(() => false) : false;
+        const resolved = await resolveTarget(page, assertion.target, 'read');
+        const visible = resolved.ok ? await resolved.resolution.locator.isVisible().catch(() => false) : false;
         results.push({
           description,
           passed: assertion.negate ? !visible : visible,
@@ -136,6 +152,13 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
   const injectionSignals: InjectionSignal[] = [];
   const findings: Finding[] = [];
   const steps: StepResult[] = [];
+  const apiCalls: ObservedApiCall[] = [];
+  let categoryResults: CategoryResult[] = [];
+  let mainResponse: Response | null = null;
+
+  const categories = options.categories ?? ['functional'];
+  const strict = options.strict ?? false;
+  const runsFunctional = categories.includes('functional');
 
   if (policyDecision.effect === 'deny') {
     findings.push({
@@ -185,6 +208,29 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
       });
 
       const page = await context.newPage();
+
+      // The main document response carries the headers the passive security
+      // checks read; XHR/fetch traffic feeds the API category.
+      const startedAtByUrl = new Map<string, number>();
+      page.on('request', (request) => startedAtByUrl.set(request.url(), Date.now()));
+      page.on('response', (response) => {
+        const request = response.request();
+        if (request.isNavigationRequest() && request.frame() === page.mainFrame() && mainResponse === null) {
+          mainResponse = response;
+        }
+        const type = request.resourceType();
+        if (type === 'xhr' || type === 'fetch') {
+          const started = startedAtByUrl.get(response.url()) ?? Date.now();
+          apiCalls.push({
+            url: response.url(),
+            method: request.method(),
+            status: response.status(),
+            durationMs: Date.now() - started,
+            contentType: response.headers()['content-type'] ?? '',
+          });
+        }
+      });
+
       const consoleErrors: string[] = [];
       page.on('console', (message) => {
         if (message.type() === 'error') consoleErrors.push(sanitizeText(message.text(), 300));
@@ -210,6 +256,23 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         options.onStep?.(result);
 
         if (result.status === 'failed' && step.onFailure === 'abort') break;
+      }
+
+      // Analyzers run against the final page state, after the scenario has
+      // navigated wherever it was going to navigate.
+      const analyzerCategories = categories.filter((c) => c !== 'functional');
+      if (analyzerCategories.length > 0) {
+        setObservedApiCalls(apiCalls);
+        categoryResults = await runAnalyzers({
+          selected: analyzerCategories,
+          context: {
+            page,
+            targetUrl,
+            mainResponse,
+            tier: (policyRequest.target.ownershipTier ?? 0) as 0 | 1 | 2,
+            strict,
+          },
+        });
       }
 
       await context.close();
@@ -279,6 +342,21 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
     }
   }
 
+  // Surface every failed or warning check as a finding, so the findings list
+  // is the single place a reader can see everything that went wrong.
+  for (const category of categoryResults) {
+    for (const check of category.checks) {
+      if (check.status !== 'failed' && check.status !== 'warning') continue;
+      findings.push({
+        type: categoryFindingType(category.category),
+        severity: check.status === 'warning' && !strict ? 'low' : check.severity,
+        title: `${category.label}: ${check.name}`,
+        detail: check.detail,
+        evidence: check.evidence?.slice(0, 8).join('\n'),
+      });
+    }
+  }
+
   const finishedAt = new Date();
   const totals = {
     total: steps.length,
@@ -295,7 +373,9 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     durationMs: finishedAt.getTime() - startedAt.getTime(),
-    status: totals.blocked > 0 && totals.passed === 0 ? 'blocked' : totals.failed > 0 ? 'failed' : 'passed',
+    status: resolveOverallStatus({ totals, categoryResults, strict, runsFunctional }),
+    categories: categoryResults,
+    strict,
     steps,
     findings,
     blockedRequests,
@@ -339,20 +419,20 @@ async function runStep(
         break;
       }
       case 'click': {
-        const resolved = await resolveTarget(page, action.target);
-        if (!resolved) throw new Error(`Could not find ${targetDescription(action.target)}`);
-        result.resolvedBy = resolved.strategy;
-        result.resolutionConfidence = resolved.confidence;
-        await resolved.locator.click({ timeout: step.timeoutMs });
+        const resolved = await resolveTarget(page, action.target, 'click');
+        if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'click'));
+        result.resolvedBy = resolved.resolution.strategy;
+        result.resolutionConfidence = resolved.resolution.confidence;
+        await resolved.resolution.locator.click({ timeout: ACTION_TIMEOUT_MS });
         break;
       }
       case 'fill': {
-        const resolved = await resolveTarget(page, action.target);
-        if (!resolved) throw new Error(`Could not find ${targetDescription(action.target)}`);
-        result.resolvedBy = resolved.strategy;
-        result.resolutionConfidence = resolved.confidence;
-        await resolved.locator.fill(literalValue(action.value), { timeout: step.timeoutMs });
-        await resolved.locator.press('Enter').catch(() => undefined);
+        const resolved = await resolveTarget(page, action.target, 'fill');
+        if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'fill'));
+        result.resolvedBy = resolved.resolution.strategy;
+        result.resolutionConfidence = resolved.resolution.confidence;
+        await resolved.resolution.locator.fill(literalValue(action.value), { timeout: ACTION_TIMEOUT_MS });
+        await resolved.resolution.locator.press('Enter').catch(() => undefined);
         break;
       }
       case 'press':
@@ -399,4 +479,37 @@ async function runStep(
   }
 
   return result;
+}
+
+
+function categoryFindingType(category: TestCategory): Finding['type'] {
+  switch (category) {
+    case 'accessibility': return 'accessibility';
+    case 'security-passive':
+    case 'security-active': return 'security';
+    case 'performance': return 'performance';
+    case 'api': return 'api';
+    case 'ui': return 'ui';
+    default: return 'assertion_failure';
+  }
+}
+
+/**
+ * A run is only "passed" if everything the tester selected passed. A blocked
+ * functional scenario cannot be rescued by clean analyzer results, and a failed
+ * category cannot be hidden by passing steps.
+ */
+function resolveOverallStatus(input: {
+  totals: { passed: number; failed: number; blocked: number };
+  categoryResults: CategoryResult[];
+  strict: boolean;
+  runsFunctional: boolean;
+}): 'passed' | 'failed' | 'blocked' | 'warning' {
+  const { totals, categoryResults, strict, runsFunctional } = input;
+
+  if (runsFunctional && totals.blocked > 0 && totals.passed === 0) return 'blocked';
+  if (runsFunctional && totals.failed > 0) return 'failed';
+
+  if (categoryResults.length === 0) return 'passed';
+  return overallStatus(categoryResults, strict);
 }

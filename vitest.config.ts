@@ -16,6 +16,14 @@ export default defineConfig({
         // Drives a real browser; covered by integration runs, not unit tests.
         'packages/runner/src/execute.ts',
         'packages/runner/src/resolve.ts',
+        // Analyzers drive a live browser; their orchestration is unit-tested,
+        // the individual probes are verified by integration runs.
+        'packages/analyzers/src/accessibility.ts',
+        'packages/analyzers/src/ui.ts',
+        'packages/analyzers/src/performance.ts',
+        'packages/analyzers/src/security-passive.ts',
+        'packages/analyzers/src/security-active.ts',
+        'packages/analyzers/src/api-and-unit.ts',
       ],
       reporter: ['text', 'html'],
       thresholds: {
@@ -36,6 +44,7 @@ export default defineConfig({
         'packages/ownership/src/challenge.ts': { lines: 100, branches: 100, functions: 100 },
         'packages/runner/src/egress-guard.ts': { lines: 100, branches: 100, functions: 100 },
         'packages/nlp/src/sanitize.ts': { lines: 100, branches: 100, functions: 100 },
+        'packages/analyzers/src/types.ts': { lines: 100, branches: 100, functions: 100 },
       },
     },
   },

@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { hasBlockingIssues, lintScenario, type EnvName } from '@wts/dsl';
 import { parseScenario } from '@wts/nlp';
 import { checkDenylist, effectiveTier, requiresManualReview } from '@wts/ownership';
+import { CATEGORIES, type TestCategory } from '@wts/analyzers';
 import type { PolicyRequest, Role } from '@wts/policy';
 import { executeScenario } from '@wts/runner';
 
@@ -18,7 +19,13 @@ interface RunBody {
   /** Simulated ownership tier, so the gate can be demonstrated both ways. */
   ownershipTier?: 0 | 1 | 2;
   roles?: Role[];
+  /** Which kinds of testing to run. The report covers these and nothing else. */
+  categories?: TestCategory[];
+  /** Strict mode promotes every warning to a failure. */
+  strict?: boolean;
 }
+
+const VALID_CATEGORIES = new Set(CATEGORIES.map((c) => c.id));
 
 function badRequest(message: string, hint?: string) {
   return NextResponse.json({ error: message, hint }, { status: 400 });
@@ -58,6 +65,11 @@ export async function POST(request: Request) {
       },
       { status: 403 },
     );
+  }
+
+  const categories = (body.categories ?? ['functional']).filter((c): c is TestCategory => VALID_CATEGORIES.has(c));
+  if (categories.length === 0) {
+    return badRequest('Select at least one kind of testing to run.');
   }
 
   const environment: EnvName = body.environment ?? 'QA';
@@ -110,6 +122,8 @@ export async function POST(request: Request) {
     artifactDir: join(process.cwd(), 'public', 'artifacts'),
     artifactUrlPrefix: '/artifacts',
     runId,
+    categories,
+    strict: body.strict ?? false,
   });
 
   return NextResponse.json({
@@ -118,6 +132,7 @@ export async function POST(request: Request) {
     unparsed,
     meanConfidence,
     reviewFlag: requiresManualReview(target.hostname) ?? null,
+    selectedCategories: categories,
     ownership: { recordedTier, effectiveTier: tier },
   });
 }

@@ -1,6 +1,7 @@
 import type { Scenario, Severity } from '@wts/dsl';
 import type { PolicyDecision } from '@wts/policy';
 import type { InjectionSignal } from '@wts/nlp';
+import type { CategoryResult } from '@wts/analyzers';
 import type { BlockedRequest, ThirdPartyContact } from './egress-guard';
 
 export type StepStatus = 'passed' | 'failed' | 'blocked' | 'skipped';
@@ -39,7 +40,12 @@ export type FindingType =
   | 'accessibility'
   | 'console_error'
   | 'policy_denial'
-  | 'assertion_failure';
+  | 'assertion_failure'
+  | 'accessibility'
+  | 'security'
+  | 'performance'
+  | 'api'
+  | 'ui';
 
 export interface Finding {
   type: FindingType;
@@ -56,7 +62,10 @@ export interface RunResult {
   startedAt: string;
   finishedAt: string;
   durationMs: number;
-  status: 'passed' | 'failed' | 'blocked';
+  status: 'passed' | 'failed' | 'blocked' | 'warning';
+  /** One entry per selected category. Unselected categories are absent. */
+  categories: CategoryResult[];
+  strict: boolean;
   steps: StepResult[];
   findings: Finding[];
   blockedRequests: BlockedRequest[];

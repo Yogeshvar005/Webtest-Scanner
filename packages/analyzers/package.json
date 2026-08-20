@@ -1,5 +1,5 @@
 {
-  "name": "@wts/runner",
+  "name": "@wts/analyzers",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,10 +9,7 @@
   "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@wts/dsl": "*",
-    "@wts/analyzers": "*",
-    "@wts/nlp": "*",
-    "@wts/ownership": "*",
-    "@wts/policy": "*",
+    "axe-core": "^4.10.3",
     "playwright": "^1.55.0"
   }
 }

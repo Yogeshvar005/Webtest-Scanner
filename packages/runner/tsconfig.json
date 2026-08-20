@@ -1,5 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": ".", "noEmit": true },
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    // page.evaluate callbacks execute in the browser, so DOM globals are in
+    // scope inside them even though the package itself runs under Node.
+    "lib": ["ES2023", "DOM"]
+  },
   "include": ["src/**/*.ts", "tests/**/*.ts"]
 }
