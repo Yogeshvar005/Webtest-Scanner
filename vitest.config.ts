@@ -10,7 +10,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**/*.ts'],
-      exclude: ['**/index.ts', '**/*.d.ts'],
+      exclude: [
+        '**/index.ts',
+        '**/*.d.ts',
+        // Drives a real browser; covered by integration runs, not unit tests.
+        'packages/runner/src/execute.ts',
+        'packages/runner/src/resolve.ts',
+      ],
       reporter: ['text', 'html'],
       thresholds: {
         // Project-wide floor.
@@ -28,6 +34,8 @@ export default defineConfig({
         'packages/ownership/src/dns.ts': { lines: 100, branches: 100, functions: 100 },
         'packages/ownership/src/tiers.ts': { lines: 100, branches: 100, functions: 100 },
         'packages/ownership/src/challenge.ts': { lines: 100, branches: 100, functions: 100 },
+        'packages/runner/src/egress-guard.ts': { lines: 100, branches: 100, functions: 100 },
+        'packages/nlp/src/sanitize.ts': { lines: 100, branches: 100, functions: 100 },
       },
     },
   },

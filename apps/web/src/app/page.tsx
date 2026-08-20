@@ -1,0 +1,235 @@
+'use client';
+
+import { useState } from 'react';
+
+interface AssertionResult { description: string; passed: boolean; severity: string; detail?: string }
+interface StepResult {
+  id: string; index: number; intent: string; status: string; durationMs: number;
+  screenshot?: string; resolvedBy?: string; resolutionConfidence?: number;
+  assertions: AssertionResult[]; error?: string; policyReason?: string;
+  consoleErrors: string[]; provenanceSource: string; provenanceConfidence: number;
+}
+interface Finding { type: string; severity: string; title: string; detail: string; evidence?: string }
+interface RunResponse {
+  runId: string; targetUrl: string; status: string; durationMs: number;
+  steps: StepResult[]; findings: Finding[];
+  totals: { total: number; passed: number; failed: number; blocked: number; skipped: number };
+  policyDecision: { effect: string; reason?: string; remediation?: string; code?: string; conditions?: Array<{ detail: string }> };
+  unparsed: string[]; meanConfidence: number;
+  ownership: { recordedTier: number; effectiveTier: number };
+  error?: string; detail?: string; hint?: string; issues?: Array<{ rule: string; message: string }>;
+}
+
+const SAMPLE = `go to /
+search for laptop
+verify results are visible
+take a screenshot
+check accessibility`;
+
+export default function Home() {
+  const [url, setUrl] = useState('https://example.com');
+  const [instructions, setInstructions] = useState(SAMPLE);
+  const [tier, setTier] = useState('0');
+  const [environment, setEnvironment] = useState('QA');
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<RunResponse | null>(null);
+  const [error, setError] = useState<RunResponse | null>(null);
+
+  async function run() {
+    setRunning(true);
+    setResult(null);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url, instructions, environment, ownershipTier: Number(tier) }),
+      });
+      const data = (await response.json()) as RunResponse;
+      if (!response.ok) setError(data);
+      else setResult(data);
+    } catch (e) {
+      setError({ error: e instanceof Error ? e.message : 'Request failed' } as RunResponse);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="wrap">
+      <header className="masthead">
+        <h1>Webtest Scanner</h1>
+        <p>Describe a test in plain English. A real browser runs it and captures screenshot evidence at every step.</p>
+      </header>
+
+      <div className="grid">
+        <div>
+          <div className="card">
+            <h2>Target</h2>
+
+            <div className="field">
+              <label htmlFor="url">Website URL</label>
+              <input id="url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" />
+            </div>
+
+            <div className="field row">
+              <div>
+                <label htmlFor="env">Environment</label>
+                <select id="env" value={environment} onChange={(e) => setEnvironment(e.target.value)}>
+                  {['LOCAL', 'DEV', 'QA', 'UAT', 'STAGING', 'PRODUCTION'].map((e) => <option key={e}>{e}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="tier">Ownership tier</label>
+                <select id="tier" value={tier} onChange={(e) => setTier(e.target.value)}>
+                  <option value="0">0 — Unverified</option>
+                  <option value="1">1 — DNS verified</option>
+                  <option value="2">2 — Verified + attested</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="field">
+              <label htmlFor="instructions">Test scenario, in plain English</label>
+              <textarea id="instructions" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+            </div>
+
+            <button className="primary" onClick={run} disabled={running}>
+              {running ? <><span className="spinner" />Running in a real browser…</> : 'Run test'}
+            </button>
+
+            <p className="hint">
+              Tier 0 permits observation only — page loads, screenshots, accessibility and passive checks.
+              Anything that writes to the site requires proven domain ownership.
+            </p>
+          </div>
+
+          <div className="card">
+            <h2>Understood verbs</h2>
+            <p className="hint" style={{ marginTop: 0 }}>
+              <code>go to /path</code> · <code>click X</code> · <code>enter Y into X</code> ·{' '}
+              <code>fill X with Y</code> · <code>search for X</code> · <code>verify X</code> ·{' '}
+              <code>wait for X</code> · <code>screenshot</code> · <code>check accessibility</code>
+            </p>
+          </div>
+        </div>
+
+        <div>
+          {error && (
+            <div className="card">
+              <h2>Run refused</h2>
+              <div className="err">
+                <strong>{error.error}</strong>
+                {error.detail && <div style={{ marginTop: 6 }}>{error.detail}</div>}
+                {error.hint && <div style={{ marginTop: 6 }}>{error.hint}</div>}
+              </div>
+              {error.issues?.map((issue, i) => (
+                <div key={i} className="assert bad"><strong>{issue.rule}</strong> — {issue.message}</div>
+              ))}
+            </div>
+          )}
+
+          {!result && !error && !running && (
+            <div className="card"><div className="empty">Run a test to see step-by-step screenshots here.</div></div>
+          )}
+
+          {running && (
+            <div className="card"><div className="empty"><span className="spinner" />Launching Chromium and working through your scenario…</div></div>
+          )}
+
+          {result && (
+            <>
+              <div className="card">
+                <h2>Result</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <span className={`pill ${result.status}`}>{result.status}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 13 }}>
+                    {result.targetUrl} · {(result.durationMs / 1000).toFixed(1)}s · run {result.runId}
+                  </span>
+                </div>
+
+                <div className="stats">
+                  <div className="stat"><div className="n">{result.totals.total}</div><div className="k">Steps</div></div>
+                  <div className="stat"><div className="n" style={{ color: 'var(--pass)' }}>{result.totals.passed}</div><div className="k">Passed</div></div>
+                  <div className="stat"><div className="n" style={{ color: 'var(--fail)' }}>{result.totals.failed}</div><div className="k">Failed</div></div>
+                  <div className="stat"><div className="n" style={{ color: 'var(--block)' }}>{result.totals.blocked}</div><div className="k">Blocked</div></div>
+                  <div className="stat"><div className="n">{Math.round(result.meanConfidence * 100)}%</div><div className="k">Confidence</div></div>
+                </div>
+
+                <div className="meta" style={{ marginTop: 14, marginBottom: 0 }}>
+                  <span>Policy: <strong>{result.policyDecision.effect}</strong></span>
+                  <span>Ownership tier: <strong>{result.ownership.effectiveTier}</strong></span>
+                </div>
+                {result.policyDecision.reason && <div className="hint">{result.policyDecision.reason}</div>}
+                {result.policyDecision.conditions?.map((c, i) => <div key={i} className="hint">Condition: {c.detail}</div>)}
+                {result.unparsed.length > 0 && (
+                  <div className="hint">
+                    Not understood, so not executed: {result.unparsed.map((u) => `"${u}"`).join(', ')}
+                  </div>
+                )}
+              </div>
+
+              {result.findings.length > 0 && (
+                <div className="card">
+                  <h2>Findings ({result.findings.length})</h2>
+                  {result.findings.map((f, i) => (
+                    <div key={i} className={`finding ${f.severity}`}>
+                      <div className="t">{f.title}</div>
+                      <div className="d">{f.detail}</div>
+                      {f.evidence && <pre>{f.evidence}</pre>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="card">
+                <h2>Steps</h2>
+                {result.steps.map((step) => (
+                  <div className="step" key={step.id}>
+                    <div className="head">
+                      <span className="idx">{step.index + 1}</span>
+                      <span className="intent">{step.intent}</span>
+                      <span className={`pill ${step.provenanceSource}`}>{step.provenanceSource}</span>
+                      <span className={`pill ${step.status}`}>{step.status}</span>
+                      <span className="dur">{step.durationMs}ms</span>
+                    </div>
+                    <div className="body">
+                      <div className="meta">
+                        {step.resolvedBy && <span>Matched by <strong>{step.resolvedBy}</strong> ({Math.round((step.resolutionConfidence ?? 0) * 100)}%)</span>}
+                        <span>Authored by <strong>{step.provenanceSource}</strong> ({Math.round(step.provenanceConfidence * 100)}%)</span>
+                      </div>
+
+                      {step.error && <div className="err">{step.error}</div>}
+                      {step.policyReason && <div className="err">Blocked by policy: {step.policyReason}</div>}
+
+                      {step.assertions.map((a, i) => (
+                        <div key={i} className={`assert ${a.passed ? 'ok' : 'bad'}`}>
+                          {a.passed ? '✓' : '✗'} {a.description}
+                          {a.detail && <div style={{ color: 'var(--muted)', marginTop: 2 }}>{a.detail}</div>}
+                        </div>
+                      ))}
+
+                      {step.consoleErrors.slice(0, 3).map((c, i) => (
+                        <div key={i} className="assert bad">Console error: {c}</div>
+                      ))}
+
+                      {step.screenshot && <img src={step.screenshot} alt={`Screenshot after: ${step.intent}`} />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="card">
+                <details className="raw">
+                  <summary>Raw run data (the structured DSL and result)</summary>
+                  <pre>{JSON.stringify(result, null, 2)}</pre>
+                </details>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
