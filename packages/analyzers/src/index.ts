@@ -1,4 +1,5 @@
 import { accessibilityAnalyzer } from './accessibility';
+import { designAnalyzer } from './design';
 import { apiAnalyzer, unitAnalyzer } from './api-and-unit';
 import { performanceAnalyzer } from './performance';
 import { securityActiveAnalyzer } from './security-active';
@@ -18,6 +19,7 @@ export { setObservedApiCalls, type ObservedApiCall } from './api-and-unit';
  */
 export const ANALYZERS: Analyzer[] = [
   uiAnalyzer,
+  designAnalyzer,
   accessibilityAnalyzer,
   securityPassiveAnalyzer,
   securityActiveAnalyzer,

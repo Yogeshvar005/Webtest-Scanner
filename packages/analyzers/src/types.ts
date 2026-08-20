@@ -13,7 +13,8 @@ export type TestCategory =
   | 'security-active'
   | 'performance'
   | 'api'
-  | 'unit';
+  | 'unit'
+  | 'design';
 
 export type OwnershipTier = 0 | 1 | 2;
 
@@ -50,6 +51,18 @@ export interface AnalyzerContext {
    * opt-in rather than the default.
    */
   strict: boolean;
+  /** Where captured assets are written. Absent when capture is not enabled. */
+  artifactDir?: string;
+  /** URL prefix the web app serves `artifactDir` from. */
+  artifactUrlPrefix?: string;
+  runId?: string;
+  /**
+   * Whether to download the site's actual asset files, rather than only
+   * cataloguing them. Copying a third party's images and fonts is a
+   * reproduction of their copyrighted work, so this is gated on proven
+   * domain ownership rather than offered by default.
+   */
+  captureAssets?: boolean;
 }
 
 export interface Analyzer {

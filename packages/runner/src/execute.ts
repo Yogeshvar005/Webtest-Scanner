@@ -29,6 +29,8 @@ export interface ExecuteOptions {
   categories?: TestCategory[];
   /** Strict mode promotes every warning to a failure. */
   strict?: boolean;
+  /** Download the site's actual asset files, not just catalogue them. */
+  captureAssets?: boolean;
   onStep?: (result: StepResult) => void;
 }
 
@@ -271,6 +273,10 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
             mainResponse,
             tier: (policyRequest.target.ownershipTier ?? 0) as 0 | 1 | 2,
             strict,
+            artifactDir,
+            artifactUrlPrefix,
+            runId,
+            captureAssets: options.captureAssets ?? false,
           },
         });
       }
@@ -489,7 +495,8 @@ function categoryFindingType(category: TestCategory): Finding['type'] {
     case 'security-active': return 'security';
     case 'performance': return 'performance';
     case 'api': return 'api';
-    case 'ui': return 'ui';
+    case 'ui':
+    case 'design': return 'ui';
     default: return 'assertion_failure';
   }
 }

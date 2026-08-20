@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Glyph, Radar, Wordmark } from './glyphs';
 
 interface AssertionResult { description: string; passed: boolean; severity: string; detail?: string }
 interface StepResult {
@@ -89,8 +90,22 @@ export default function Home() {
   return (
     <div className="wrap">
       <header className="masthead">
-        <h1>Webtest Scanner</h1>
-        <p>Choose what to test, describe it in plain English, and a real browser runs it with screenshot evidence.</p>
+        <div className="masthead-row">
+          <Radar />
+          <div>
+            <Wordmark />
+            <p className="tagline">
+              A real browser
+              <span className="rotator">
+                <span>clicks through your site.</span>
+                <span>reads its colours and type.</span>
+                <span>audits it for accessibility.</span>
+                <span>inspects its security headers.</span>
+                <span>screenshots every step.</span>
+              </span>
+            </p>
+          </div>
+        </div>
       </header>
 
       <div className="grid">
@@ -138,6 +153,7 @@ export default function Home() {
                     onChange={() => toggle(category.id)}
                     aria-describedby={`cat-desc-${category.id}`}
                   />
+                  <Glyph id={category.id} />
                   <span>
                     <span className="option-title">
                       {category.label}
@@ -156,6 +172,7 @@ export default function Home() {
 
             <label htmlFor="strict-mode" className="option" style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
               <input id="strict-mode" type="checkbox" checked={strict} onChange={() => setStrict(!strict)} />
+              <Glyph id="strict" />
               <span>
                 <span className="option-title">Strict mode</span>
                 <span className="option-desc">
@@ -207,15 +224,20 @@ export default function Home() {
           )}
 
           {running && (
-            <div className="card"><div className="empty"><span className="spinner" />Launching Chromium and working through your scenario…</div></div>
+            <div className="card">
+              <div className="scanning">
+                <div className="bars" aria-hidden><i /><i /><i /><i /><i /></div>
+                <div className="phase" role="status">Driving a real browser through your scenario…</div>
+              </div>
+            </div>
           )}
 
           {result && (
             <>
-              <div className="card">
+              <div className="card reveal reveal-1">
                 <h2>Result</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-                  <span className={`pill ${statusClass(result.status)}`}>{result.status}</span>
+                  <span className={`pill verdict ${statusClass(result.status)}`}>{result.status}</span>
                   {result.strict && <span className="pill">strict</span>}
                   <span style={{ color: 'var(--muted)', fontSize: 13 }}>
                     {result.targetUrl} · {(result.durationMs / 1000).toFixed(1)}s · run {result.runId}
@@ -242,12 +264,13 @@ export default function Home() {
               </div>
 
               {result.categories.length > 0 && (
-                <div className="card">
+                <div className="card reveal reveal-2">
                   <h2>Categories</h2>
                   {result.categories.map((category) => (
                     <details key={category.category} className="cat" open={category.status === 'failed'}>
                       <summary>
                         <span className={`pill ${statusClass(category.status)}`}>{category.status}</span>
+                        <Glyph id={category.category} />
                         <span className="cat-label">{category.label}</span>
                         <span className="cat-totals">
                           {category.totals.passed}&nbsp;pass · {category.totals.failed}&nbsp;fail · {category.totals.warning}&nbsp;warn
@@ -275,7 +298,7 @@ export default function Home() {
               )}
 
               {result.findings.length > 0 && (
-                <div className="card">
+                <div className="card reveal reveal-3">
                   <h2>Findings ({result.findings.length})</h2>
                   {result.findings.map((f, i) => (
                     <div key={i} className={`finding ${f.severity}`}>
@@ -288,7 +311,7 @@ export default function Home() {
               )}
 
               {result.steps.length > 0 && (
-                <div className="card">
+                <div className="card reveal reveal-4">
                   <h2>Steps</h2>
                   {result.steps.map((step) => (
                     <div className="step" key={step.id}>

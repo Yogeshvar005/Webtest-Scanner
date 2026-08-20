@@ -24,6 +24,7 @@ export default defineConfig({
         'packages/analyzers/src/security-passive.ts',
         'packages/analyzers/src/security-active.ts',
         'packages/analyzers/src/api-and-unit.ts',
+        'packages/analyzers/src/design.ts',
       ],
       reporter: ['text', 'html'],
       thresholds: {

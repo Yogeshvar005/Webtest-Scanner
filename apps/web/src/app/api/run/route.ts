@@ -23,6 +23,8 @@ interface RunBody {
   categories?: TestCategory[];
   /** Strict mode promotes every warning to a failure. */
   strict?: boolean;
+  /** Download the site's actual asset files, not just catalogue them. */
+  captureAssets?: boolean;
 }
 
 const VALID_CATEGORIES = new Set(CATEGORIES.map((c) => c.id));
@@ -124,6 +126,7 @@ export async function POST(request: Request) {
     runId,
     categories,
     strict: body.strict ?? false,
+    captureAssets: body.captureAssets ?? false,
   });
 
   return NextResponse.json({

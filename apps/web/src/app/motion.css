@@ -1,0 +1,273 @@
+/*
+ * Motion layer.
+ *
+ * Every animation in here is decorative. The page is fully usable with all of
+ * it switched off, and it IS switched off for anyone who has asked their
+ * system to reduce motion — see the guard at the bottom. A tool that audits
+ * accessibility has no business ignoring that preference itself.
+ */
+
+/* ---------- animated wordmark ---------- */
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 30px;
+  font-weight: 680;
+  letter-spacing: -0.03em;
+  margin: 0 0 6px;
+}
+
+.wordmark .ch {
+  display: inline-block;
+  animation: drop-in 620ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i) * 34ms);
+}
+
+.wordmark .ch.gap { width: 0.34em; }
+
+.wordmark .accent {
+  background: linear-gradient(92deg, var(--accent), #8ab4ff 45%, var(--pass));
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: drop-in 620ms cubic-bezier(0.16, 1, 0.3, 1) backwards,
+             hue-drift 9s ease-in-out 900ms infinite;
+  animation-delay: calc(var(--i) * 34ms), 900ms;
+}
+
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-14px) rotate(-6deg); filter: blur(4px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes hue-drift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* ---------- radar / scanner glyph ---------- */
+
+.radar {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  flex: none;
+}
+
+.radar .ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+.radar .ring:nth-child(2) { inset: 7px; opacity: 0.75; }
+.radar .ring:nth-child(3) { inset: 14px; opacity: 0.5; }
+
+.radar .sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(91, 140, 255, 0.45) 42deg, transparent 62deg);
+  animation: sweep 2.6s linear infinite;
+}
+
+.radar .blip {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--pass);
+  box-shadow: 0 0 8px var(--pass);
+  animation: blip 2.6s ease-in-out infinite;
+}
+.radar .blip.b1 { top: 9px;  left: 24px; animation-delay: 0.5s; }
+.radar .blip.b2 { top: 25px; left: 12px; animation-delay: 1.4s; }
+.radar .blip.b3 { top: 20px; left: 27px; animation-delay: 2.1s; }
+
+@keyframes sweep { to { transform: rotate(360deg); } }
+@keyframes blip {
+  0%, 70%, 100% { opacity: 0; transform: scale(0.6); }
+  78%           { opacity: 1; transform: scale(1.35); }
+  90%           { opacity: 0.45; transform: scale(1); }
+}
+
+/* ---------- rotating subtitle ---------- */
+
+.tagline {
+  color: var(--muted);
+  min-height: 1.5em;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.tagline .rotator {
+  position: relative;
+  display: inline-grid;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tagline .rotator > span {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: rotate-word 13s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  white-space: nowrap;
+}
+.tagline .rotator > span:nth-child(1) { animation-delay: 0s; }
+.tagline .rotator > span:nth-child(2) { animation-delay: 2.6s; }
+.tagline .rotator > span:nth-child(3) { animation-delay: 5.2s; }
+.tagline .rotator > span:nth-child(4) { animation-delay: 7.8s; }
+.tagline .rotator > span:nth-child(5) { animation-delay: 10.4s; }
+
+@keyframes rotate-word {
+  0%      { opacity: 0; transform: translateY(7px); filter: blur(3px); }
+  3%, 18% { opacity: 1; transform: none; filter: none; }
+  21%     { opacity: 0; transform: translateY(-7px); filter: blur(3px); }
+  100%    { opacity: 0; transform: translateY(-7px); }
+}
+
+/* ---------- category glyphs ---------- */
+
+.glyph {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  color: var(--muted);
+  transition: color 220ms ease, transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.option:hover .glyph { color: var(--accent); transform: scale(1.16) rotate(-4deg); }
+/* The glyph is a sibling of the input, not a descendant of the label text. */
+.option input:checked ~ .glyph { color: var(--accent); opacity: 1; }
+.option input:not(:checked) ~ .glyph { opacity: 0.5; }
+
+.glyph .spin  { transform-origin: center; animation: slow-spin 7s linear infinite; }
+.glyph .pulse { animation: soft-pulse 2.4s ease-in-out infinite; transform-origin: center; }
+.glyph .trace { stroke-dasharray: 44; stroke-dashoffset: 44; animation: trace 2.4s ease-in-out infinite; }
+
+@keyframes slow-spin  { to { transform: rotate(360deg); } }
+@keyframes soft-pulse { 0%,100% { opacity: 0.45; transform: scale(0.86); } 50% { opacity: 1; transform: scale(1.1); } }
+@keyframes trace      { 0% { stroke-dashoffset: 44; } 55%,100% { stroke-dashoffset: 0; } }
+
+/* ---------- running state ---------- */
+
+.scanning { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 40px 20px; }
+
+.scanning .bars { display: flex; gap: 5px; align-items: flex-end; height: 34px; }
+.scanning .bars i {
+  display: block;
+  width: 5px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--accent), #2f4f9e);
+  animation: equalise 1.15s ease-in-out infinite;
+}
+.scanning .bars i:nth-child(1) { animation-delay: 0ms;   height: 40%; }
+.scanning .bars i:nth-child(2) { animation-delay: 110ms; height: 70%; }
+.scanning .bars i:nth-child(3) { animation-delay: 220ms; height: 100%; }
+.scanning .bars i:nth-child(4) { animation-delay: 330ms; height: 62%; }
+.scanning .bars i:nth-child(5) { animation-delay: 440ms; height: 84%; }
+
+@keyframes equalise {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.5; }
+  50%      { transform: scaleY(1);    opacity: 1; }
+}
+
+.scanning .phase {
+  color: var(--muted);
+  font-size: 14px;
+  animation: fade-cycle 3s ease-in-out infinite;
+}
+@keyframes fade-cycle { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+/* ---------- result reveal ---------- */
+
+.reveal { animation: reveal 460ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.reveal-1 { animation-delay: 60ms; }
+.reveal-2 { animation-delay: 130ms; }
+.reveal-3 { animation-delay: 200ms; }
+.reveal-4 { animation-delay: 270ms; }
+
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Verdict pill gets a single attention beat, not a loop. */
+.pill.verdict { animation: stamp 520ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+@keyframes stamp {
+  from { opacity: 0; transform: scale(1.5); letter-spacing: 0.25em; }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Counting numbers rise into place. */
+.stat .n { animation: rise 520ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.stat:nth-child(1) .n { animation-delay: 80ms; }
+.stat:nth-child(2) .n { animation-delay: 140ms; }
+.stat:nth-child(3) .n { animation-delay: 200ms; }
+.stat:nth-child(4) .n { animation-delay: 260ms; }
+.stat:nth-child(5) .n { animation-delay: 320ms; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Failing findings breathe once so the eye lands on them. */
+.finding.critical, .finding.high { animation: attention 900ms ease-out backwards; }
+@keyframes attention {
+  0%   { border-left-color: var(--fail); box-shadow: -3px 0 14px -4px var(--fail); }
+  100% { border-left-color: var(--fail); box-shadow: none; }
+}
+
+/* Primary button sheen on hover. */
+button.primary { position: relative; overflow: hidden; }
+button.primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.22) 50%, transparent 62%);
+  transform: translateX(-120%);
+  transition: transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+button.primary:hover:not(:disabled)::after { transform: translateX(120%); }
+
+.card { transition: border-color 260ms ease; }
+.card:hover { border-color: #303a4d; }
+
+details.cat > summary { transition: background 200ms ease; }
+details.cat > summary:hover { background: #1b212e; }
+
+/*
+ * Anyone who has asked for reduced motion gets none of the above. Transitions
+ * are collapsed rather than removed so focus and hover still read as
+ * responsive, and every element is pinned to its final, visible state — a
+ * `backwards`-filled animation that never runs would otherwise leave content
+ * stuck at opacity 0.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .wordmark .ch,
+  .tagline .rotator > span,
+  .reveal,
+  .stat .n,
+  .pill.verdict { opacity: 1 !important; transform: none !important; filter: none !important; }
+
+  /* Only the first rotating word is shown, since they no longer cycle. */
+  .tagline .rotator > span:not(:first-child) { opacity: 0 !important; }
+
+  .radar .sweep { display: none; }
+  .radar .blip { opacity: 1 !important; }
+  .glyph .trace { stroke-dashoffset: 0 !important; }
+  .scanning .bars i { transform: none !important; opacity: 1 !important; }
+}
