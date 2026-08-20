@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+build/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+*-service-account.json
+gcp-credentials*.json
+firebase-adminsdk*.json
+.firebase-debug.log
+secrets/
+.secrets/
+
+# Test artifacts
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Local run artifacts
+artifacts/
+screenshots/
+reports/*.pdf
+.firebase/
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Vercel
+.vercel
+
+# Machine-local Claude Code settings
+.claude/settings.local.json
