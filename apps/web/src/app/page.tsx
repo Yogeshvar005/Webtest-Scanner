@@ -2,31 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Glyph, Radar, Wordmark } from './glyphs';
-
-interface AssertionResult { description: string; passed: boolean; severity: string; detail?: string }
-interface StepResult {
-  id: string; index: number; intent: string; status: string; durationMs: number;
-  screenshot?: string; resolvedBy?: string; resolutionConfidence?: number;
-  assertions: AssertionResult[]; error?: string; policyReason?: string;
-  consoleErrors: string[]; provenanceSource: string; provenanceConfidence: number;
-}
-interface CheckResult { id: string; name: string; status: string; severity: string; detail: string; evidence?: string[] }
-interface CategoryResult {
-  category: string; label: string; status: string; skippedReason?: string;
-  checks: CheckResult[]; totals: { passed: number; failed: number; warning: number; skipped: number };
-}
-interface Finding { type: string; severity: string; title: string; detail: string; evidence?: string }
-interface CategoryDescriptor { id: string; label: string; description: string; minTier: number }
-
-interface RunResponse {
-  runId: string; targetUrl: string; status: string; durationMs: number; strict: boolean;
-  steps: StepResult[]; findings: Finding[]; categories: CategoryResult[];
-  totals: { total: number; passed: number; failed: number; blocked: number; skipped: number };
-  policyDecision: { effect: string; reason?: string; remediation?: string; code?: string; conditions?: Array<{ detail: string }> };
-  unparsed: string[]; meanConfidence: number;
-  ownership: { recordedTier: number; effectiveTier: number };
-  error?: string; detail?: string; hint?: string; issues?: Array<{ rule: string; message: string }>;
-}
+import { downloadReport } from './report';
+import type { CategoryDescriptor, RunResponse } from './types';
 
 const SAMPLE = `go to /
 verify Example Domain is visible
@@ -79,6 +56,7 @@ export default function Home() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResponse | null>(null);
   const [error, setError] = useState<RunResponse | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetch('/api/categories')
@@ -115,6 +93,16 @@ export default function Home() {
     }
   }
 
+  async function handleDownload() {
+    if (!result) return;
+    setDownloading(true);
+    try {
+      await downloadReport(result);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   const tierNumber = Number(tier);
 
   return (
@@ -138,69 +126,70 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="grid">
-        <div>
-          <div className="card">
-            <h2>Target</h2>
+      <div className="controls-row no-print">
+        <div className="card">
+          <h2>Target</h2>
 
-            <div className="field">
-              <label htmlFor="url">Website URL</label>
-              <input id="url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" />
-            </div>
-
-            <div className="field row">
-              <div>
-                <label htmlFor="env">Environment</label>
-                <select id="env" value={environment} onChange={(e) => setEnvironment(e.target.value)}>
-                  {['LOCAL', 'DEV', 'QA', 'UAT', 'STAGING', 'PRODUCTION'].map((e) => <option key={e}>{e}</option>)}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="tier">Ownership tier</label>
-                <select id="tier" value={tier} onChange={(e) => setTier(e.target.value)}>
-                  <option value="0">0 — Unverified</option>
-                  <option value="1">1 — DNS verified</option>
-                  <option value="2">2 — Verified + attested</option>
-                </select>
-              </div>
-            </div>
+          <div className="field">
+            <label htmlFor="url">Website URL</label>
+            <input id="url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" />
           </div>
 
-          <div className="card">
-            <h2>What to test</h2>
-            {available.length === 0 && <p className="hint">Loading options…</p>}
+          <div className="field">
+            <label htmlFor="env">Environment</label>
+            <select id="env" value={environment} onChange={(e) => setEnvironment(e.target.value)}>
+              {['LOCAL', 'DEV', 'QA', 'UAT', 'STAGING', 'PRODUCTION'].map((e) => <option key={e}>{e}</option>)}
+            </select>
+          </div>
 
-            {available.map((category) => {
-              const locked = tierNumber < category.minTier;
-              const checked = selected.includes(category.id);
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="tier">Ownership tier</label>
+            <select id="tier" value={tier} onChange={(e) => setTier(e.target.value)}>
+              <option value="0">0 — Unverified</option>
+              <option value="1">1 — DNS verified</option>
+              <option value="2">2 — Verified + attested</option>
+            </select>
+          </div>
+        </div>
 
-              return (
-                <label key={category.id} htmlFor={`cat-${category.id}`} className={`option ${locked ? 'locked' : ''}`}>
-                  <input
-                    id={`cat-${category.id}`}
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggle(category.id)}
-                    aria-describedby={`cat-desc-${category.id}`}
-                  />
-                  <Glyph id={category.id} />
-                  <span>
-                    <span className="option-title">
-                      {category.label}
-                      {category.minTier > 0 && <em className="tier-badge">tier {category.minTier}+</em>}
-                    </span>
-                    <span className="option-desc" id={`cat-desc-${category.id}`}>{category.description}</span>
-                    {locked && checked && (
-                      <span className="option-warn">
-                        Will be skipped: this target is tier {tierNumber} and this needs tier {category.minTier}.
+        <div className="card">
+          <h2>What to test</h2>
+          {available.length === 0 && <p className="hint">Loading options…</p>}
+
+          <div className="checklist-scroll">
+            <div className="checklist-grid">
+              {available.map((category) => {
+                const locked = tierNumber < category.minTier;
+                const checked = selected.includes(category.id);
+
+                return (
+                  <label key={category.id} htmlFor={`cat-${category.id}`} className={`option ${locked ? 'locked' : ''}`}>
+                    <input
+                      id={`cat-${category.id}`}
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(category.id)}
+                      aria-describedby={`cat-desc-${category.id}`}
+                    />
+                    <Glyph id={category.id} />
+                    <span>
+                      <span className="option-title">
+                        {category.label}
+                        {category.minTier > 0 && <em className="tier-badge">tier {category.minTier}+</em>}
                       </span>
-                    )}
-                  </span>
-                </label>
-              );
-            })}
+                      <span className="option-desc" id={`cat-desc-${category.id}`}>{category.description}</span>
+                      {locked && checked && (
+                        <span className="option-warn">
+                          Skipped: target is tier {tierNumber}, this needs tier {category.minTier}.
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
 
-            <label htmlFor="strict-mode" className="option" style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+            <label htmlFor="strict-mode" className="option strict-option">
               <input id="strict-mode" type="checkbox" checked={strict} onChange={() => setStrict(!strict)} />
               <Glyph id="strict" />
               <span>
@@ -212,29 +201,30 @@ export default function Home() {
               </span>
             </label>
           </div>
-
-          <div className="card">
-            <h2>Scenario</h2>
-            <div className="field">
-              <label htmlFor="instructions">Steps, in plain English</label>
-              <textarea id="instructions" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
-            </div>
-
-            <button className="primary" onClick={run} disabled={running || selected.length === 0}>
-              {running ? <><span className="spinner" />Running in a real browser…</> : 'Run test'}
-            </button>
-
-            {selected.length === 0 && <p className="hint">Select at least one kind of testing.</p>}
-
-            <p className="hint">
-              Understood verbs: <code>go to /path</code> · <code>click X</code> · <code>enter Y into X</code> ·{' '}
-              <code>fill X with Y</code> · <code>search for X</code> · <code>verify X</code> ·{' '}
-              <code>wait for X</code> · <code>screenshot</code>
-            </p>
-          </div>
         </div>
 
-        <div>
+        <div className="card">
+          <h2>Scenario</h2>
+          <div className="field">
+            <label htmlFor="instructions">Steps, in plain English</label>
+            <textarea id="instructions" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+          </div>
+
+          <button className="primary" onClick={run} disabled={running || selected.length === 0}>
+            {running ? <><span className="spinner" />Running in a real browser…</> : 'Run test'}
+          </button>
+
+          {selected.length === 0 && <p className="hint">Select at least one kind of testing.</p>}
+
+          <p className="hint">
+            Understood verbs: <code>go to /path</code> · <code>click X</code> · <code>enter Y into X</code> ·{' '}
+            <code>fill X with Y</code> · <code>search for X</code> · <code>verify X</code> ·{' '}
+            <code>wait for X</code> · <code>screenshot</code>
+          </p>
+        </div>
+      </div>
+
+      <div className="results">
           {error && (
             <div className="card">
               <h2>Run refused</h2>
@@ -294,6 +284,15 @@ export default function Home() {
                 {result.unparsed.length > 0 && (
                   <div className="hint">Not understood, so not executed: {result.unparsed.map((u) => `"${u}"`).join(', ')}</div>
                 )}
+
+                <div className="row no-print" style={{ marginTop: 16 }}>
+                  <button className="secondary" onClick={handleDownload} disabled={downloading}>
+                    {downloading ? <><span className="spinner" />Preparing…</> : 'Download report'}
+                  </button>
+                  <button className="secondary" onClick={() => window.print()}>
+                    Print / Save as PDF
+                  </button>
+                </div>
               </div>
 
               {result.categories.length > 0 && (
@@ -391,7 +390,6 @@ export default function Home() {
             </>
           )}
         </div>
-      </div>
     </div>
   );
 }
