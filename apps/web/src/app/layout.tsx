@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { codeMono, uiSans } from './fonts';
 import './globals.css';
 import './motion.css';
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${uiSans.variable} ${codeMono.variable}`}>
       <body>{children}</body>
     </html>
   );

@@ -10,6 +10,9 @@
   --fail: #f87171;
   --warn: #fbbf24;
   --block: #a78bfa;
+  /* Focus ring: highest-contrast token the design-system search returned for
+     a dark developer-tool palette (#FFFFFF), used only for :focus-visible. */
+  --ring: #ffffff;
   --radius: 10px;
   color-scheme: dark;
 }
@@ -21,7 +24,20 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 15px/1.55 var(--font-ui), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/*
+ * A visible keyboard-focus indicator on every interactive element.
+ * ui-ux-pro-max's own priority-1 accessibility check flags "removing focus
+ * rings" as the anti-pattern to avoid; :focus-visible (not a blanket
+ * `outline: none`) means mouse clicks stay clean while Tab navigation is
+ * always visible, at 3:1+ contrast against every surface in this palette.
+ */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 a { color: var(--accent); }
@@ -55,10 +71,9 @@ input[type="text"], textarea, select {
   color: var(--text);
   padding: 10px 12px;
   font: inherit;
-  outline: none;
 }
 input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--accent); }
-textarea { min-height: 150px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+textarea { min-height: 150px; resize: vertical; font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
 
 button.primary {
   width: 100%;
@@ -117,7 +132,7 @@ button.primary:disabled { opacity: 0.55; cursor: progress; }
 .finding.low { border-left-color: var(--muted); }
 .finding .t { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
 .finding .d { font-size: 13px; color: var(--muted); }
-.finding pre { margin: 8px 0 0; padding: 8px 10px; background: #0d1017; border-radius: 6px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+.finding pre { margin: 8px 0 0; padding: 8px 10px; background: #0d1017; border-radius: 6px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--font-mono), ui-monospace, monospace; }
 
 .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 48px 20px; }
 
@@ -125,11 +140,12 @@ button.primary:disabled { opacity: 0.55; cursor: progress; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 details.raw summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-details.raw pre { background: #0d1017; border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 12px; max-height: 380px; }
+details.raw pre { background: #0d1017; border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 12px; max-height: 380px; font-family: var(--font-mono), ui-monospace, monospace; }
 
 /* --- category selection --- */
-.option { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; cursor: pointer; }
-.option input[type="checkbox"] { margin-top: 3px; width: 15px; height: 15px; accent-color: var(--accent); flex: none; cursor: pointer; }
+.option { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 4px; padding: 6px 4px; border-radius: 8px; cursor: pointer; transition: background 150ms ease; }
+.option:hover { background: var(--panel-2); }
+.option input[type="checkbox"] { margin-top: 2px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; cursor: pointer; }
 .option > span { display: flex; flex-direction: column; gap: 2px; }
 .option-title { font-size: 14px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 7px; }
 .option-desc { font-size: 12px; color: var(--muted); line-height: 1.45; }

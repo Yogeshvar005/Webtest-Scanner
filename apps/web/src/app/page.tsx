@@ -38,6 +38,36 @@ function statusClass(status: string): string {
   return ['passed', 'failed', 'blocked', 'warning', 'skipped'].includes(status) ? status : 'skipped';
 }
 
+/**
+ * The single sentence a screen-reader user hears for a completed run. Step
+ * totals alone are not enough: a scenario can pass every step while a
+ * selected category (security headers, accessibility) still fails, and the
+ * announcement must say so or it actively contradicts the visible verdict
+ * pill next to it.
+ */
+function runSummary(result: RunResponse): string {
+  const parts = [`Run ${result.status}.`];
+
+  parts.push(
+    `${result.totals.passed} of ${result.totals.total} steps passed` +
+      (result.totals.failed > 0 ? `, ${result.totals.failed} failed` : '') +
+      (result.totals.blocked > 0 ? `, ${result.totals.blocked} blocked by policy` : '') +
+      '.',
+  );
+
+  const failedCategories = (result.categories ?? []).filter((c) => c.status === 'failed');
+  const warnedCategories = (result.categories ?? []).filter((c) => c.status === 'warning');
+
+  if (failedCategories.length > 0) {
+    parts.push(`${failedCategories.length} test ${failedCategories.length === 1 ? 'category' : 'categories'} failed: ${failedCategories.map((c) => c.label).join(', ')}.`);
+  }
+  if (warnedCategories.length > 0) {
+    parts.push(`${warnedCategories.length} ${warnedCategories.length === 1 ? 'category has' : 'categories have'} warnings: ${warnedCategories.map((c) => c.label).join(', ')}.`);
+  }
+
+  return parts.join(' ');
+}
+
 export default function Home() {
   const [url, setUrl] = useState('https://example.com');
   const [instructions, setInstructions] = useState(SAMPLE);
@@ -224,10 +254,10 @@ export default function Home() {
           )}
 
           {running && (
-            <div className="card">
+            <div className="card" aria-busy="true">
               <div className="scanning">
                 <div className="bars" aria-hidden><i /><i /><i /><i /><i /></div>
-                <div className="phase" role="status">Driving a real browser through your scenario…</div>
+                <div className="phase" role="status" aria-atomic="true">Driving a real browser through your scenario…</div>
               </div>
             </div>
           )}
@@ -236,6 +266,9 @@ export default function Home() {
             <>
               <div className="card reveal reveal-1">
                 <h2>Result</h2>
+                <p className="sr-only" role="status" aria-atomic="true">
+                  {runSummary(result)}
+                </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                   <span className={`pill verdict ${statusClass(result.status)}`}>{result.status}</span>
                   {result.strict && <span className="pill">strict</span>}
