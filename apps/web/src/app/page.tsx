@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Glyph, Radar, Wordmark } from './glyphs';
-import { downloadReport } from './report';
+import { downloadReport, printReport } from './report';
+import { ResultsPanel } from './ResultsPanel';
 import type { CategoryDescriptor, RunResponse } from './types';
 
 const SAMPLE = `go to /
@@ -10,40 +11,6 @@ verify Example Domain is visible
 take a screenshot`;
 
 const DEFAULT_SELECTED = ['functional', 'ui', 'accessibility', 'security-passive'];
-
-function statusClass(status: string): string {
-  return ['passed', 'failed', 'blocked', 'warning', 'skipped'].includes(status) ? status : 'skipped';
-}
-
-/**
- * The single sentence a screen-reader user hears for a completed run. Step
- * totals alone are not enough: a scenario can pass every step while a
- * selected category (security headers, accessibility) still fails, and the
- * announcement must say so or it actively contradicts the visible verdict
- * pill next to it.
- */
-function runSummary(result: RunResponse): string {
-  const parts = [`Run ${result.status}.`];
-
-  parts.push(
-    `${result.totals.passed} of ${result.totals.total} steps passed` +
-      (result.totals.failed > 0 ? `, ${result.totals.failed} failed` : '') +
-      (result.totals.blocked > 0 ? `, ${result.totals.blocked} blocked by policy` : '') +
-      '.',
-  );
-
-  const failedCategories = (result.categories ?? []).filter((c) => c.status === 'failed');
-  const warnedCategories = (result.categories ?? []).filter((c) => c.status === 'warning');
-
-  if (failedCategories.length > 0) {
-    parts.push(`${failedCategories.length} test ${failedCategories.length === 1 ? 'category' : 'categories'} failed: ${failedCategories.map((c) => c.label).join(', ')}.`);
-  }
-  if (warnedCategories.length > 0) {
-    parts.push(`${warnedCategories.length} ${warnedCategories.length === 1 ? 'category has' : 'categories have'} warnings: ${warnedCategories.map((c) => c.label).join(', ')}.`);
-  }
-
-  return parts.join(' ');
-}
 
 export default function Home() {
   const [url, setUrl] = useState('https://example.com');
@@ -101,6 +68,11 @@ export default function Home() {
     } finally {
       setDownloading(false);
     }
+  }
+
+  function handlePrint() {
+    if (!result) return;
+    void printReport(result);
   }
 
   const tierNumber = Number(tier);
@@ -253,141 +225,7 @@ export default function Home() {
           )}
 
           {result && (
-            <>
-              <div className="card reveal reveal-1">
-                <h2>Result</h2>
-                <p className="sr-only" role="status" aria-atomic="true">
-                  {runSummary(result)}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-                  <span className={`pill verdict ${statusClass(result.status)}`}>{result.status}</span>
-                  {result.strict && <span className="pill">strict</span>}
-                  <span style={{ color: 'var(--muted)', fontSize: 13 }}>
-                    {result.targetUrl} · {(result.durationMs / 1000).toFixed(1)}s · run {result.runId}
-                  </span>
-                </div>
-
-                <div className="stats">
-                  <div className="stat"><div className="n">{result.totals.total}</div><div className="k">Steps</div></div>
-                  <div className="stat"><div className="n" style={{ color: 'var(--pass)' }}>{result.totals.passed}</div><div className="k">Passed</div></div>
-                  <div className="stat"><div className="n" style={{ color: 'var(--fail)' }}>{result.totals.failed}</div><div className="k">Failed</div></div>
-                  <div className="stat"><div className="n" style={{ color: 'var(--block)' }}>{result.totals.blocked}</div><div className="k">Blocked</div></div>
-                  <div className="stat"><div className="n">{Math.round(result.meanConfidence * 100)}%</div><div className="k">Confidence</div></div>
-                </div>
-
-                <div className="meta" style={{ marginTop: 14, marginBottom: 0 }}>
-                  <span>Policy: <strong>{result.policyDecision.effect}</strong></span>
-                  <span>Ownership tier: <strong>{result.ownership.effectiveTier}</strong></span>
-                </div>
-                {result.policyDecision.reason && <div className="hint">{result.policyDecision.reason}</div>}
-                {result.policyDecision.conditions?.map((c, i) => <div key={i} className="hint">Condition: {c.detail}</div>)}
-                {result.unparsed.length > 0 && (
-                  <div className="hint">Not understood, so not executed: {result.unparsed.map((u) => `"${u}"`).join(', ')}</div>
-                )}
-
-                <div className="row no-print" style={{ marginTop: 16 }}>
-                  <button className="secondary" onClick={handleDownload} disabled={downloading}>
-                    {downloading ? <><span className="spinner" />Preparing…</> : 'Download report'}
-                  </button>
-                  <button className="secondary" onClick={() => window.print()}>
-                    Print / Save as PDF
-                  </button>
-                </div>
-              </div>
-
-              {result.categories.length > 0 && (
-                <div className="card reveal reveal-2">
-                  <h2>Categories</h2>
-                  {result.categories.map((category) => (
-                    <details key={category.category} className="cat" open={category.status === 'failed'}>
-                      <summary>
-                        <span className={`pill ${statusClass(category.status)}`}>{category.status}</span>
-                        <Glyph id={category.category} />
-                        <span className="cat-label">{category.label}</span>
-                        <span className="cat-totals">
-                          {category.totals.passed}&nbsp;pass · {category.totals.failed}&nbsp;fail · {category.totals.warning}&nbsp;warn
-                        </span>
-                      </summary>
-
-                      {category.skippedReason && <div className="skip-reason">{category.skippedReason}</div>}
-
-                      {category.checks.map((check) => (
-                        <div key={check.id} className={`check ${statusClass(check.status)}`}>
-                          <div className="check-head">
-                            <span className={`pill ${statusClass(check.status)}`}>{check.status}</span>
-                            <strong>{check.name}</strong>
-                            <span className="sev">{check.severity}</span>
-                          </div>
-                          <div className="check-detail">{check.detail}</div>
-                          {check.evidence && check.evidence.length > 0 && (
-                            <pre>{check.evidence.join('\n')}</pre>
-                          )}
-                        </div>
-                      ))}
-                    </details>
-                  ))}
-                </div>
-              )}
-
-              {result.findings.length > 0 && (
-                <div className="card reveal reveal-3">
-                  <h2>Findings ({result.findings.length})</h2>
-                  {result.findings.map((f, i) => (
-                    <div key={i} className={`finding ${f.severity}`}>
-                      <div className="t">{f.title}</div>
-                      <div className="d">{f.detail}</div>
-                      {f.evidence && <pre>{f.evidence}</pre>}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {result.steps.length > 0 && (
-                <div className="card reveal reveal-4">
-                  <h2>Steps</h2>
-                  {result.steps.map((step) => (
-                    <div className="step" key={step.id}>
-                      <div className="head">
-                        <span className="idx">{step.index + 1}</span>
-                        <span className="intent">{step.intent}</span>
-                        <span className={`pill ${step.provenanceSource}`}>{step.provenanceSource}</span>
-                        <span className={`pill ${statusClass(step.status)}`}>{step.status}</span>
-                        <span className="dur">{step.durationMs}ms</span>
-                      </div>
-                      <div className="body">
-                        <div className="meta">
-                          {step.resolvedBy && <span>Matched by <strong>{step.resolvedBy}</strong> ({Math.round((step.resolutionConfidence ?? 0) * 100)}%)</span>}
-                          <span>Authored by <strong>{step.provenanceSource}</strong> ({Math.round(step.provenanceConfidence * 100)}%)</span>
-                        </div>
-
-                        {step.error && <div className="err">{step.error}</div>}
-                        {step.policyReason && <div className="err">Blocked by policy: {step.policyReason}</div>}
-
-                        {step.assertions.map((a, i) => (
-                          <div key={i} className={`assert ${a.passed ? 'ok' : 'bad'}`}>
-                            {a.passed ? '✓' : '✗'} {a.description}
-                            {a.detail && <div style={{ color: 'var(--muted)', marginTop: 2 }}>{a.detail}</div>}
-                          </div>
-                        ))}
-
-                        {step.consoleErrors.slice(0, 3).map((c, i) => (
-                          <div key={i} className="assert bad">Console error: {c}</div>
-                        ))}
-
-                        {step.screenshot && <img src={step.screenshot} alt={`Screenshot after: ${step.intent}`} />}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="card">
-                <details className="raw">
-                  <summary>Raw run data (the structured DSL and result)</summary>
-                  <pre>{JSON.stringify(result, null, 2)}</pre>
-                </details>
-              </div>
-            </>
+            <ResultsPanel result={result} downloading={downloading} onDownload={handleDownload} onPrint={handlePrint} />
           )}
         </div>
     </div>
