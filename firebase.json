@@ -1,0 +1,11 @@
+{
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Webtest Scanner",
+        "supportEmail": "yogimanickam7989@gmail.com"
+      }
+    }
+  }
+}
