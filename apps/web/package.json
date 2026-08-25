@@ -10,19 +10,20 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@wts/dsl": "*",
     "@wts/analyzers": "*",
+    "@wts/dsl": "*",
     "@wts/nlp": "*",
     "@wts/ownership": "*",
     "@wts/policy": "*",
     "@wts/runner": "*",
+    "firebase": "^12.18.0",
     "next": "^15.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
-    "@playwright/test": "^1.55.0"
+    "@types/react-dom": "^19.1.0"
   }
 }

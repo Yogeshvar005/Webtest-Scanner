@@ -191,10 +191,23 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         });
       }
     } else {
-      browser = await chromium.launch({
+      const launchArgs = ['--disable-http2'];
+      const launchOptions: any = {
         headless: options.headless ?? true,
-        args: ['--disable-http2'], // Bypasses HTTP/2 fingerprinting that causes ERR_HTTP2_PROTOCOL_ERROR on sites like Etihad
-      });
+        args: launchArgs,
+      };
+
+      if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+        try {
+          const chromiumServerless = (await import('@sparticuz/chromium')).default;
+          launchOptions.executablePath = await chromiumServerless.executablePath();
+          launchOptions.args = [...chromiumServerless.args, ...launchArgs];
+        } catch {
+          // Fall back to default local chromium binary
+        }
+      }
+
+      browser = await chromium.launch(launchOptions);
       const context = await browser.newContext({
         viewport: { width: 1280, height: 800 },
         userAgent: 'Mozilla/5.0 (compatible; WebtestScanner/0.1; +https://github.com/webtest-scanner)',

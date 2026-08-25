@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Glyph, Radar, Wordmark } from './glyphs';
 import { printReport } from './report';
 import { ResultsPanel } from './ResultsPanel';
+import { useAuth } from '../lib/auth-context';
 import type { CategoryDescriptor, RunResponse } from './types';
 
 const SAMPLE = `go to /
@@ -96,6 +97,7 @@ function EmptyState() {
 }
 
 export default function Home() {
+  const { user, logout } = useAuth();
   const [url, setUrl]                   = useState('https://example.com');
   const [instructions, setInstructions] = useState('');
   const [tier, setTier]                 = useState('0');
@@ -108,8 +110,6 @@ export default function Home() {
   const [result, setResult]             = useState<RunResponse | null>(null);
   const [error, setError]               = useState<RunResponse | null>(null);
   const [pdfing, setPdfing]             = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userEmail, setUserEmail]       = useState('');
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -123,19 +123,10 @@ export default function Home() {
       .catch(() => {
         // Keep UI functional even if categories fail to load
       });
-
-    // Check auth state
-    if (typeof window !== 'undefined') {
-      setIsAuthenticated(localStorage.getItem('isAuthenticated') === 'true');
-      setUserEmail(localStorage.getItem('userEmail') || '');
-    }
   }, []);
 
   function handleLogout() {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userEmail');
-    setIsAuthenticated(false);
-    setUserEmail('');
+    logout().catch((err) => console.error('Logout error:', err));
   }
 
   function toggle(id: string) {
@@ -221,17 +212,19 @@ export default function Home() {
         </div>
         
         <div style={{ paddingTop: '8px' }}>
-          {isAuthenticated ? (
+          {user ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <span style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 600 }}>
-                {userEmail}
+                {user.displayName || user.email}
               </span>
               <button onClick={handleLogout} className="secondary" style={{ textDecoration: 'none' }}>
                 Log Out
               </button>
             </div>
           ) : (
-            <Link href="/login" className="secondary" style={{ textDecoration: 'none' }}>Log In</Link>
+            <Link href="/login" className="secondary" style={{ textDecoration: 'none' }}>
+              Log In
+            </Link>
           )}
         </div>
       </header>
