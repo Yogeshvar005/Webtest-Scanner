@@ -2,6 +2,7 @@
   "name": "webtest-scanner",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@11.4.2",
   "type": "module",
   "workspaces": [
     "apps/*",

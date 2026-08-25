@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Glyph, Radar, Wordmark } from './glyphs';
-import { downloadReport, printReport } from './report';
+import { printReport } from './report';
 import { ResultsPanel } from './ResultsPanel';
 import type { CategoryDescriptor, RunResponse } from './types';
 
@@ -11,33 +12,141 @@ verify Example Domain is visible
 take a screenshot`;
 
 const DEFAULT_SELECTED = ['functional', 'ui', 'accessibility', 'security-passive'];
+const MAX_INSTRUCTIONS = 2000;
+
+/** Validate that the URL looks like a real http/https address. */
+function isValidUrl(value: string): boolean {
+  try {
+    const withProto = value.startsWith('http') 
+      ? value 
+      : (value.startsWith('localhost') || value.startsWith('127.0.0.1') ? `http://${value}` : `https://${value}`);
+    const u = new URL(withProto);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+const TIER_HELP: Record<string, string> = {
+  '0': 'Unverified — observation only (GET/HEAD, ≤1 rps, screenshots, passive checks).',
+  '1': 'DNS verified — forms, CRUD, authenticated journeys, API tests.',
+  '2': 'DNS + signed attestation — active security probing, IDOR, session probes.',
+};
+
+/** Elapsed time counter displayed during a run. */
+function ElapsedTimer({ startedAt }: { startedAt: number }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 500);
+    return () => clearInterval(id);
+  }, [startedAt]);
+
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  return (
+    <span className="elapsed">
+      {m > 0 ? `${m}m ` : ''}{s}s elapsed
+    </span>
+  );
+}
+
+/** Icon: Download */
+function IconDownload() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M2.5 11.5v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1.5" />
+      <path d="M8 2.5v7M5 7l3 3 3-3" />
+    </svg>
+  );
+}
+
+/** Icon: Print */
+function IconPrint() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="7" width="10" height="6" rx="1" />
+      <path d="M5 7V3h6v4" />
+      <path d="M5 11H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2" />
+      <circle cx="11.5" cy="9" r="0.7" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** Richer empty state with floating icon and helpful guidance. */
+function EmptyState() {
+  return (
+    <div className="card">
+      <div className="empty">
+        <div className="empty-icon" role="img" aria-label="Radar scanner">
+          <Radar />
+        </div>
+        <div className="empty-title">Ready to scan</div>
+        <div className="empty-desc">
+          Enter a URL, choose what to test, write your scenario steps,
+          then click <strong>Run test</strong>. A real Chromium browser
+          will work through every step and screenshot the result.
+        </div>
+        <p className="hint" style={{ marginTop: 0, textAlign: 'center' }}>
+          Try: <code>https://example.com</code>
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
-  const [url, setUrl] = useState('https://example.com');
-  const [instructions, setInstructions] = useState(SAMPLE);
-  const [tier, setTier] = useState('0');
-  const [environment, setEnvironment] = useState('QA');
-  const [strict, setStrict] = useState(false);
-  const [available, setAvailable] = useState<CategoryDescriptor[]>([]);
-  const [selected, setSelected] = useState<string[]>(DEFAULT_SELECTED);
-  const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<RunResponse | null>(null);
-  const [error, setError] = useState<RunResponse | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [url, setUrl]                   = useState('https://example.com');
+  const [instructions, setInstructions] = useState('');
+  const [tier, setTier]                 = useState('0');
+  const [environment, setEnvironment]   = useState('QA');
+  const [strict, setStrict]             = useState(false);
+  const [available, setAvailable]       = useState<CategoryDescriptor[]>([]);
+  const [selected, setSelected]         = useState<string[]>(DEFAULT_SELECTED);
+  const [running, setRunning]           = useState(false);
+  const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
+  const [result, setResult]             = useState<RunResponse | null>(null);
+  const [error, setError]               = useState<RunResponse | null>(null);
+  const [pdfing, setPdfing]             = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userEmail, setUserEmail]       = useState('');
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const urlTouched = url.trim().length > 0;
+  const urlValid   = isValidUrl(url);
 
   useEffect(() => {
     fetch('/api/categories')
       .then((r) => r.json())
       .then((d: { categories: CategoryDescriptor[] }) => setAvailable(d.categories))
-      .catch(() => undefined);
+      .catch(() => {
+        // Keep UI functional even if categories fail to load
+      });
+
+    // Check auth state
+    if (typeof window !== 'undefined') {
+      setIsAuthenticated(localStorage.getItem('isAuthenticated') === 'true');
+      setUserEmail(localStorage.getItem('userEmail') || '');
+    }
   }, []);
+
+  function handleLogout() {
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('userEmail');
+    setIsAuthenticated(false);
+    setUserEmail('');
+  }
 
   function toggle(id: string) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
   }
 
   async function run() {
+    if (!urlValid || selected.length === 0 || running) return;
+
     setRunning(true);
+    setRunStartedAt(Date.now());
     setResult(null);
     setError(null);
 
@@ -46,8 +155,12 @@ export default function Home() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          url, instructions, environment,
-          ownershipTier: Number(tier), categories: selected, strict,
+          url,
+          instructions,
+          environment,
+          ownershipTier: Number(tier),
+          categories: selected,
+          strict,
         }),
       });
       const data = (await response.json()) as RunResponse;
@@ -57,29 +170,39 @@ export default function Home() {
       setError({ error: e instanceof Error ? e.message : 'Request failed' } as RunResponse);
     } finally {
       setRunning(false);
+      setRunStartedAt(null);
     }
   }
 
-  async function handleDownload() {
-    if (!result) return;
-    setDownloading(true);
-    try {
-      await downloadReport(result);
-    } finally {
-      setDownloading(false);
+  /** Cmd+Enter / Ctrl+Enter anywhere on the page triggers Run. */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        run();
+      }
     }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, instructions, tier, environment, strict, selected, running, urlValid]);
+
+  function handleDownloadPdf() {
+    if (!result || pdfing) return;
+    setPdfing(true);
+    printReport(result)
+      .catch((e) => console.error('PDF export failed:', e))
+      .finally(() => setPdfing(false));
   }
 
-  function handlePrint() {
-    if (!result) return;
-    void printReport(result);
-  }
-
-  const tierNumber = Number(tier);
+  const tierNumber   = Number(tier);
+  const charsLeft    = MAX_INSTRUCTIONS - instructions.length;
+  const charClass    = charsLeft < 100 ? 'at-limit' : charsLeft < 300 ? 'near-limit' : '';
 
   return (
     <div className="wrap">
-      <header className="masthead">
+      {/* ── Header ── */}
+      <header className="masthead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div className="masthead-row">
           <Radar />
           <div>
@@ -96,21 +219,65 @@ export default function Home() {
             </p>
           </div>
         </div>
+        
+        <div style={{ paddingTop: '8px' }}>
+          {isAuthenticated ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 600 }}>
+                {userEmail}
+              </span>
+              <button onClick={handleLogout} className="secondary" style={{ textDecoration: 'none' }}>
+                Log Out
+              </button>
+            </div>
+          ) : (
+            <Link href="/login" className="secondary" style={{ textDecoration: 'none' }}>Log In</Link>
+          )}
+        </div>
       </header>
 
+      {/* ── Three-column controls ── */}
       <div className="controls-row no-print">
+
+        {/* Card 1: Target */}
         <div className="card">
           <h2>Target</h2>
 
           <div className="field">
             <label htmlFor="url">Website URL</label>
-            <input id="url" type="text" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" />
+            <div className="input-wrap">
+              <input
+                id="url"
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://example.com"
+                className={urlTouched ? (urlValid ? 'url-valid' : 'url-invalid') : ''}
+                autoComplete="url"
+                spellCheck={false}
+              />
+              {urlTouched && (
+                <span className="input-valid-icon" aria-hidden>
+                  {urlValid ? '✓' : '✗'}
+                </span>
+              )}
+            </div>
+            {urlTouched && !urlValid && (
+              <p className="hint" style={{ color: 'var(--fail)', marginTop: 5 }}>
+                Enter a valid URL starting with https:// or http://
+              </p>
+            )}
           </div>
 
           <div className="field">
             <label htmlFor="env">Environment</label>
             <select id="env" value={environment} onChange={(e) => setEnvironment(e.target.value)}>
-              {['LOCAL', 'DEV', 'QA', 'UAT', 'STAGING', 'PRODUCTION'].map((e) => <option key={e}>{e}</option>)}
+              <option value="LOCAL">LOCAL — Local Development</option>
+              <option value="DEV">DEV — Development</option>
+              <option value="QA">QA — Quality Assurance</option>
+              <option value="UAT">UAT — User Acceptance Testing</option>
+              <option value="STAGING">STAGING — Staging / Pre-production</option>
+              <option value="PRODUCTION">PRODUCTION — Live Production</option>
             </select>
           </div>
 
@@ -121,21 +288,31 @@ export default function Home() {
               <option value="1">1 — DNS verified</option>
               <option value="2">2 — Verified + attested</option>
             </select>
+            <div className="tier-help" aria-live="polite">
+              {TIER_HELP[tier]}
+            </div>
           </div>
         </div>
 
+        {/* Card 2: What to test */}
         <div className="card">
           <h2>What to test</h2>
-          {available.length === 0 && <p className="hint">Loading options…</p>}
+          {available.length === 0 && (
+            <p className="hint">Loading options…</p>
+          )}
 
           <div className="checklist-scroll">
             <div className="checklist-grid">
               {available.map((category) => {
-                const locked = tierNumber < category.minTier;
+                const locked  = tierNumber < category.minTier;
                 const checked = selected.includes(category.id);
 
                 return (
-                  <label key={category.id} htmlFor={`cat-${category.id}`} className={`option ${locked ? 'locked' : ''}`}>
+                  <label
+                    key={category.id}
+                    htmlFor={`cat-${category.id}`}
+                    className={`option ${locked ? 'locked' : ''}`}
+                  >
                     <input
                       id={`cat-${category.id}`}
                       type="checkbox"
@@ -147,9 +324,13 @@ export default function Home() {
                     <span>
                       <span className="option-title">
                         {category.label}
-                        {category.minTier > 0 && <em className="tier-badge">tier {category.minTier}+</em>}
+                        {category.minTier > 0 && (
+                          <em className="tier-badge">tier {category.minTier}+</em>
+                        )}
                       </span>
-                      <span className="option-desc" id={`cat-desc-${category.id}`}>{category.description}</span>
+                      <span className="option-desc" id={`cat-desc-${category.id}`}>
+                        {category.description}
+                      </span>
                       {locked && checked && (
                         <span className="option-warn">
                           Skipped: target is tier {tierNumber}, this needs tier {category.minTier}.
@@ -162,72 +343,126 @@ export default function Home() {
             </div>
 
             <label htmlFor="strict-mode" className="option strict-option">
-              <input id="strict-mode" type="checkbox" checked={strict} onChange={() => setStrict(!strict)} />
+              <input
+                id="strict-mode"
+                type="checkbox"
+                checked={strict}
+                onChange={() => setStrict(!strict)}
+              />
               <Glyph id="strict" />
               <span>
                 <span className="option-title">Strict mode</span>
                 <span className="option-desc">
-                  Treat every warning as a failure. Heuristic checks — overlap, clipped text, tap targets —
-                  produce false positives on real sites, so they only warn by default.
+                  Treat every warning as a failure. Heuristic checks — overlap, clipped text,
+                  tap targets — produce false positives on real sites, so they only warn by
+                  default.
                 </span>
               </span>
             </label>
           </div>
         </div>
 
+        {/* Card 3: Scenario + Run */}
         <div className="card">
           <h2>Scenario</h2>
           <div className="field">
             <label htmlFor="instructions">Steps, in plain English</label>
-            <textarea id="instructions" value={instructions} onChange={(e) => setInstructions(e.target.value)} />
+            <textarea
+              id="instructions"
+              ref={textareaRef}
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
+              placeholder={SAMPLE}
+            />
+            <div className={`char-counter ${charClass}`}>
+              {charsLeft} / {MAX_INSTRUCTIONS} chars remaining
+            </div>
           </div>
 
-          <button className="primary" onClick={run} disabled={running || selected.length === 0}>
-            {running ? <><span className="spinner" />Running in a real browser…</> : 'Run test'}
+          <button
+            className="primary"
+            onClick={run}
+            disabled={running || selected.length === 0 || !urlValid}
+            aria-label="Run test in a real browser"
+          >
+            {running
+              ? <><span className="spinner" />Running in a real browser…</>
+              : 'Run test'
+            }
           </button>
 
-          {selected.length === 0 && <p className="hint">Select at least one kind of testing.</p>}
+          <p className="run-hint">
+            <kbd>⌘</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
+          </p>
+
+          {selected.length === 0 && (
+            <p className="hint" style={{ color: 'var(--warn)' }}>
+              Select at least one kind of testing.
+            </p>
+          )}
 
           <p className="hint">
-            Understood verbs: <code>go to /path</code> · <code>click X</code> · <code>enter Y into X</code> ·{' '}
+            Verbs: <code>go to /path</code> · <code>click X</code> · <code>enter Y into X</code> ·{' '}
             <code>fill X with Y</code> · <code>search for X</code> · <code>verify X</code> ·{' '}
             <code>wait for X</code> · <code>screenshot</code>
           </p>
         </div>
       </div>
 
+      {/* ── Results area ── */}
       <div className="results">
-          {error && (
-            <div className="card">
-              <h2>Run refused</h2>
-              <div className="err">
-                <strong>{error.error}</strong>
-                {error.detail && <div style={{ marginTop: 6 }}>{error.detail}</div>}
-                {error.hint && <div style={{ marginTop: 6 }}>{error.hint}</div>}
-              </div>
-              {error.issues?.map((issue, i) => (
-                <div key={i} className="assert bad"><strong>{issue.rule}</strong> — {issue.message}</div>
-              ))}
+        {/* Error */}
+        {error && (
+          <div className="card">
+            <h2>Run refused</h2>
+            <div className="err">
+              <strong>{error.error}</strong>
+              {error.detail && <div style={{ marginTop: 6 }}>{error.detail}</div>}
+              {error.hint   && <div style={{ marginTop: 6 }}>{error.hint}</div>}
             </div>
-          )}
-
-          {!result && !error && !running && (
-            <div className="card"><div className="empty">Pick what to test, then run.</div></div>
-          )}
-
-          {running && (
-            <div className="card" aria-busy="true">
-              <div className="scanning">
-                <div className="bars" aria-hidden><i /><i /><i /><i /><i /></div>
-                <div className="phase" role="status" aria-atomic="true">Driving a real browser through your scenario…</div>
+            {error.issues?.map((issue, i) => (
+              <div key={i} className="assert bad">
+                <strong>{issue.rule}</strong> — {issue.message}
               </div>
-            </div>
-          )}
+            ))}
+            <button
+              className="secondary"
+              style={{ marginTop: 12 }}
+              onClick={run}
+              disabled={running || !urlValid}
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
-          {result && (
-            <ResultsPanel result={result} downloading={downloading} onDownload={handleDownload} onPrint={handlePrint} />
-          )}
-        </div>
+        {/* Empty state */}
+        {!result && !error && !running && <EmptyState />}
+
+        {/* Running */}
+        {running && runStartedAt && (
+          <div className="card" aria-busy="true">
+            <div className="scanning">
+              <div className="bars" aria-hidden>
+                <i /><i /><i /><i /><i />
+              </div>
+              <div className="phase" role="status" aria-atomic="true">
+                Driving a real browser through your scenario…
+              </div>
+              <ElapsedTimer startedAt={runStartedAt} />
+            </div>
+          </div>
+        )}
+
+        {/* Results */}
+        {result && (
+          <ResultsPanel
+            result={result}
+            onDownload={handleDownloadPdf}
+            pdfing={pdfing}
+          />
+        )}
+      </div>
     </div>
   );
 }

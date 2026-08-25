@@ -172,3 +172,13 @@ describe('parseScenario', () => {
     expect(scenario.title).toBe('Open /pricing');
   });
 });
+
+describe('data-forge integration', () => {
+  test('resolves {{random.email}} in fill actions', () => {
+    const { step } = parseLine('fill Email with {{random.email}}', 0);
+    const action = step?.action as any;
+    expect(action.type).toBe('fill');
+    expect(action.value.value).toMatch(/^[a-z0-9]+@example\.com$/);
+    expect(action.value.value).not.toBe('{{random.email}}');
+  });
+});

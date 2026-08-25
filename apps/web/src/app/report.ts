@@ -203,61 +203,39 @@ export async function downloadReport(result: RunResponse): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
-/** Resolves once every image in a document has finished loading (or failed). */
-function waitForImages(doc: Document): Promise<void> {
-  const images = Array.from(doc.images);
-  if (images.length === 0) return Promise.resolve();
-
-  return Promise.all(
-    images.map((img) =>
-      img.complete
-        ? Promise.resolve()
-        : new Promise<void>((resolve) => {
-            img.addEventListener('load', () => resolve(), { once: true });
-            img.addEventListener('error', () => resolve(), { once: true });
-          }),
-    ),
-  ).then(() => undefined);
-}
-
 /**
- * Prints the run as a real, paginated PDF via the browser's print dialog.
+ * Exports the run as a PDF by sending the pre-built HTML to the /api/pdf
+ * server route, which uses Playwright to render it and return the bytes.
  *
- * This deliberately does NOT call `window.print()` on the live app. The app
- * has a fixed-position gradient background, animated widgets, and a
- * three-column control layout that isn't part of the report at all — printing
- * it directly produces a single oversized "screenshot" of the whole page
- * rather than a real document. Instead this builds the same clean, white,
- * paginated report used by `downloadReport`, opens it in its own window, and
- * prints *that* — so the output is actual flowing text and images the browser
- * can paginate, not a rasterised dump of the UI chrome.
+ * No print dialog is shown. The browser receives the PDF as a blob and
+ * triggers an automatic file download, exactly like the HTML download path.
  *
- * The window is opened synchronously, before the `await`, because opening a
- * window after an awaited fetch falls outside the click's user-gesture
- * window in some browsers and gets blocked as a popup.
+ * A loading state is signalled by the returned promise: callers should show
+ * a spinner while the promise is pending and hide it when it settles.
  */
 export async function printReport(result: RunResponse): Promise<void> {
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-
-  if (!printWindow) {
-    // Popup blocked: printing the live page is a degraded fallback, not the
-    // intended path, but it beats doing nothing.
-    window.print();
-    return;
-  }
-
-  printWindow.document.write(
-    '<!doctype html><title>Preparing report…</title><body style="font:15px system-ui;padding:40px;color:#444">Preparing the report for printing…</body>',
-  );
-  printWindow.document.close();
-
   const html = await buildReportHtml(result);
 
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
+  const response = await fetch('/api/pdf', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ html }),
+  });
 
-  await waitForImages(printWindow.document);
-  printWindow.focus();
-  printWindow.print();
+  if (!response.ok) {
+    const err = await response.text().catch(() => 'Unknown error');
+    throw new Error(`PDF generation failed: ${err}`);
+  }
+
+  const blob = await response.blob();
+  const url  = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href     = url;
+  link.download = `webtest-report-${result.runId}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
 }

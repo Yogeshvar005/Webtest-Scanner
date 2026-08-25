@@ -191,10 +191,14 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         });
       }
     } else {
-      browser = await chromium.launch({ headless: options.headless ?? true });
+      browser = await chromium.launch({
+        headless: options.headless ?? true,
+        args: ['--disable-http2'], // Bypasses HTTP/2 fingerprinting that causes ERR_HTTP2_PROTOCOL_ERROR on sites like Etihad
+      });
       const context = await browser.newContext({
         viewport: { width: 1280, height: 800 },
         userAgent: 'Mozilla/5.0 (compatible; WebtestScanner/0.1; +https://github.com/webtest-scanner)',
+        ignoreHTTPSErrors: true, // Needed for localhost and self-signed certificates
       });
 
       installEgressGuard(context, {
@@ -421,7 +425,24 @@ async function runStep(
       case 'navigate': {
         // The DSL cannot express an absolute URL, so the origin is always ours.
         const url = new URL(action.path, targetUrl).toString();
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: step.timeoutMs });
+        try {
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: step.timeoutMs });
+        } catch (e: any) {
+          if (e.message.includes('Timeout')) {
+            result.consoleErrors = result.consoleErrors || [];
+            result.consoleErrors.push(`Navigation timeout exceeded, but continuing: ${e.message}`);
+            try {
+              await Promise.race([
+                page.evaluate(() => window.stop()),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+              ]);
+            } catch (err) {
+              // Ignore failure to stop
+            }
+          } else {
+            throw e;
+          }
+        }
         break;
       }
       case 'click': {

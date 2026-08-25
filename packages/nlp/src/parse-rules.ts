@@ -1,4 +1,5 @@
 import type { Action, ElementRole, Provenance, SemanticTarget, Step } from '@wts/dsl';
+import { generateRandomEmail, generateRandomString, generateRandomNumber, generateUUID } from '@wts/data-forge';
 
 /**
  * A deterministic, rule-based natural-language parser.
@@ -44,6 +45,19 @@ function roleFromPhrase(phrase: string, fallback: ElementRole): ElementRole {
   if (/\bpassword\b/i.test(phrase)) return 'password';
   if (/\b(field|box|input)\b/i.test(phrase)) return 'textbox';
   return fallback;
+}
+
+/** Resolves tags like {{random.email}} using data-forge */
+function resolveTags(value: string): string {
+  return value.replace(/\{\{random\.([a-zA-Z]+)\}\}/g, (match, tag) => {
+    switch (tag.toLowerCase()) {
+      case 'email': return generateRandomEmail();
+      case 'uuid': return generateUUID();
+      case 'number': return generateRandomNumber().toString();
+      case 'string': return generateRandomString();
+      default: return match; // Leave unrecognized tags alone
+    }
+  });
 }
 
 type Rule = {
@@ -92,17 +106,20 @@ const RULES: Rule[] = [
     name: 'search',
     pattern: /^search (?:for|)\s*(?:["'“”]?)(.+?)(?:["'“”]?)$/i,
     confidence: 0.8,
-    build: (m, origin) => ({
-      action: { type: 'fill', target: target('searchbox', 'search', origin), value: { kind: 'literal', value: cleanName(m[1]!) } },
-      intent: `Search for "${cleanName(m[1]!)}"`,
-    }),
+    build: (m, origin) => {
+      const value = resolveTags(cleanName(m[1]!));
+      return {
+        action: { type: 'fill', target: target('searchbox', 'search', origin), value: { kind: 'literal', value } },
+        intent: `Search for "${value}"`,
+      };
+    },
   },
   {
     name: 'fill-into',
     pattern: /^(?:type|enter|input)\s+(?:["'“”]?)(.+?)(?:["'“”]?)\s+(?:in|into|in the|into the)\s+(.+)$/i,
     confidence: 0.9,
     build: (m, origin) => {
-      const value = cleanName(m[1]!);
+      const value = resolveTags(cleanName(m[1]!));
       const field = cleanName(m[2]!);
       return {
         action: { type: 'fill', target: target(roleFromPhrase(m[2]!, 'textbox'), field, origin), value: { kind: 'literal', value } },
@@ -116,7 +133,7 @@ const RULES: Rule[] = [
     confidence: 0.9,
     build: (m, origin) => {
       const field = cleanName(m[1]!);
-      const value = cleanName(m[2]!);
+      const value = resolveTags(cleanName(m[2]!));
       return {
         action: { type: 'fill', target: target(roleFromPhrase(m[1]!, 'textbox'), field, origin), value: { kind: 'literal', value } },
         intent: `Fill ${field} with "${value}"`,

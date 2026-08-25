@@ -46,7 +46,10 @@ export async function POST(request: Request) {
 
   let target: URL;
   try {
-    target = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`);
+    const withProto = rawUrl.startsWith('http') 
+      ? rawUrl 
+      : (rawUrl.startsWith('localhost') || rawUrl.startsWith('127.0.0.1') ? `http://${rawUrl}` : `https://${rawUrl}`);
+    target = new URL(withProto);
   } catch {
     return badRequest(`"${rawUrl}" is not a valid URL.`, 'Try something like https://example.com');
   }
