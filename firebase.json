@@ -4,7 +4,10 @@
       "emailPassword": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "Webtest Scanner",
-        "supportEmail": "yogimanickam7989@gmail.com"
+        "supportEmail": "yogimanickam7989@gmail.com",
+        "authorizedRedirectUris": [
+          "https://webtest-scanner-web.vercel.app"
+        ]
       }
     }
   }
