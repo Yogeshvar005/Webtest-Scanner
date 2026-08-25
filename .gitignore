@@ -56,5 +56,5 @@ Thumbs.db
 # Vercel
 .vercel
 
-# Machine-local Claude Code settings
-.claude/settings.local.json
+# Claude folder
+.claude/
