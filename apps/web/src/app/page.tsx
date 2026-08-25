@@ -187,11 +187,21 @@ export default function Home() {
           strict,
         }),
       });
-      const data = (await response.json()) as RunResponse;
+      let data: RunResponse;
+      const text = await response.text();
+      try {
+        data = JSON.parse(text) as RunResponse;
+      } catch {
+        data = {
+          error: `Server error (${response.status || '500'})`,
+          detail: text || response.statusText || 'The server encountered an issue processing the request.',
+        } as RunResponse;
+      }
+
       if (!response.ok) setError(data);
       else setResult(data);
     } catch (e) {
-      setError({ error: e instanceof Error ? e.message : 'Request failed' } as RunResponse);
+      setError({ error: e instanceof Error ? e.message : 'Network request failed' } as RunResponse);
     } finally {
       setRunning(false);
       setRunStartedAt(null);

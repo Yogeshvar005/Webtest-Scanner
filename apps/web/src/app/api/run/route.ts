@@ -120,25 +120,39 @@ export async function POST(request: Request) {
 
   const runId = randomUUID().slice(0, 8);
 
-  const result = await executeScenario({
-    scenario,
-    targetUrl: origin,
-    policyRequest,
-    artifactDir: join(process.cwd(), 'public', 'artifacts'),
-    artifactUrlPrefix: '/artifacts',
-    runId,
-    categories,
-    strict: body.strict ?? false,
-    captureAssets: body.captureAssets ?? false,
-  });
+  try {
+    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const artifactDir = isServerless ? join('/tmp', 'artifacts') : join(process.cwd(), 'public', 'artifacts');
 
-  return NextResponse.json({
-    ...result,
-    lintIssues,
-    unparsed,
-    meanConfidence,
-    reviewFlag: requiresManualReview(target.hostname) ?? null,
-    selectedCategories: categories,
-    ownership: { recordedTier, effectiveTier: tier },
-  });
+    const result = await executeScenario({
+      scenario,
+      targetUrl: origin,
+      policyRequest,
+      artifactDir,
+      artifactUrlPrefix: '/artifacts',
+      runId,
+      categories,
+      strict: body.strict ?? false,
+      captureAssets: body.captureAssets ?? false,
+    });
+
+    return NextResponse.json({
+      ...result,
+      lintIssues,
+      unparsed,
+      meanConfidence,
+      reviewFlag: requiresManualReview(target.hostname) ?? null,
+      selectedCategories: categories,
+      ownership: { recordedTier, effectiveTier: tier },
+    });
+  } catch (error) {
+    console.error('Scan execution failure:', error);
+    return NextResponse.json(
+      {
+        error: 'Execution failed on target website.',
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
 }

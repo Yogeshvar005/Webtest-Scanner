@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { chromium, type Browser, type Page, type Response } from 'playwright';
+import { chromium as playwrightCoreChromium, type Browser, type Page, type Response } from 'playwright-core';
 import type { Scenario, Step, WaitCondition } from '@wts/dsl';
 import { detectInjection, sanitizeText, type InjectionSignal } from '@wts/nlp';
 import { evaluate, type PolicyRequest } from '@wts/policy';
@@ -146,7 +146,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
   const { scenario, targetUrl, policyRequest, artifactDir, artifactUrlPrefix, runId } = options;
   const startedAt = new Date();
 
-  await mkdir(artifactDir, { recursive: true });
+  await mkdir(artifactDir, { recursive: true }).catch(() => {});
 
   const policyDecision = evaluate(policyRequest);
   const blockedRequests: BlockedRequest[] = [];
@@ -191,23 +191,37 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         });
       }
     } else {
-      const launchArgs = ['--disable-http2'];
-      const launchOptions: any = {
-        headless: options.headless ?? true,
-        args: launchArgs,
-      };
-
       if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
         try {
-          const chromiumServerless = (await import('@sparticuz/chromium')).default;
-          launchOptions.executablePath = await chromiumServerless.executablePath();
-          launchOptions.args = [...chromiumServerless.args, ...launchArgs];
+          const chromium = (await import('@sparticuz/chromium')).default;
+          chromium.setGraphicsMode = false;
+          const executablePath = await chromium.executablePath();
+          browser = await playwrightCoreChromium.launch({
+            executablePath,
+            args: [...chromium.args, '--disable-http2', '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+            headless: true,
+          });
+        } catch (err) {
+          console.error('Serverless chromium launch error, falling back:', err);
+          browser = await playwrightCoreChromium.launch({
+            args: ['--disable-http2', '--no-sandbox', '--disable-setuid-sandbox'],
+            headless: true,
+          });
+        }
+      } else {
+        try {
+          const { chromium } = await import('playwright');
+          browser = await chromium.launch({
+            headless: options.headless ?? true,
+            args: ['--disable-http2'],
+          });
         } catch {
-          // Fall back to default local chromium binary
+          browser = await playwrightCoreChromium.launch({
+            headless: options.headless ?? true,
+            args: ['--disable-http2'],
+          });
         }
       }
-
-      browser = await chromium.launch(launchOptions);
       const context = await browser.newContext({
         viewport: { width: 1280, height: 800 },
         userAgent: 'Mozilla/5.0 (compatible; WebtestScanner/0.1; +https://github.com/webtest-scanner)',
@@ -511,8 +525,9 @@ async function runStep(
     try {
       const file = `${runId}-${String(step.index).padStart(2, '0')}.png`;
       const buffer = await page.screenshot({ fullPage: step.evidence.fullPage, timeout: 15_000 });
-      await writeFile(join(artifactDir, file), buffer);
-      result.screenshot = `${artifactUrlPrefix}/${file}`;
+      await writeFile(join(artifactDir, file), buffer).catch(() => {});
+      // In serverless / cloud mode, data URLs ensure screenshots render seamlessly everywhere
+      result.screenshot = `data:image/png;base64,${buffer.toString('base64')}`;
     } catch {
       // A failed screenshot must not fail the step it was documenting.
     }

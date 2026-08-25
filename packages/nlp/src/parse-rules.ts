@@ -71,6 +71,28 @@ const RULES: Rule[] = [
   // Ordered most-specific first. `verify-text` is a catch-all whose pattern
   // also matches phrases like "check accessibility", so it must be tried last.
   {
+    name: 'health-check',
+    pattern: /^(?:verify|check|ensure|confirm|test)\s+(?:that\s+)?(?:the\s+)?(?:site|website|page|app|application|server)\s+(?:is\s+)?(?:running|working|up|online|alive|loaded|ok|healthy)$/i,
+    confidence: 0.95,
+    build: () => ({
+      action: { type: 'screenshot', label: 'Health check' },
+      intent: 'Verify website is online and responsive',
+    }),
+  },
+  {
+    name: 'bare-url',
+    pattern: /^(?:https?:\/\/|www\.)[^\s]+$/i,
+    confidence: 0.95,
+    build: (m) => {
+      const raw = cleanName(m[0]);
+      const path = raw.startsWith('/') ? raw : `/${raw.replace(/^https?:\/\/[^/]+/i, '').replace(/^www\.[^/]+/i, '').replace(/^\/+/, '')}`;
+      return {
+        action: { type: 'navigate', path: path === '/' ? '/' : path, originRef: 'primary' },
+        intent: `Open ${raw}`,
+      };
+    },
+  },
+  {
     name: 'navigate',
     pattern: /^(?:go to|open|navigate to|visit|browse to)\s+(.+)$/i,
     confidence: 0.95,
