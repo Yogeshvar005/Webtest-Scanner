@@ -16,6 +16,8 @@
     "@wts/ownership": "*",
     "@wts/policy": "*",
     "@wts/runner": "*",
+    "@sparticuz/chromium": "^149.0.0",
+    "playwright-core": "^1.55.0",
     "firebase": "^12.18.0",
     "next": "^15.5.0",
     "react": "^19.1.0",

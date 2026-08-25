@@ -192,22 +192,33 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
       }
     } else {
       if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+        const chromiumPkg = await import('@sparticuz/chromium');
+        const chromium = chromiumPkg.default || chromiumPkg;
+        chromium.setGraphicsMode = false;
+
+        let executablePath: string;
         try {
-          const chromium = (await import('@sparticuz/chromium')).default;
-          chromium.setGraphicsMode = false;
-          const executablePath = await chromium.executablePath();
-          browser = await playwrightCoreChromium.launch({
-            executablePath,
-            args: [...chromium.args, '--disable-http2', '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
-            headless: true,
-          });
-        } catch (err) {
-          console.error('Serverless chromium launch error, falling back:', err);
-          browser = await playwrightCoreChromium.launch({
-            args: ['--disable-http2', '--no-sandbox', '--disable-setuid-sandbox'],
-            headless: true,
-          });
+          executablePath = await chromium.executablePath();
+        } catch (packErr) {
+          console.warn('Local chromium pack extraction failed, falling back to remote binary pack:', packErr);
+          executablePath = await chromium.executablePath(
+            'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.tar'
+          );
         }
+
+        browser = await playwrightCoreChromium.launch({
+          executablePath,
+          args: [
+            ...chromium.args,
+            '--disable-http2',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process',
+          ],
+          headless: true,
+        });
       } else {
         try {
           const { chromium } = await import('playwright');

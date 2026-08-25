@@ -11,6 +11,9 @@ const nextConfig = {
     '@wts/data-forge',
   ],
   serverExternalPackages: ['playwright', 'playwright-core', '@sparticuz/chromium', 'axe-core'],
+  outputFileTracingIncludes: {
+    '/api/**/*': ['./node_modules/@sparticuz/chromium/bin/**'],
+  },
 };
 
 export default nextConfig;
