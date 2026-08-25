@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Glyph, Radar, Wordmark } from './glyphs';
 import { printReport } from './report';
 import { ResultsPanel } from './ResultsPanel';
@@ -97,7 +98,8 @@ function EmptyState() {
 }
 
 export default function Home() {
-  const { user, logout } = useAuth();
+  const router = useRouter();
+  const { user, loading: authLoading, logout } = useAuth();
   const [url, setUrl]                   = useState('https://example.com');
   const [instructions, setInstructions] = useState('');
   const [tier, setTier]                 = useState('0');
@@ -116,6 +118,13 @@ export default function Home() {
   const urlTouched = url.trim().length > 0;
   const urlValid   = isValidUrl(url);
 
+  // Route protection: redirect to /login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
+
   useEffect(() => {
     fetch('/api/categories')
       .then((r) => r.json())
@@ -131,6 +140,30 @@ export default function Home() {
 
   function toggle(id: string) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
+
+  // Show clean loader while authenticating or redirecting
+  if (authLoading || !user) {
+    return (
+      <div
+        className="wrap"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '80vh',
+          textAlign: 'center',
+          gap: '16px',
+        }}
+      >
+        <Radar />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--muted)', fontSize: '14px' }}>
+          <span className="spinner" />
+          <span>Verifying authentication…</span>
+        </div>
+      </div>
+    );
   }
 
   async function run() {
