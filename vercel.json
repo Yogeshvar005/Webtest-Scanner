@@ -2,5 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "installCommand": "npm install",
-  "buildCommand": "npx turbo run build --filter=@wts/web..."
+  "buildCommand": "npx turbo run build --filter=@wts/web...",
+  "functions": {
+    "apps/web/src/app/api/run/route.ts": {
+      "maxDuration": 300
+    }
+  }
 }
+

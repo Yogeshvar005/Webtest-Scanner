@@ -196,15 +196,22 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         const chromium = chromiumPkg.default || chromiumPkg;
         chromium.setGraphicsMode = false;
 
+        // @sparticuz/chromium v149+ uses architecture-specific pack files.
+        // The fallback URL points to the x64 build which Vercel Lambda uses.
+        // Only needed if the local bundled binary extraction fails.
+        const REMOTE_PACK_URL =
+          'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
+
         let executablePath: string;
         try {
           executablePath = await chromium.executablePath();
+          if (!executablePath) throw new Error('executablePath returned empty string');
         } catch (packErr) {
-          console.warn('Local chromium pack extraction failed, falling back to remote binary pack:', packErr);
-          executablePath = await chromium.executablePath(
-            'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.tar'
-          );
+          console.warn('Local chromium pack not found, falling back to remote binary pack:', packErr);
+          executablePath = await chromium.executablePath(REMOTE_PACK_URL);
         }
+
+        console.log('Chromium binary resolved to:', executablePath);
 
         browser = await playwrightCoreChromium.launch({
           executablePath,

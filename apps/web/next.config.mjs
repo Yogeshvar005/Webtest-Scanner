@@ -12,7 +12,10 @@ const nextConfig = {
   ],
   serverExternalPackages: ['playwright', 'playwright-core', '@sparticuz/chromium', 'axe-core'],
   outputFileTracingIncludes: {
-    '/api/**/*': ['./node_modules/@sparticuz/chromium/bin/**'],
+    '/api/**/*': [
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/@sparticuz/chromium/**',
+    ],
   },
 };
 

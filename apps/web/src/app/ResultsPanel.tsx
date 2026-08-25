@@ -84,8 +84,20 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
     .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9))
     .slice(0, 5);
 
+  // Detect a hard abort (e.g. browser failed to launch on server)
+  const abortFinding = result.findings.find((f) => f.title === 'Run aborted');
+
   return (
     <div>
+      {abortFinding && (
+        <div className="err" style={{ marginBottom: 16 }}>
+          <strong>⚠ Run aborted — browser could not start</strong>
+          <div style={{ marginTop: 6 }}>{abortFinding.detail}</div>
+          <div style={{ marginTop: 6, color: 'var(--muted)', fontSize: '12px' }}>
+            This is a server-side issue. Please try again in a moment.
+          </div>
+        </div>
+      )}
       <div className="stats">
         <div className="stat">
           <div className="n">{result.totals.total}</div>
