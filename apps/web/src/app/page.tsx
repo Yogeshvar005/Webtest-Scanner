@@ -134,6 +134,19 @@ export default function Home() {
       });
   }, []);
 
+  /** Cmd+Enter / Ctrl+Enter anywhere on the page triggers Run. */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        run();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, instructions, tier, environment, strict, selected, running, urlValid]);
+
   function handleLogout() {
     logout().catch((err) => console.error('Logout error:', err));
   }
@@ -207,19 +220,6 @@ export default function Home() {
       setRunStartedAt(null);
     }
   }
-
-  /** Cmd+Enter / Ctrl+Enter anywhere on the page triggers Run. */
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        run();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, instructions, tier, environment, strict, selected, running, urlValid]);
 
   function handleDownloadPdf() {
     if (!result || pdfing) return;
