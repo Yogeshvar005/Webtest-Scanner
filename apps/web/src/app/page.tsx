@@ -112,6 +112,7 @@ export default function Home() {
   const [result, setResult]             = useState<RunResponse | null>(null);
   const [error, setError]               = useState<RunResponse | null>(null);
   const [pdfing, setPdfing]             = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -182,6 +183,9 @@ export default function Home() {
   async function run() {
     if (!urlValid || selected.length === 0 || running) return;
 
+    const controller = new AbortController();
+    setAbortController(controller);
+
     setRunning(true);
     setRunStartedAt(Date.now());
     setResult(null);
@@ -199,6 +203,7 @@ export default function Home() {
           categories: selected,
           strict,
         }),
+        signal: controller.signal,
       });
       let data: RunResponse;
       const text = await response.text();
@@ -213,11 +218,22 @@ export default function Home() {
 
       if (!response.ok) setError(data);
       else setResult(data);
-    } catch (e) {
-      setError({ error: e instanceof Error ? e.message : 'Network request failed' } as RunResponse);
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        setError({ error: 'Run canceled by user' } as RunResponse);
+      } else {
+        setError({ error: e instanceof Error ? e.message : 'Network request failed' } as RunResponse);
+      }
     } finally {
       setRunning(false);
       setRunStartedAt(null);
+      setAbortController(null);
+    }
+  }
+
+  function handleCancel() {
+    if (abortController) {
+      abortController.abort();
     }
   }
 
@@ -415,17 +431,29 @@ export default function Home() {
             </div>
           </div>
 
-          <button
-            className="primary"
-            onClick={run}
-            disabled={running || selected.length === 0 || !urlValid}
-            aria-label="Run test in a real browser"
-          >
-            {running
-              ? <><span className="spinner" />Running in a real browser…</>
-              : 'Run test'
-            }
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="primary"
+              onClick={run}
+              disabled={running || selected.length === 0 || !urlValid}
+              aria-label="Run test in a real browser"
+              style={{ flex: 1 }}
+            >
+              {running
+                ? <><span className="spinner" />Running in a real browser…</>
+                : 'Run test'
+              }
+            </button>
+            {running && (
+              <button
+                className="secondary"
+                onClick={handleCancel}
+                aria-label="Cancel test run"
+              >
+                Stop
+              </button>
+            )}
+          </div>
 
           <p className="run-hint">
             <kbd>⌘</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
