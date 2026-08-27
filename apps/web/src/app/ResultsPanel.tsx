@@ -952,7 +952,9 @@ export function ResultsPanel({ result, onDownload, pdfing }: ResultsPanelProps) 
       {/* ── Results Hero Header ── */}
       <div className="results-hero">
         <div className="results-meta-left">
-          <span className={`pill verdict ${statusClass(result.status)}`}>{result.status}</span>
+          <span className="pill verdict" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text)' }}>
+            {['passed', 'failed', 'warning', 'blocked'].includes(result.status) ? 'EXECUTED' : result.status.toUpperCase()}
+          </span>
           {result.strict && <span className="pill warning">Strict</span>}
           <div>
             <div className="results-target-url">{result.targetUrl}</div>
