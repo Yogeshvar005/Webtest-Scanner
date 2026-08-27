@@ -1,7 +1,7 @@
 import type { Analyzer, AnalyzerContext, CheckResult } from './types';
 
 /**
- * Visual and layout checks.
+ * Visual, layout, and UX quality checks.
  *
  * Several of these are heuristics that produce false positives on real sites —
  * decorative images legitimately have empty alt text, and absolutely positioned
@@ -13,7 +13,7 @@ export const uiAnalyzer: Analyzer = {
   id: 'ui',
   label: 'UI / visual',
   description:
-    'Checks the rendered page for broken images, horizontal overflow, invisible or clipped text, tiny tap targets and overlapping interactive elements.',
+    'Checks the rendered page for broken images, horizontal overflow, invisible or clipped text, tiny tap targets, overlapping interactive elements, missing focus styles, unlabelled inputs, and viewport configuration.',
   minTier: 0,
 
   async run(context: AnalyzerContext): Promise<CheckResult[]> {
@@ -83,6 +83,45 @@ export const uiAnalyzer: Analyzer = {
         }
       }
 
+      // ── UX checks ────────────────────────────────────────────────
+
+      // Focus indicators: focusable elements that suppress outline with no alternative.
+      const noFocus: string[] = [];
+      for (const el of visible.slice(0, 200)) {
+        const st = getComputedStyle(el);
+        if (
+          (st.outlineStyle === 'none' || st.outlineWidth === '0px') &&
+          st.boxShadow === 'none'
+        ) {
+          noFocus.push(describe(el));
+        }
+      }
+
+      // Inputs without labels.
+      const unlabelled: string[] = [];
+      for (const el of Array.from(document.querySelectorAll('input:not([type="hidden"]),select,textarea'))) {
+        const inp = el as HTMLInputElement;
+        const id = inp.id;
+        const hasLabel = id && document.querySelector(`label[for="${id}"]`);
+        const hasAria = inp.getAttribute('aria-label') || inp.getAttribute('aria-labelledby');
+        const hasTitle = inp.getAttribute('title');
+        if (!hasLabel && !hasAria && !hasTitle) {
+          const type = inp.type || inp.tagName.toLowerCase();
+          unlabelled.push(`${describe(inp)} type=${type}`);
+        }
+      }
+
+      // Viewport meta
+      const viewportMeta = document.querySelector('meta[name="viewport"]')?.getAttribute('content') ?? null;
+
+      // Buttons without explicit type
+      const unTypedButtons: string[] = [];
+      for (const btn of Array.from(document.querySelectorAll('button'))) {
+        if (!btn.hasAttribute('type')) {
+          unTypedButtons.push(describe(btn));
+        }
+      }
+
       return {
         broken,
         emptyAlt,
@@ -94,6 +133,10 @@ export const uiAnalyzer: Analyzer = {
         viewportWidth: window.innerWidth,
         title: document.title,
         h1Count: document.querySelectorAll('h1').length,
+        noFocus: noFocus.slice(0, 30),
+        unlabelled: unlabelled.slice(0, 20),
+        viewportMeta,
+        unTypedButtons: unTypedButtons.slice(0, 20),
       };
     });
 
@@ -181,6 +224,54 @@ export const uiAnalyzer: Analyzer = {
       status: report.h1Count === 1 ? 'passed' : 'warning',
       severity: 'low',
       detail: `Found ${report.h1Count} <h1> element(s). One is the conventional structure for assistive technology and search engines.`,
+    });
+
+    // ── UX checks ──────────────────────────────────────────────────
+
+    checks.push({
+      id: 'focus-indicators',
+      name: 'Interactive elements have visible focus styles',
+      status: report.noFocus.length > 0 ? 'warning' : 'passed',
+      severity: 'medium',
+      detail:
+        report.noFocus.length > 0
+          ? `${report.noFocus.length} focusable element(s) appear to suppress the outline without a visible alternative (outline:none/0, no box-shadow). Keyboard users cannot see where focus is.`
+          : 'No elements with suppressed focus styles detected.',
+      evidence: report.noFocus,
+    });
+
+    checks.push({
+      id: 'input-labels',
+      name: 'Form inputs have accessible labels',
+      status: report.unlabelled.length > 0 ? 'warning' : 'passed',
+      severity: 'high',
+      detail:
+        report.unlabelled.length > 0
+          ? `${report.unlabelled.length} input(s)/select(s)/textarea(s) have no associated <label>, aria-label, aria-labelledby, or title. Screen readers will announce these as unlabelled.`
+          : 'All visible inputs have an accessible label.',
+      evidence: report.unlabelled,
+    });
+
+    checks.push({
+      id: 'viewport-meta',
+      name: 'Viewport meta tag is present',
+      status: report.viewportMeta ? 'passed' : 'failed',
+      severity: 'high',
+      detail: report.viewportMeta
+        ? `Viewport: "${report.viewportMeta}".`
+        : 'No <meta name="viewport"> found. Mobile browsers will render the desktop layout at full width, causing a poor mobile experience.',
+    });
+
+    checks.push({
+      id: 'button-type',
+      name: 'Buttons declare an explicit type',
+      status: report.unTypedButtons.length > 0 ? 'warning' : 'passed',
+      severity: 'low',
+      detail:
+        report.unTypedButtons.length > 0
+          ? `${report.unTypedButtons.length} <button> element(s) have no explicit type attribute. Inside a form the default is "submit", which can trigger accidental form submissions.`
+          : 'All buttons declare an explicit type.',
+      evidence: report.unTypedButtons,
     });
 
     return checks;

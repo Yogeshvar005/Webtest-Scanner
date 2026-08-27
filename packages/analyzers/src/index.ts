@@ -2,6 +2,7 @@ import { accessibilityAnalyzer } from './accessibility';
 import { designAnalyzer } from './design';
 import { apiAnalyzer, unitAnalyzer } from './api-and-unit';
 import { performanceAnalyzer } from './performance';
+import { scraperAnalyzer } from './scraper';
 import { securityActiveAnalyzer } from './security-active';
 import { securityPassiveAnalyzer } from './security-passive';
 import {
@@ -26,6 +27,7 @@ export const ANALYZERS: Analyzer[] = [
   performanceAnalyzer,
   apiAnalyzer,
   unitAnalyzer,
+  scraperAnalyzer,
 ];
 
 export interface CategoryDescriptor {

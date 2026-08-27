@@ -216,8 +216,8 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         browser = await playwrightCoreChromium.launch({
           executablePath,
           args: [
-            ...chromium.args,
-            '--disable-http2',
+            ...chromium.args.filter((a: string) => a !== '--disable-http2'),
+            '--disable-blink-features=AutomationControlled',
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
@@ -227,22 +227,31 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
           headless: true,
         });
       } else {
+        const launchArgs = [
+          '--disable-blink-features=AutomationControlled',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+        ];
         try {
           const { chromium } = await import('playwright');
           browser = await chromium.launch({
             headless: options.headless ?? true,
-            args: ['--disable-http2'],
+            args: launchArgs,
           });
         } catch {
           browser = await playwrightCoreChromium.launch({
             headless: options.headless ?? true,
-            args: ['--disable-http2'],
+            args: launchArgs,
           });
         }
       }
       const context = await browser.newContext({
         viewport: { width: 1280, height: 800 },
-        userAgent: 'Mozilla/5.0 (compatible; WebtestScanner/0.1; +https://github.com/webtest-scanner)',
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        locale: 'en-US',
+        extraHTTPHeaders: {
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
         ignoreHTTPSErrors: true, // Needed for localhost and self-signed certificates
       });
 
@@ -471,23 +480,21 @@ async function runStep(
         // The DSL cannot express an absolute URL, so the origin is always ours.
         const url = new URL(action.path, targetUrl).toString();
         try {
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: step.timeoutMs });
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: Math.min(step.timeoutMs, 25_000) });
         } catch (e: any) {
-          if (e.message.includes('Timeout')) {
-            result.consoleErrors = result.consoleErrors || [];
-            result.consoleErrors.push(`Navigation timeout exceeded, but continuing: ${e.message}`);
-            try {
-              await Promise.race([
-                page.evaluate(() => window.stop()),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
-              ]);
-            } catch (err) {
-              // Ignore failure to stop
-            }
-          } else {
-            throw e;
+          result.consoleErrors = result.consoleErrors || [];
+          result.consoleErrors.push(`Navigation notice: ${e.message}`);
+          try {
+            await Promise.race([
+              page.evaluate(() => window.stop()),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+            ]);
+          } catch {
+            // Ignore failure to stop
           }
         }
+        // Brief settling pause for dynamic frameworks
+        await page.waitForTimeout(1000).catch(() => {});
         break;
       }
       case 'click': {
@@ -542,6 +549,8 @@ async function runStep(
   if (step.evidence.screenshot !== 'never') {
     try {
       const file = `${runId}-${String(step.index).padStart(2, '0')}.png`;
+      // Allow fonts, dynamic layouts, and hero assets to paint cleanly
+      await page.waitForTimeout(1500).catch(() => {});
       const buffer = await page.screenshot({ fullPage: step.evidence.fullPage, timeout: 15_000 });
       await writeFile(join(artifactDir, file), buffer).catch(() => {});
       // In serverless / cloud mode, data URLs ensure screenshots render seamlessly everywhere

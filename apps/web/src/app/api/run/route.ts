@@ -81,10 +81,13 @@ export async function POST(request: Request) {
   const origin = `${target.protocol}//${target.host}`;
   const targetId = target.hostname;
 
+  const initialPath = (target.pathname && target.pathname !== '/' ? target.pathname : '') + (target.search || '') || '/';
+
   const { scenario, unparsed, meanConfidence } = parseScenario({
     naturalLanguage: body.instructions ?? '',
     targetId,
     environment,
+    initialPath,
   });
 
   // Lint runs here and would run again in the worker, which never trusts this tier.

@@ -14,7 +14,8 @@ export type TestCategory =
   | 'performance'
   | 'api'
   | 'unit'
-  | 'design';
+  | 'design'
+  | 'scraper';
 
 export type OwnershipTier = 0 | 1 | 2;
 

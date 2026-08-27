@@ -13,13 +13,9 @@ function escapeHtml(value: string): string {
 
 /**
  * Fetches a same-origin screenshot and returns it as a base64 data URI.
- *
- * The report is meant to survive as standalone evidence after the dev server
- * is gone, so a live URL reference is not good enough — the bytes have to
- * travel with the file. Failures degrade to the original URL rather than
- * breaking the whole report.
  */
 async function toDataUrl(url: string, budget: { remaining: number }): Promise<string> {
+  if (url.startsWith('data:')) return url;
   try {
     const response = await fetch(url);
     if (!response.ok) return url;
@@ -41,31 +37,50 @@ async function toDataUrl(url: string, budget: { remaining: number }): Promise<st
 
 function statusColor(status: string): string {
   switch (status) {
-    case 'passed': return '#0f7a4f';
-    case 'failed': return '#b91c1c';
-    case 'blocked': return '#6b46c1';
-    case 'warning': return '#b45309';
-    default: return '#6b7280';
+    case 'passed': return '#059669';
+    case 'failed': return '#dc2626';
+    case 'blocked': return '#7c3aed';
+    case 'warning': return '#d97706';
+    default: return '#64748b';
   }
 }
 
 function pill(status: string): string {
-  return `<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:${statusColor(status)}">${escapeHtml(status)}</span>`;
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#fff;background:${statusColor(status)}">${escapeHtml(status)}</span>`;
 }
 
 function severityColor(severity: string): string {
   switch (severity) {
     case 'critical':
-    case 'high': return '#b91c1c';
-    case 'medium': return '#b45309';
-    default: return '#6b7280';
+    case 'high': return '#dc2626';
+    case 'medium': return '#d97706';
+    default: return '#64748b';
   }
 }
 
+function cleanEvidence(evidence: string[]): string {
+  // Collapse excessive blank lines
+  const cleaned: string[] = [];
+  let prevEmpty = false;
+  const lines = evidence.join('\n').split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (!prevEmpty && cleaned.length > 0) {
+        cleaned.push('');
+        prevEmpty = true;
+      }
+    } else {
+      cleaned.push(line);
+      prevEmpty = false;
+    }
+  }
+  return cleaned.join('\n').trim();
+}
+
 /**
- * Renders the full run as a standalone HTML document: inline CSS, inline
- * screenshots, no external requests. Opening it with no server running, on a
- * different machine, or a year from now all work identically.
+ * Renders the full run as a standalone, gap-free HTML document:
+ * Inline CSS, compact spacing, zero orphaned headers, and clean page breaks.
  */
 export async function buildReportHtml(result: RunResponse): Promise<string> {
   const budget = { remaining: MAX_INLINE_BYTES };
@@ -77,66 +92,68 @@ export async function buildReportHtml(result: RunResponse): Promise<string> {
       const assertionsHtml = step.assertions
         .map(
           (a) =>
-            `<div style="font-size:13px;padding:6px 10px;border-radius:6px;background:#f8fafc;margin-bottom:5px;border-left:3px solid ${a.passed ? '#0f7a4f' : '#b91c1c'}">${a.passed ? '✓' : '✗'} ${escapeHtml(a.description)}${a.detail ? `<div style="color:#6b7280;margin-top:2px">${escapeHtml(a.detail)}</div>` : ''}</div>`,
+            `<div style="font-size:12.5px;padding:6px 9px;border-radius:5px;background:#f8fafc;margin-bottom:4px;border-left:3px solid ${a.passed ? '#059669' : '#dc2626'}">${a.passed ? '✓' : '✗'} ${escapeHtml(a.description)}${a.detail ? `<div style="color:#64748b;margin-top:2px;font-size:11.5px">${escapeHtml(a.detail)}</div>` : ''}</div>`,
         )
         .join('');
 
       return `
-        <section style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:16px;overflow:hidden;break-inside:avoid">
-          <header style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:#f8fafc;border-bottom:1px solid #e5e7eb">
-            <span style="color:#6b7280;font-size:13px;min-width:20px">${step.index + 1}</span>
-            <strong style="flex:1">${escapeHtml(step.intent)}</strong>
+        <div class="step-card" style="border:1px solid #e2e8f0;border-radius:8px;margin-bottom:12px;overflow:hidden;page-break-inside:avoid;break-inside:avoid">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0">
+            <span style="color:#64748b;font-size:12px;min-width:18px;font-weight:700">${step.index + 1}</span>
+            <strong style="flex:1;font-size:13px">${escapeHtml(step.intent)}</strong>
             ${pill(step.status)}
-            <span style="color:#6b7280;font-size:12px">${step.durationMs}ms</span>
-          </header>
-          <div style="padding:14px">
-            ${step.error ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:9px 11px;border-radius:8px;font-size:13px;margin-bottom:10px">${escapeHtml(step.error)}</div>` : ''}
-            ${assertionsHtml}
-            ${screenshot ? `<img src="${screenshot}" alt="Screenshot after: ${escapeHtml(step.intent)}" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;margin-top:10px;display:block" />` : ''}
+            <span style="color:#64748b;font-size:11.5px">${step.durationMs}ms</span>
           </div>
-        </section>`;
+          <div style="padding:10px 12px">
+            ${step.error ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:8px">${escapeHtml(step.error)}</div>` : ''}
+            ${assertionsHtml}
+            ${screenshot ? `<img src="${screenshot}" alt="Screenshot after: ${escapeHtml(step.intent)}" style="width:100%;max-height:480px;object-fit:contain;border:1px solid #e2e8f0;border-radius:6px;margin-top:8px;display:block;background:#05070D" />` : ''}
+          </div>
+        </div>`;
     }),
   );
 
   const categoriesHtml = result.categories
     .map((category) => {
       const checksHtml = category.checks
-        .map(
-          (check) => `
-          <div style="padding:9px 13px;border-top:1px solid #e5e7eb">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+        .map((check) => {
+          const evidenceStr = check.evidence && check.evidence.length > 0 ? cleanEvidence(check.evidence) : '';
+          return `
+          <div class="check-item" style="padding:8px 12px;border-top:1px solid #e2e8f0;page-break-inside:avoid;break-inside:avoid">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
               ${pill(check.status)}
-              <strong style="font-size:13.5px">${escapeHtml(check.name)}</strong>
-              <span style="font-size:11px;color:#6b7280;text-transform:uppercase">${escapeHtml(check.severity)}</span>
+              <strong style="font-size:12.5px">${escapeHtml(check.name)}</strong>
+              <span style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase">${escapeHtml(check.severity)}</span>
             </div>
-            <div style="font-size:13px;color:#4b5563">${escapeHtml(check.detail)}</div>
-            ${check.evidence && check.evidence.length > 0 ? `<pre style="margin:7px 0 0;padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:11.5px;overflow-x:auto;white-space:pre-wrap;word-break:break-word">${escapeHtml(check.evidence.join('\n'))}</pre>` : ''}
-          </div>`,
-        )
+            <div style="font-size:12px;color:#334155;line-height:1.45">${escapeHtml(check.detail)}</div>
+            ${evidenceStr ? `<pre style="margin:5px 0 0;padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;line-height:1.35;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:360px">${escapeHtml(evidenceStr)}</pre>` : ''}
+          </div>`;
+        })
         .join('');
 
       return `
-        <section style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;overflow:hidden;break-inside:avoid">
-          <header style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:#f8fafc">
+        <div class="category-block" style="border:1px solid #e2e8f0;border-radius:8px;margin-bottom:12px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f8fafc;page-break-inside:avoid;break-inside:avoid">
             ${pill(category.status)}
-            <strong style="flex:1">${escapeHtml(category.label)}</strong>
-            <span style="font-size:12px;color:#6b7280">${category.totals.passed} pass · ${category.totals.failed} fail · ${category.totals.warning} warn</span>
-          </header>
-          ${category.skippedReason ? `<div style="margin:11px 13px;padding:9px 11px;border-radius:7px;background:#f3f0ff;border:1px solid #ddd6fe;color:#5b21b6;font-size:13px">${escapeHtml(category.skippedReason)}</div>` : ''}
+            <strong style="flex:1;font-size:13px">${escapeHtml(category.label)}</strong>
+            <span style="font-size:11.5px;color:#64748b">${category.totals.passed} pass · ${category.totals.failed} fail · ${category.totals.warning} warn</span>
+          </div>
+          ${category.skippedReason ? `<div style="margin:8px 12px;padding:7px 9px;border-radius:6px;background:#f3f0ff;border:1px solid #ddd6fe;color:#5b21b6;font-size:12px">${escapeHtml(category.skippedReason)}</div>` : ''}
           ${checksHtml}
-        </section>`;
+        </div>`;
     })
     .join('');
 
   const findingsHtml = result.findings
-    .map(
-      (f) => `
-      <div style="border:1px solid #e5e7eb;border-left:4px solid ${severityColor(f.severity)};border-radius:8px;padding:11px 13px;margin-bottom:10px;break-inside:avoid">
-        <div style="font-weight:700;font-size:14px;margin-bottom:3px">${escapeHtml(f.title)}</div>
-        <div style="font-size:13px;color:#4b5563">${escapeHtml(f.detail)}</div>
-        ${f.evidence ? `<pre style="margin:8px 0 0;padding:8px 10px;background:#f8fafc;border-radius:6px;font-size:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-word">${escapeHtml(f.evidence)}</pre>` : ''}
-      </div>`,
-    )
+    .map((f) => {
+      const evidenceStr = f.evidence ? cleanEvidence(f.evidence.split('\n')) : '';
+      return `
+      <div class="finding-item" style="border:1px solid #e2e8f0;border-left:3.5px solid ${severityColor(f.severity)};border-radius:6px;padding:9px 11px;margin-bottom:8px;page-break-inside:avoid;break-inside:avoid">
+        <div style="font-weight:700;font-size:13px;margin-bottom:2px">${escapeHtml(f.title)}</div>
+        <div style="font-size:12px;color:#334155;line-height:1.45">${escapeHtml(f.detail)}</div>
+        ${evidenceStr ? `<pre style="margin:6px 0 0;padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;line-height:1.35;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:360px">${escapeHtml(evidenceStr)}</pre>` : ''}
+      </div>`;
+    })
     .join('');
 
   return `<!doctype html>
@@ -147,42 +164,116 @@ export async function buildReportHtml(result: RunResponse): Promise<string> {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   * { box-sizing: border-box; }
-  body { font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1f2430; background: #ffffff; margin: 0; padding: 32px; max-width: 900px; margin-inline: auto; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; margin: 28px 0 12px; }
-  .meta-line { color: #6b7280; font-size: 13px; margin-bottom: 20px; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 16px 0 4px; }
-  .stat { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; }
-  .stat .n { font-size: 22px; font-weight: 700; }
-  .stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; }
-  @media print { body { padding: 0; } }
+  @page {
+    margin: 12mm 10mm;
+    size: A4 portrait;
+  }
+  body {
+    font: 13.5px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #0f172a;
+    background: #ffffff;
+    margin: 0;
+    padding: 20px;
+    max-width: 860px;
+    margin-inline: auto;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 4px;
+    color: #0f172a;
+  }
+  h2 {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #475569;
+    margin: 20px 0 8px;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  .meta-line {
+    color: #64748b;
+    font-size: 12px;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .stat {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .stat .n {
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .stat .k {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #64748b;
+    margin-top: 3px;
+  }
+  .report-header {
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  @media print {
+    body { padding: 0; }
+    .category-block { page-break-inside: auto; break-inside: auto; }
+    .check-item { page-break-inside: auto; break-inside: auto; }
+    .finding-item { page-break-inside: avoid; break-inside: avoid; }
+    .step-card { page-break-inside: avoid; break-inside: avoid; }
+    h2 { page-break-after: avoid; break-after: avoid; }
+    pre { max-height: none !important; overflow: visible !important; }
+  }
 </style>
 </head>
 <body>
-  <h1>Webtest Scanner report</h1>
-  <div class="meta-line">${escapeHtml(result.targetUrl)} · run ${escapeHtml(result.runId)} · generated ${escapeHtml(generatedAt)} · ${(result.durationMs / 1000).toFixed(1)}s</div>
+  <div class="report-header">
+    <h1>Webtest Scanner Report</h1>
+    <div class="meta-line">
+      <strong>${escapeHtml(result.targetUrl)}</strong> · Run ID: ${escapeHtml(result.runId)} · Generated: ${escapeHtml(generatedAt)} · ${(result.durationMs / 1000).toFixed(1)}s
+    </div>
 
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-    ${pill(result.status)}
-    ${result.strict ? '<span style="font-size:12px;color:#6b7280">strict mode</span>' : ''}
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      ${pill(result.status)}
+      ${result.strict ? '<span style="font-size:11px;color:#64748b;font-weight:600">Strict Mode</span>' : ''}
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="n">${result.totals.total}</div><div class="k">Steps</div></div>
+      <div class="stat"><div class="n" style="color:#059669">${result.totals.passed}</div><div class="k">Passed</div></div>
+      <div class="stat"><div class="n" style="color:#dc2626">${result.totals.failed}</div><div class="k">Failed</div></div>
+      <div class="stat"><div class="n" style="color:#7c3aed">${result.totals.blocked}</div><div class="k">Blocked</div></div>
+      <div class="stat"><div class="n">${Math.round(result.meanConfidence * 100)}%</div><div class="k">Confidence</div></div>
+    </div>
+
+    <div class="meta-line" style="margin:8px 0 0">
+      Policy: <strong>${escapeHtml(result.policyDecision.effect)}</strong> · Ownership Tier: <strong>${result.ownership.effectiveTier}</strong>
+      ${result.policyDecision.reason ? ` · ${escapeHtml(result.policyDecision.reason)}` : ''}
+    </div>
   </div>
 
-  <div class="stats">
-    <div class="stat"><div class="n">${result.totals.total}</div><div class="k">Steps</div></div>
-    <div class="stat"><div class="n" style="color:#0f7a4f">${result.totals.passed}</div><div class="k">Passed</div></div>
-    <div class="stat"><div class="n" style="color:#b91c1c">${result.totals.failed}</div><div class="k">Failed</div></div>
-    <div class="stat"><div class="n" style="color:#6b46c1">${result.totals.blocked}</div><div class="k">Blocked</div></div>
-    <div class="stat"><div class="n">${Math.round(result.meanConfidence * 100)}%</div><div class="k">Confidence</div></div>
-  </div>
-
-  <div class="meta-line" style="margin-top:14px">Policy: <strong>${escapeHtml(result.policyDecision.effect)}</strong> · Ownership tier: <strong>${result.ownership.effectiveTier}</strong></div>
-  ${result.policyDecision.reason ? `<div class="meta-line">${escapeHtml(result.policyDecision.reason)}</div>` : ''}
-
-  ${result.categories.length > 0 ? `<h2>Categories</h2>${categoriesHtml}` : ''}
+  ${result.categories.length > 0 ? `<h2>Categories (${result.categories.length})</h2>${categoriesHtml}` : ''}
   ${result.findings.length > 0 ? `<h2>Findings (${result.findings.length})</h2>${findingsHtml}` : ''}
-  ${result.steps.length > 0 ? `<h2>Steps</h2>${stepsHtml.join('')}` : ''}
+  ${result.steps.length > 0 ? `<h2>Steps &amp; Screenshots (${result.steps.length})</h2>${stepsHtml.join('')}` : ''}
 
-  <p style="color:#9ca3af;font-size:11px;margin-top:32px">Generated by Webtest Scanner. Screenshots are embedded as captured; this file makes no claim beyond what is shown above.</p>
+  <div style="color:#94a3b8;font-size:10.5px;margin-top:20px;padding-top:10px;border-top:1px solid #e2e8f0;text-align:center">
+    Generated by Webtest Scanner. Screenshots and data extracted from live browser execution.
+  </div>
 </body>
 </html>`;
 }
@@ -206,12 +297,6 @@ export async function downloadReport(result: RunResponse): Promise<void> {
 /**
  * Exports the run as a PDF by sending the pre-built HTML to the /api/pdf
  * server route, which uses Playwright to render it and return the bytes.
- *
- * No print dialog is shown. The browser receives the PDF as a blob and
- * triggers an automatic file download, exactly like the HTML download path.
- *
- * A loading state is signalled by the returned promise: callers should show
- * a spinner while the promise is pending and hide it when it settles.
  */
 export async function printReport(result: RunResponse): Promise<void> {
   const html = await buildReportHtml(result);
@@ -228,10 +313,10 @@ export async function printReport(result: RunResponse): Promise<void> {
   }
 
   const blob = await response.blob();
-  const url  = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
 
   const link = document.createElement('a');
-  link.href     = url;
+  link.href = url;
   link.download = `webtest-report-${result.runId}.pdf`;
   document.body.appendChild(link);
   link.click();

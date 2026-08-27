@@ -7,6 +7,7 @@ export interface ParseRequest {
   environment: EnvName;
   title?: string;
   testTypes?: TestType[];
+  initialPath?: string;
 }
 
 export interface ParseResult {
@@ -31,6 +32,7 @@ export function parseScenario(request: ParseRequest): ParseResult {
   const steps: Step[] = [];
   const unparsed: string[] = [];
   const openQuestions: Scenario['openQuestions'] = [];
+  const defaultPath = request.initialPath || '/';
 
   for (const line of lines) {
     const parsed = parseLine(line, steps.length);
@@ -56,7 +58,7 @@ export function parseScenario(request: ParseRequest): ParseResult {
       id: 's0',
       index: 0,
       intent: 'Open the target page',
-      action: { type: 'navigate', path: '/', originRef: 'primary' },
+      action: { type: 'navigate', path: defaultPath, originRef: 'primary' },
       preWaits: [],
       postWaits: [{ type: 'networkQuiescent', idleMs: 500, ignorePatterns: [] }],
       assertions: [],
@@ -74,7 +76,7 @@ export function parseScenario(request: ParseRequest): ParseResult {
       id: 'sroot',
       index: 0,
       intent: 'Open the target page',
-      action: { type: 'navigate', path: '/', originRef: 'primary' },
+      action: { type: 'navigate', path: defaultPath, originRef: 'primary' },
       preWaits: [],
       postWaits: [{ type: 'networkQuiescent', idleMs: 500, ignorePatterns: [] }],
       assertions: [],

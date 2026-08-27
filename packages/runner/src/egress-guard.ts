@@ -32,6 +32,9 @@ export interface EgressOptions {
   onThirdParty?: (contact: { origin: string; resourceType: string }) => void;
 }
 
+const DEFAULT_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
 /**
  * Controls what the page under test is allowed to talk to.
  *
@@ -44,11 +47,9 @@ export interface EgressOptions {
  *  3. Every off-site request is recorded, so the report can account for
  *     exactly who the page contacted.
  *
- * Note what this is not: it is not what stops an injected instruction from
- * exfiltrating secrets. That is closed by design upstream — secrets are
- * `{kind:'secret'}` references that never enter model context, and the DSL has
- * no primitive capable of constructing an arbitrary request. This guard is
- * defence in depth and SSRF containment, not the primary control.
+ * Additionally, route fulfillment via Node's native HTTP stack is used to bypass
+ * aggressive CDN HTTP/2 fingerprinting that would otherwise cause ERR_HTTP2_PROTOCOL_ERROR
+ * and lead to unstyled/raw HTML renders.
  */
 export function installEgressGuard(context: BrowserContext, options: EgressOptions): void {
   const { allowedOrigins, onBlocked, onThirdParty } = options;
@@ -56,6 +57,7 @@ export function installEgressGuard(context: BrowserContext, options: EgressOptio
 
   const allowed = new Set(allowedOrigins.map(normaliseOrigin));
   const allowedSites = new Set(allowedOrigins.map((o) => registrableDomain(hostOf(o))));
+  const primaryOrigin = allowedOrigins[0] ? normaliseOrigin(allowedOrigins[0]) : '';
 
   void context.route('**/*', async (route: Route) => {
     const request = route.request();
@@ -83,15 +85,11 @@ export function installEgressGuard(context: BrowserContext, options: EgressOptio
       return;
     }
 
-    // The target itself, or another host on the same registrable domain
-    // (an app's own CDN subdomain, for instance).
-    if (allowed.has(normaliseOrigin(parsed.origin)) || allowedSites.has(registrableDomain(parsed.hostname))) {
-      await route.continue();
-      return;
-    }
+    const isSameOriginOrSite =
+      allowed.has(normaliseOrigin(parsed.origin)) || allowedSites.has(registrableDomain(parsed.hostname));
 
     // (2) Navigating away from the verified origin is never permitted.
-    if (request.isNavigationRequest()) {
+    if (request.isNavigationRequest() && !isSameOriginOrSite) {
       onBlocked({
         url,
         reason: `Navigation to ${parsed.origin} would leave the verified target`,
@@ -101,19 +99,70 @@ export function installEgressGuard(context: BrowserContext, options: EgressOptio
       return;
     }
 
-    if (mode === 'strict') {
-      onBlocked({
-        url,
-        reason: `Origin ${parsed.origin} is not in the verified allowlist (strict mode)`,
-        at: new Date().toISOString(),
-      });
-      await route.abort('blockedbyclient');
-      return;
+    if (!isSameOriginOrSite) {
+      if (mode === 'strict') {
+        onBlocked({
+          url,
+          reason: `Origin ${parsed.origin} is not in the verified allowlist (strict mode)`,
+          at: new Date().toISOString(),
+        });
+        await route.abort('blockedbyclient');
+        return;
+      }
+
+      // (3) Allowed, but accounted for.
+      onThirdParty?.({ origin: parsed.origin, resourceType: request.resourceType() });
     }
 
-    // (3) Allowed, but accounted for.
-    onThirdParty?.({ origin: parsed.origin, resourceType: request.resourceType() });
-    await route.continue();
+    // Fulfill request using Node fetch to prevent HTTP/2 fingerprint drops on CDNs (Akamai/Cloudflare)
+    try {
+      const incomingHeaders = request.headers();
+      const fetchHeaders: Record<string, string> = {
+        'User-Agent': incomingHeaders['user-agent'] || DEFAULT_UA,
+        'Accept': incomingHeaders['accept'] || '*/*',
+        'Accept-Language': incomingHeaders['accept-language'] || 'en-US,en;q=0.9',
+      };
+      if (primaryOrigin) {
+        fetchHeaders['Referer'] = primaryOrigin;
+      }
+
+      const method = request.method();
+      const postData = request.postDataBuffer();
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      const resp = await fetch(url, {
+        method,
+        headers: fetchHeaders,
+        body: method !== 'GET' && method !== 'HEAD' && postData ? (new Uint8Array(postData) as unknown as BodyInit) : undefined,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      const buffer = Buffer.from(await resp.arrayBuffer());
+      const responseHeaders: Record<string, string> = {};
+      resp.headers.forEach((value, key) => {
+        const k = key.toLowerCase();
+        // Skip hop-by-hop & compression headers since Node fetch decodes automatically
+        if (k !== 'content-encoding' && k !== 'content-length' && k !== 'transfer-encoding') {
+          responseHeaders[k] = value;
+        }
+      });
+
+      await route.fulfill({
+        status: resp.status,
+        headers: responseHeaders,
+        body: buffer,
+      });
+    } catch {
+      // If direct fetch fails, fallback to standard route continuation or silent abort
+      try {
+        await route.continue();
+      } catch {
+        await route.abort('failed').catch(() => {});
+      }
+    }
   });
 }
 

@@ -9,18 +9,13 @@ import { ResultsPanel } from './ResultsPanel';
 import { useAuth } from '../lib/auth-context';
 import type { CategoryDescriptor, RunResponse } from './types';
 
-const SAMPLE = `go to /
-verify Example Domain is visible
-take a screenshot`;
-
-const DEFAULT_SELECTED = ['functional', 'ui', 'accessibility', 'security-passive'];
+const DEFAULT_SELECTED = ['functional', 'ui', 'accessibility', 'security-passive', 'scraper'];
 const MAX_INSTRUCTIONS = 2000;
 
-/** Validate that the URL looks like a real http/https address. */
 function isValidUrl(value: string): boolean {
   try {
-    const withProto = value.startsWith('http') 
-      ? value 
+    const withProto = value.startsWith('http')
+      ? value
       : (value.startsWith('localhost') || value.startsWith('127.0.0.1') ? `http://${value}` : `https://${value}`);
     const u = new URL(withProto);
     return u.protocol === 'http:' || u.protocol === 'https:';
@@ -30,12 +25,11 @@ function isValidUrl(value: string): boolean {
 }
 
 const TIER_HELP: Record<string, string> = {
-  '0': 'Unverified — observation only (GET/HEAD, ≤1 rps, screenshots, passive checks).',
-  '1': 'DNS verified — forms, CRUD, authenticated journeys, API tests.',
-  '2': 'DNS + signed attestation — active security probing, IDOR, session probes.',
+  '0': 'Tier 0: Unverified — passive DOM inspection & web scraping (GET/HEAD, screenshots).',
+  '1': 'Tier 1: DNS verified — forms, interactive flows, and asset downloading.',
+  '2': 'Tier 2: Verified + Attested — active security probes and deep testing.',
 };
 
-/** Elapsed time counter displayed during a run. */
 function ElapsedTimer({ startedAt }: { startedAt: number }) {
   const [elapsed, setElapsed] = useState(0);
 
@@ -47,50 +41,25 @@ function ElapsedTimer({ startedAt }: { startedAt: number }) {
   const m = Math.floor(elapsed / 60);
   const s = elapsed % 60;
   return (
-    <span className="elapsed">
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--accent-cyan)' }}>
+      <span className="spinner" style={{ width: 12, height: 12 }} />
       {m > 0 ? `${m}m ` : ''}{s}s elapsed
     </span>
   );
 }
 
-/** Icon: Download */
-function IconDownload() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M2.5 11.5v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1.5" />
-      <path d="M8 2.5v7M5 7l3 3 3-3" />
-    </svg>
-  );
-}
-
-/** Icon: Print */
-function IconPrint() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x="3" y="7" width="10" height="6" rx="1" />
-      <path d="M5 7V3h6v4" />
-      <path d="M5 11H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2" />
-      <circle cx="11.5" cy="9" r="0.7" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-/** Richer empty state with floating icon and helpful guidance. */
 function EmptyState() {
   return (
-    <div className="card">
-      <div className="empty">
-        <div className="empty-icon" role="img" aria-label="Radar scanner">
+    <div className="card reveal reveal-3">
+      <div className="empty-hero">
+        <div className="empty-radar-wrap">
           <Radar />
         </div>
-        <div className="empty-title">Ready to scan</div>
-        <div className="empty-desc">
-          Enter a URL, choose what to test, write your scenario steps,
-          then click <strong>Run test</strong>. A real Chromium browser
-          will work through every step and screenshot the result.
-        </div>
-        <p className="hint" style={{ marginTop: 0, textAlign: 'center' }}>
-          Try: <code>https://example.com</code>
+        <h3 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+          Intelligent Inspection Engine
+        </h3>
+        <p style={{ color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto', fontSize: 13.5, lineHeight: 1.55 }}>
+          Enter a website URL above and click <strong>Run Inspection</strong> to extract complete DOM structures, analyze UI/UX design, audit accessibility, and run functional automation with real Chromium execution.
         </p>
       </div>
     </div>
@@ -100,26 +69,25 @@ function EmptyState() {
 export default function Home() {
   const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
-  const [url, setUrl]                   = useState('https://example.com');
+  const [url, setUrl] = useState('');
   const [instructions, setInstructions] = useState('');
-  const [tier, setTier]                 = useState('0');
-  const [environment, setEnvironment]   = useState('QA');
-  const [strict, setStrict]             = useState(false);
-  const [available, setAvailable]       = useState<CategoryDescriptor[]>([]);
-  const [selected, setSelected]         = useState<string[]>(DEFAULT_SELECTED);
-  const [running, setRunning]           = useState(false);
+  const [tier, setTier] = useState('0');
+  const [environment, setEnvironment] = useState('QA');
+  const [strict, setStrict] = useState(false);
+  const [available, setAvailable] = useState<CategoryDescriptor[]>([]);
+  const [selected, setSelected] = useState<string[]>(DEFAULT_SELECTED);
+  const [running, setRunning] = useState(false);
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
-  const [result, setResult]             = useState<RunResponse | null>(null);
-  const [error, setError]               = useState<RunResponse | null>(null);
-  const [pdfing, setPdfing]             = useState(false);
+  const [result, setResult] = useState<RunResponse | null>(null);
+  const [error, setError] = useState<RunResponse | null>(null);
+  const [pdfing, setPdfing] = useState(false);
+  const [captureAssets, setCaptureAssets] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const urlTouched = url.trim().length > 0;
-  const urlValid   = isValidUrl(url);
+  const urlValid = isValidUrl(url);
 
-  // Route protection: redirect to /login if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
@@ -130,12 +98,9 @@ export default function Home() {
     fetch('/api/categories')
       .then((r) => r.json())
       .then((d: { categories: CategoryDescriptor[] }) => setAvailable(d.categories))
-      .catch(() => {
-        // Keep UI functional even if categories fail to load
-      });
+      .catch(() => {});
   }, []);
 
-  /** Cmd+Enter / Ctrl+Enter anywhere on the page triggers Run. */
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -145,7 +110,6 @@ export default function Home() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, instructions, tier, environment, strict, selected, running, urlValid]);
 
   function handleLogout() {
@@ -156,45 +120,30 @@ export default function Home() {
     setSelected((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
   }
 
-  // Show clean loader while authenticating or redirecting
-  if (authLoading || !user) {
-    return (
-      <div
-        className="wrap"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '80vh',
-          textAlign: 'center',
-          gap: '16px',
-        }}
-      >
-        <Radar />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--muted)', fontSize: '14px' }}>
-          <span className="spinner" />
-          <span>Verifying authentication…</span>
-        </div>
-      </div>
-    );
+  function handleCancel() {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
+    setRunning(false);
+    setRunStartedAt(null);
   }
 
   async function run() {
-    if (!urlValid || selected.length === 0 || running) return;
-
-    const controller = new AbortController();
-    setAbortController(controller);
+    if (!urlValid || running) return;
 
     setRunning(true);
     setRunStartedAt(Date.now());
     setResult(null);
     setError(null);
 
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       const response = await fetch('/api/run', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url,
           instructions,
@@ -202,27 +151,44 @@ export default function Home() {
           ownershipTier: Number(tier),
           categories: selected,
           strict,
+          captureAssets,
         }),
         signal: controller.signal,
       });
-      let data: RunResponse;
-      const text = await response.text();
-      try {
-        data = JSON.parse(text) as RunResponse;
-      } catch {
-        data = {
-          error: `Server error (${response.status || '500'})`,
-          detail: text || response.statusText || 'The server encountered an issue processing the request.',
-        } as RunResponse;
-      }
 
-      if (!response.ok) setError(data);
-      else setResult(data);
-    } catch (e: any) {
-      if (e.name === 'AbortError') {
-        setError({ error: 'Run canceled by user' } as RunResponse);
+      const data = (await response.json()) as RunResponse;
+
+      if (!response.ok) {
+        setError(data);
       } else {
-        setError({ error: e instanceof Error ? e.message : 'Network request failed' } as RunResponse);
+        setResult(data);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        // Aborted
+      } else {
+        setError({
+          runId: 'err',
+          status: 'failed',
+          durationMs: 0,
+          targetUrl: url,
+          strict,
+          steps: [],
+          categories: [],
+          findings: [
+            {
+              type: 'console_error',
+              severity: 'high',
+              title: 'Connection error',
+              detail: err instanceof Error ? err.message : String(err),
+            },
+          ],
+          policyDecision: { effect: 'deny', code: 'INTERNAL_ERROR', reason: 'Internal error' },
+          ownership: { recordedTier: Number(tier), effectiveTier: Number(tier) },
+          totals: { total: 0, passed: 0, failed: 1, blocked: 0, skipped: 0 },
+          unparsed: [],
+          meanConfidence: 0,
+        });
       }
     } finally {
       setRunning(false);
@@ -231,300 +197,291 @@ export default function Home() {
     }
   }
 
-  function handleCancel() {
-    if (abortController) {
-      abortController.abort();
-    }
+  if (authLoading) {
+    return (
+      <div className="wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div className="spinner" style={{ width: 24, height: 24 }} />
+          <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Initializing 3D workspace…</div>
+        </div>
+      </div>
+    );
   }
 
-  function handleDownloadPdf() {
-    if (!result || pdfing) return;
-    setPdfing(true);
-    printReport(result)
-      .catch((e) => console.error('PDF export failed:', e))
-      .finally(() => setPdfing(false));
-  }
-
-  const tierNumber   = Number(tier);
-  const charsLeft    = MAX_INSTRUCTIONS - instructions.length;
-  const charClass    = charsLeft < 100 ? 'at-limit' : charsLeft < 300 ? 'near-limit' : '';
+  const tierNumber = Number(tier);
 
   return (
     <div className="wrap">
-      {/* ── Header ── */}
-      <header className="masthead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      {/* ── Floating Header ── */}
+      <header className="masthead reveal reveal-1">
         <div className="masthead-row">
-          <Radar />
-          <div>
-            <Wordmark />
-            <p className="tagline">
-              A real browser
-              <span className="rotator">
-                <span>clicks through your site.</span>
-                <span>reads its colours and type.</span>
-                <span>audits it for accessibility.</span>
-                <span>inspects its security headers.</span>
-                <span>screenshots every step.</span>
-              </span>
-            </p>
-          </div>
+          <Wordmark />
         </div>
-        
-        <div style={{ paddingTop: '8px' }}>
-          {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--muted)', fontWeight: 600 }}>
-                {user.displayName || user.email}
-              </span>
-              <button onClick={handleLogout} className="secondary" style={{ textDecoration: 'none' }}>
-                Log Out
-              </button>
-            </div>
-          ) : (
-            <Link href="/login" className="secondary" style={{ textDecoration: 'none' }}>
-              Log In
-            </Link>
-          )}
+
+        <div className="header-actions">
+          <span className="user-badge">
+            <span className="user-dot" />
+            <span>{user?.email || 'Authenticated'}</span>
+          </span>
+          <button
+            type="button"
+            className="secondary"
+            onClick={handleLogout}
+            style={{ padding: '6px 12px', fontSize: 12 }}
+          >
+            Sign out
+          </button>
         </div>
       </header>
 
-      {/* ── Three-column controls ── */}
-      <div className="controls-row no-print">
-
-        {/* Card 1: Target */}
-        <div className="card">
-          <h2>Target</h2>
+      {/* ── 3-Column Control Workspace ── */}
+      <div className="controls-row">
+        {/* Card 1: Target & Guardrails */}
+        <div className="card reveal reveal-1">
+          <div className="card-title">
+            <span>Target &amp; Scope</span>
+            <span className="card-title-badge">Tier {tier}</span>
+          </div>
 
           <div className="field">
-            <label htmlFor="url">Website URL</label>
-            <div className="input-wrap">
+            <label htmlFor="target-url">Target Website URL</label>
+            {/* Integrated Bug-Free URL Bar with solid left badge */}
+            <div className="url-bar-3d">
+              <div className="url-badge-3d">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span>HTTPS</span>
+              </div>
               <input
-                id="url"
+                id="target-url"
                 type="text"
+                className="url-input-field"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com"
-                className={urlTouched ? (urlValid ? 'url-valid' : 'url-invalid') : ''}
-                autoComplete="url"
+                autoComplete="off"
                 spellCheck={false}
               />
-              {urlTouched && (
-                <span className="input-valid-icon" aria-hidden>
-                  {urlValid ? '✓' : '✗'}
-                </span>
+              {url && (
+                <button
+                  type="button"
+                  className="url-clear-btn"
+                  onClick={() => setUrl('')}
+                  title="Clear URL"
+                >
+                  ✕
+                </button>
               )}
             </div>
-            {urlTouched && !urlValid && (
-              <p className="hint" style={{ color: 'var(--fail)', marginTop: 5 }}>
-                Enter a valid URL starting with https:// or http://
-              </p>
-            )}
           </div>
 
           <div className="field">
-            <label htmlFor="env">Environment</label>
-            <select id="env" value={environment} onChange={(e) => setEnvironment(e.target.value)}>
-              <option value="LOCAL">LOCAL — Local Development</option>
-              <option value="DEV">DEV — Development</option>
-              <option value="QA">QA — Quality Assurance</option>
-              <option value="UAT">UAT — User Acceptance Testing</option>
-              <option value="STAGING">STAGING — Staging / Pre-production</option>
-              <option value="PRODUCTION">PRODUCTION — Live Production</option>
+            <label htmlFor="ownership-tier">Ownership Verification Tier</label>
+            <select
+              id="ownership-tier"
+              value={tier}
+              onChange={(e) => setTier(e.target.value)}
+            >
+              <option value="0">Tier 0 — Unverified (Observation Only)</option>
+              <option value="1">Tier 1 — DNS Verified (Full Forms &amp; CRUD)</option>
+              <option value="2">Tier 2 — Verified + Attested (Active Probes)</option>
             </select>
-          </div>
-
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label htmlFor="tier">Ownership tier</label>
-            <select id="tier" value={tier} onChange={(e) => setTier(e.target.value)}>
-              <option value="0">0 — Unverified</option>
-              <option value="1">1 — DNS verified</option>
-              <option value="2">2 — Verified + attested</option>
-            </select>
-            <div className="tier-help" aria-live="polite">
+            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6, lineHeight: 1.4 }}>
               {TIER_HELP[tier]}
             </div>
           </div>
-        </div>
 
-        {/* Card 2: What to test */}
-        <div className="card">
-          <h2>What to test</h2>
-          {available.length === 0 && (
-            <p className="hint">Loading options…</p>
-          )}
+          <div className="field">
+            <label htmlFor="env-select">Environment</label>
+            <select
+              id="env-select"
+              value={environment}
+              onChange={(e) => setEnvironment(e.target.value)}
+            >
+              <option value="QA">QA Environment</option>
+              <option value="Staging">Staging Environment</option>
+              <option value="Production">Production Environment</option>
+              <option value="Local">Local Development</option>
+            </select>
+          </div>
 
-          <div className="checklist-scroll">
-            <div className="checklist-grid">
-              {available.map((category) => {
-                const locked  = tierNumber < category.minTier;
-                const checked = selected.includes(category.id);
-
-                return (
-                  <label
-                    key={category.id}
-                    htmlFor={`cat-${category.id}`}
-                    className={`option ${locked ? 'locked' : ''}`}
-                  >
-                    <input
-                      id={`cat-${category.id}`}
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggle(category.id)}
-                      aria-describedby={`cat-desc-${category.id}`}
-                    />
-                    <Glyph id={category.id} />
-                    <span>
-                      <span className="option-title">
-                        {category.label}
-                        {category.minTier > 0 && (
-                          <em className="tier-badge">tier {category.minTier}+</em>
-                        )}
-                      </span>
-                      <span className="option-desc" id={`cat-desc-${category.id}`}>
-                        {category.description}
-                      </span>
-                      {locked && checked && (
-                        <span className="option-warn">
-                          Skipped: target is tier {tierNumber}, this needs tier {category.minTier}.
-                        </span>
-                      )}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-
-            <label htmlFor="strict-mode" className="option strict-option">
+          <div style={{ paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
+            <label className="ios-switch">
               <input
-                id="strict-mode"
                 type="checkbox"
-                checked={strict}
-                onChange={() => setStrict(!strict)}
+                checked={captureAssets}
+                onChange={() => setCaptureAssets(!captureAssets)}
+                disabled={tierNumber < 1}
               />
-              <Glyph id="strict" />
-              <span>
-                <span className="option-title">Strict mode</span>
-                <span className="option-desc">
-                  Treat every warning as a failure. Heuristic checks — overlap, clipped text,
-                  tap targets — produce false positives on real sites, so they only warn by
-                  default.
-                </span>
+              <span className="switch-track">
+                <span className="switch-thumb" />
+              </span>
+              <span style={{ fontSize: 12.5, color: tierNumber < 1 ? 'var(--muted)' : 'var(--text)' }}>
+                Download Asset Files <span style={{ fontSize: 10.5, color: 'var(--muted)' }}>(Tier 1+)</span>
               </span>
             </label>
           </div>
         </div>
 
-        {/* Card 3: Scenario + Run */}
-        <div className="card">
-          <h2>Scenario</h2>
-          <div className="field">
-            <label htmlFor="instructions">Steps, in plain English</label>
+        {/* Card 2: Test Suite & Scraper Selection */}
+        <div className="card reveal reveal-2">
+          <div className="card-title">
+            <span>Inspection Suite</span>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              {selected.length} of {available.length} active
+            </span>
+          </div>
+
+          <div className="category-grid">
+            {available.map((cat) => {
+              const isSelected = selected.includes(cat.id);
+              const isTierRestricted = cat.minTier > tierNumber;
+
+              return (
+                <div
+                  key={cat.id}
+                  className={`option-tile ${isSelected ? 'selected' : ''}`}
+                  onClick={() => {
+                    if (!isTierRestricted) toggle(cat.id);
+                  }}
+                  style={{
+                    opacity: isTierRestricted ? 0.45 : 1,
+                    cursor: isTierRestricted ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <div className="option-glyph">
+                    <Glyph id={cat.id} />
+                  </div>
+                  <div className="option-content">
+                    <div className="option-title">
+                      <span>{cat.label}</span>
+                      {cat.minTier > 0 && (
+                        <span className="card-title-badge">Tier {cat.minTier}+</span>
+                      )}
+                    </div>
+                    <div className="option-desc">{cat.description}</div>
+                  </div>
+                  <div className="option-check">
+                    {isSelected && (
+                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                        <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+            <label className="ios-switch">
+              <input
+                type="checkbox"
+                checked={strict}
+                onChange={() => setStrict(!strict)}
+              />
+              <span className="switch-track">
+                <span className="switch-thumb" />
+              </span>
+              <span style={{ fontSize: 12.5 }}>
+                Strict Mode <span style={{ fontSize: 10.5, color: 'var(--muted)' }}>(Warnings become failures)</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Card 3: Scenario & Execution */}
+        <div className="card reveal reveal-3" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="card-title">
+            <span>Scenario &amp; Run</span>
+            <span className="card-title-badge">Natural Language</span>
+          </div>
+
+          <div className="field" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <label htmlFor="scenario-input">Steps (Optional Custom Flow)</label>
             <textarea
-              id="instructions"
+              id="scenario-input"
               ref={textareaRef}
+              className="scenario-textarea"
               value={instructions}
               onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
-              placeholder={SAMPLE}
+              placeholder={`# Leave blank to audit & scrape page, or write steps:\ngo to /\nverify Search is visible\ntake a screenshot`}
+              spellCheck={false}
+              style={{ flex: 1 }}
             />
-            <div className={`char-counter ${charClass}`}>
-              {charsLeft} / {MAX_INSTRUCTIONS} chars remaining
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+              <span>Leave blank for automated page audit</span>
+              <span>{instructions.length} / {MAX_INSTRUCTIONS}</span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              className="primary"
-              onClick={run}
-              disabled={running || selected.length === 0 || !urlValid}
-              aria-label="Run test in a real browser"
-              style={{ flex: 1 }}
-            >
-              {running
-                ? <><span className="spinner" />Running in a real browser…</>
-                : 'Run test'
-              }
-            </button>
-            {running && (
+          <div className="verbs-box">
+            <strong>DSL Verbs:</strong> <span className="verb-tag">go to /path</span> <span className="verb-tag">click X</span> <span className="verb-tag">enter Y into X</span> <span className="verb-tag">verify X</span> <span className="verb-tag">screenshot</span>
+          </div>
+
+          <div style={{ marginTop: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
+            {running ? (
+              <>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={handleCancel}
+                  style={{ flex: 1 }}
+                >
+                  Cancel Run
+                </button>
+                {runStartedAt && <ElapsedTimer startedAt={runStartedAt} />}
+              </>
+            ) : (
               <button
-                className="secondary"
-                onClick={handleCancel}
-                aria-label="Cancel test run"
+                type="button"
+                className="primary"
+                onClick={run}
+                disabled={!urlValid}
+                style={{ flex: 1, padding: '13px 20px', fontSize: 14 }}
               >
-                Stop
+                <span>Run Inspection</span>
+                <span style={{ fontSize: 11, opacity: 0.85, padding: '2px 6px', background: 'rgba(255,255,255,0.2)', borderRadius: 4 }}>
+                  ⌘ ↵
+                </span>
               </button>
             )}
           </div>
-
-          <p className="run-hint">
-            <kbd>⌘</kbd>+<kbd>Enter</kbd> or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
-          </p>
-
-          {selected.length === 0 && (
-            <p className="hint" style={{ color: 'var(--warn)' }}>
-              Select at least one kind of testing.
-            </p>
-          )}
-
-          <p className="hint">
-            Verbs: <code>go to /path</code> · <code>click X</code> · <code>enter Y into X</code> ·{' '}
-            <code>fill X with Y</code> · <code>search for X</code> · <code>verify X</code> ·{' '}
-            <code>wait for X</code> · <code>screenshot</code>
-          </p>
         </div>
       </div>
 
-      {/* ── Results area ── */}
-      <div className="results">
-        {/* Error */}
+      {/* ── Results Panel or Ready State ── */}
+      <div className="results-container" style={{ marginTop: 24 }}>
         {error && (
-          <div className="card">
-            <h2>Run refused</h2>
-            <div className="err">
-              <strong>{error.error}</strong>
-              {error.detail && <div style={{ marginTop: 6 }}>{error.detail}</div>}
-              {error.hint   && <div style={{ marginTop: 6 }}>{error.hint}</div>}
+          <div className="card reveal reveal-1" style={{ borderLeft: '4px solid var(--fail)', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fail)', fontWeight: 700 }}>
+              <span>⚠️ Execution Failed</span>
             </div>
-            {error.issues?.map((issue, i) => (
-              <div key={i} className="assert bad">
-                <strong>{issue.rule}</strong> — {issue.message}
-              </div>
-            ))}
-            <button
-              className="secondary"
-              style={{ marginTop: 12 }}
-              onClick={run}
-              disabled={running || !urlValid}
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!result && !error && !running && <EmptyState />}
-
-        {/* Running */}
-        {running && runStartedAt && (
-          <div className="card" aria-busy="true">
-            <div className="scanning">
-              <div className="bars" aria-hidden>
-                <i /><i /><i /><i /><i />
-              </div>
-              <div className="phase" role="status" aria-atomic="true">
-                Driving a real browser through your scenario…
-              </div>
-              <ElapsedTimer startedAt={runStartedAt} />
+            <div style={{ marginTop: 8, fontSize: 13.5, color: 'var(--text)' }}>
+              {error.findings?.[0]?.detail || 'The run could not complete. Check URL connectivity.'}
             </div>
           </div>
         )}
 
-        {/* Results */}
-        {result && (
+        {result ? (
           <ResultsPanel
             result={result}
-            onDownload={handleDownloadPdf}
+            onDownload={async () => {
+              setPdfing(true);
+              try {
+                await printReport(result);
+              } catch (e) {
+                console.error('PDF generation error:', e);
+              } finally {
+                setPdfing(false);
+              }
+            }}
             pdfing={pdfing}
           />
+        ) : (
+          !running && <EmptyState />
         )}
       </div>
     </div>

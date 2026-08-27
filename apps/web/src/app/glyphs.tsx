@@ -114,6 +114,20 @@ function Strict() {
   );
 }
 
+function Scraper() {
+  return (
+    <svg {...BASE}>
+      {/* Concentric arcs like a web */}
+      <path d="M12 4a8 8 0 0 1 0 16A8 8 0 0 1 12 4Z" strokeOpacity="0.3" />
+      <circle cx="12" cy="12" r="4.5" />
+      {/* Radial threads */}
+      <path d="M12 4v16M4 12h16M6.34 6.34l11.32 11.32M17.66 6.34 6.34 17.66" strokeOpacity="0.4" />
+      {/* Spider dot */}
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" className="pulse" />
+    </svg>
+  );
+}
+
 const GLYPHS: Record<string, () => React.JSX.Element> = {
   functional: Functional,
   ui: Ui,
@@ -125,6 +139,7 @@ const GLYPHS: Record<string, () => React.JSX.Element> = {
   api: Api,
   unit: Unit,
   strict: Strict,
+  scraper: Scraper,
 };
 
 export function Glyph({ id }: { id: string }) {
