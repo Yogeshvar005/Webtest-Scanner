@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { codeMono, uiSans } from './fonts';
 import { AuthProvider } from '../lib/auth-context';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
 import './motion.css';
 
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${uiSans.variable} ${codeMono.variable}`}>
       <body>
         <AuthProvider>{children}</AuthProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
