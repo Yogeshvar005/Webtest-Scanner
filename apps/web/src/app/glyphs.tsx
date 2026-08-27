@@ -151,13 +151,10 @@ export function Glyph({ id }: { id: string }) {
 export function Radar() {
   return (
     <div className="radar" aria-hidden>
-      <span className="ring" />
-      <span className="ring" />
-      <span className="ring" />
-      <span className="sweep" />
-      <span className="blip b1" />
-      <span className="blip b2" />
-      <span className="blip b3" />
+      <span className="scan-box" />
+      <span className="scan-line" />
+      <span className="scan-node n1" />
+      <span className="scan-node n2" />
     </div>
   );
 }

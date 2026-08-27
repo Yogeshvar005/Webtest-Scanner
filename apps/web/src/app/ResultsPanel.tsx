@@ -17,24 +17,28 @@ function statusClass(status: string): string {
 }
 
 function runSummary(result: RunResponse): string {
-  const parts = [`Run ${result.status}.`];
-
+  const parts: string[] = [];
   const executed = result.totals.passed + result.totals.failed;
-  parts.push(
-    `${executed} of ${result.totals.total} steps executed` +
-      (result.totals.blocked > 0 ? `, ${result.totals.blocked} blocked by policy` : '') +
-      '.',
-  );
-
+  const stepsFailed = result.totals.failed > 0;
+  const stepsBlocked = result.totals.blocked > 0;
   const failedCategories = (result.categories ?? []).filter((c) => c.status === 'failed');
   const warnedCategories = (result.categories ?? []).filter((c) => c.status === 'warning');
 
-  if (failedCategories.length > 0) {
-    parts.push(
-      `${failedCategories.length} test ${failedCategories.length === 1 ? 'category' : 'categories'} failed: ` +
-        `${failedCategories.map((c) => c.label).join(', ')}.`,
-    );
+  const stepsText = `${executed} of ${result.totals.total} steps executed` +
+    (stepsBlocked ? `, ${result.totals.blocked} blocked by policy` : '');
+
+  if (result.status === 'failed' && !stepsFailed && !stepsBlocked && failedCategories.length > 0) {
+    parts.push(`Functional steps passed (${stepsText}), but ${failedCategories.length} test ${failedCategories.length === 1 ? 'category' : 'categories'} failed: ${failedCategories.map((c) => c.label).join(', ')}.`);
+  } else {
+    parts.push(`Run ${result.status}. ${stepsText}.`);
+    if (failedCategories.length > 0) {
+      parts.push(
+        `${failedCategories.length} test ${failedCategories.length === 1 ? 'category' : 'categories'} failed: ` +
+          `${failedCategories.map((c) => c.label).join(', ')}.`,
+      );
+    }
   }
+
   if (warnedCategories.length > 0) {
     parts.push(
       `${warnedCategories.length} ${warnedCategories.length === 1 ? 'category has' : 'categories have'} warnings: ` +
@@ -235,7 +239,7 @@ function ExportDock({ result }: { result: RunResponse }) {
           className="secondary"
           onClick={handleScraperJson}
           title="Download Scraped Page Data"
-          style={{ fontSize: 12, background: 'var(--accent-dim)', borderColor: 'rgba(10, 132, 255, 0.4)', color: 'var(--accent-cyan)' }}
+          style={{ fontSize: 12, background: 'var(--bg-hover)', borderColor: 'rgba(10, 132, 255, 0.4)', color: 'var(--accent)' }}
         >
           <IconDownload /> Scraped Content JSON
         </button>
@@ -275,20 +279,20 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
           <div className="label">Blocked</div>
         </div>
         <div className="stat-box">
-          <div className="num" style={{ color: 'var(--accent-cyan)' }}>
+          <div className="num" style={{ color: 'var(--accent)' }}>
             {Math.round(result.meanConfidence * 100)}%
           </div>
           <div className="label">Inference Confidence</div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, padding: '12px 16px', background: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
         <span>Policy Effect: <strong style={{ color: 'var(--text)' }}>{result.policyDecision.effect.toUpperCase()}</strong></span>
         <span>Effective Tier: <strong style={{ color: 'var(--text)' }}>Tier {result.ownership.effectiveTier}</strong></span>
       </div>
 
       {result.policyDecision.reason && (
-        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 12 }}>
           ℹ️ {result.policyDecision.reason}
         </div>
       )}
@@ -307,7 +311,7 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '10px 14px',
-                  background: 'rgba(255,255,255,0.03)',
+                  background: 'var(--bg-hover)',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-sm)',
                   cursor: 'pointer',
@@ -339,7 +343,7 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
                 key={i}
                 style={{
                   padding: '12px 14px',
-                  background: 'rgba(255,255,255,0.03)',
+                  background: 'var(--bg-hover)',
                   borderLeft: `4px solid ${f.severity === 'critical' || f.severity === 'high' ? 'var(--fail)' : f.severity === 'medium' ? 'var(--warn)' : 'var(--accent)'}`,
                   borderTop: '1px solid var(--border)',
                   borderRight: '1px solid var(--border)',
@@ -368,7 +372,7 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
 /* ── Categories Tab ── */
 function CategoriesTab({ result }: { result: RunResponse }) {
   if (result.categories.length === 0) {
-    return <p style={{ color: 'var(--muted)', fontSize: 13 }}>No categories were selected for this run.</p>;
+    return <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No categories were selected for this run.</p>;
   }
 
   return (
@@ -378,7 +382,7 @@ function CategoriesTab({ result }: { result: RunResponse }) {
           key={category.category}
           open={category.status === 'failed' || category.status === 'warning'}
           style={{
-            background: 'rgba(255,255,255,0.03)',
+            background: 'var(--bg-hover)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-md)',
             overflow: 'hidden',
@@ -392,7 +396,7 @@ function CategoriesTab({ result }: { result: RunResponse }) {
               justifyContent: 'space-between',
               cursor: 'pointer',
               userSelect: 'none',
-              background: 'rgba(255,255,255,0.02)',
+              background: 'var(--bg-hover)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -405,9 +409,9 @@ function CategoriesTab({ result }: { result: RunResponse }) {
             </div>
           </summary>
 
-          <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border)' }}>
             {category.skippedReason && (
-              <div style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: 6, fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
+              <div style={{ padding: '8px 12px', background: 'var(--bg-hover)', borderRadius: 6, fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 12 }}>
                 ℹ️ {category.skippedReason}
               </div>
             )}
@@ -418,7 +422,7 @@ function CategoriesTab({ result }: { result: RunResponse }) {
                   key={check.id}
                   style={{
                     padding: '12px 14px',
-                    background: 'rgba(0,0,0,0.3)',
+                    background: 'var(--bg-hover)',
                     border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)',
                   }}
@@ -428,7 +432,7 @@ function CategoriesTab({ result }: { result: RunResponse }) {
                       <span className={`pill ${statusClass(check.status)}`}>{check.status}</span>
                       <span style={{ fontWeight: 600, fontSize: 13 }}>{check.name}</span>
                     </div>
-                    <span style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase' }}>{check.severity}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{check.severity}</span>
                   </div>
                   <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.45 }}>{check.detail}</div>
                   {check.evidence && check.evidence.length > 0 && (
@@ -436,7 +440,7 @@ function CategoriesTab({ result }: { result: RunResponse }) {
                       style={{
                         margin: '8px 0 0',
                         padding: '8px 10px',
-                        background: 'rgba(0,0,0,0.5)',
+                        background: 'var(--bg-hover)',
                         borderRadius: 4,
                         fontSize: 11.5,
                         fontFamily: 'var(--font-mono)',
@@ -461,7 +465,7 @@ function CategoriesTab({ result }: { result: RunResponse }) {
 /* ── Findings Tab ── */
 function FindingsTab({ result }: { result: RunResponse }) {
   if (result.findings.length === 0) {
-    return <p style={{ color: 'var(--muted)', fontSize: 13 }}>No findings were raised for this run.</p>;
+    return <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No findings were raised for this run.</p>;
   }
 
   return (
@@ -471,7 +475,7 @@ function FindingsTab({ result }: { result: RunResponse }) {
           key={i}
           style={{
             padding: '14px 16px',
-            background: 'rgba(255,255,255,0.03)',
+            background: 'var(--bg-hover)',
             borderLeft: `4px solid ${f.severity === 'critical' || f.severity === 'high' ? 'var(--fail)' : f.severity === 'medium' ? 'var(--warn)' : 'var(--accent)'}`,
             borderTop: '1px solid var(--border)',
             borderRight: '1px solid var(--border)',
@@ -491,7 +495,7 @@ function FindingsTab({ result }: { result: RunResponse }) {
               style={{
                 margin: '8px 0 0',
                 padding: '8px 10px',
-                background: 'rgba(0,0,0,0.5)',
+                background: 'var(--bg-hover)',
                 borderRadius: 4,
                 fontSize: 11.5,
                 fontFamily: 'var(--font-mono)',
@@ -511,7 +515,7 @@ function FindingsTab({ result }: { result: RunResponse }) {
 /* ── Steps Tab ── */
 function StepsTab({ result }: { result: RunResponse }) {
   if (result.steps.length === 0) {
-    return <p style={{ color: 'var(--muted)', fontSize: 13 }}>No steps were executed in this scenario.</p>;
+    return <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No steps were executed in this scenario.</p>;
   }
 
   return (
@@ -520,7 +524,7 @@ function StepsTab({ result }: { result: RunResponse }) {
         <div
           key={step.id}
           style={{
-            background: 'rgba(255,255,255,0.03)',
+            background: 'var(--bg-hover)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-md)',
             overflow: 'hidden',
@@ -529,15 +533,15 @@ function StepsTab({ result }: { result: RunResponse }) {
           <div
             style={{
               padding: '12px 16px',
-              background: 'rgba(255,255,255,0.02)',
+              background: 'var(--bg-hover)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              borderBottom: '1px solid var(--border-subtle)',
+              borderBottom: '1px solid var(--border)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ display: 'inline-flex', width: 22, height: 22, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
+              <span style={{ display: 'inline-flex', width: 22, height: 22, borderRadius: '50%', background: 'var(--bg-hover)', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
                 {step.index + 1}
               </span>
               <strong style={{ fontSize: 13.5 }}>{step.intent}</strong>
@@ -546,7 +550,7 @@ function StepsTab({ result }: { result: RunResponse }) {
               <span className={`pill ${(step.status === 'passed' || step.status === 'failed') ? 'passed' : statusClass(step.status)}`}>
                 {(step.status === 'passed' || step.status === 'failed') ? 'Executed' : step.status}
               </span>
-              <span style={{ fontSize: 11.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{step.durationMs}ms</span>
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{step.durationMs}ms</span>
             </div>
           </div>
 
@@ -557,7 +561,7 @@ function StepsTab({ result }: { result: RunResponse }) {
               </div>
             )}
             {step.policyReason && (
-              <div style={{ color: 'var(--block)', fontSize: 12.5, marginBottom: 8 }}>
+              <div style={{ color: 'var(--text-muted)', fontSize: 12.5, marginBottom: 8 }}>
                 🛡️ Blocked by policy: {step.policyReason}
               </div>
             )}
@@ -572,7 +576,7 @@ function StepsTab({ result }: { result: RunResponse }) {
                 }}
               >
                 {a.passed ? '✓' : '✗'} {a.description}
-                {a.detail && <span style={{ color: 'var(--muted)', marginLeft: 6 }}>({a.detail})</span>}
+                {a.detail && <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>({a.detail})</span>}
               </div>
             ))}
 
@@ -600,7 +604,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
 
   if (!scraper) {
     return (
-      <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--muted)' }}>
+      <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-muted)' }}>
         Web Scraper category was not selected for this run. Enable &ldquo;Web Scraper&rdquo; in the inspection suite and run again.
       </div>
     );
@@ -635,7 +639,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
 
   return (
     <div>
-      <div style={{ fontSize: 13, color: 'var(--accent-cyan)', marginBottom: 14, padding: '8px 12px', background: 'var(--accent-dim)', borderRadius: 'var(--radius-sm)' }}>
+      <div style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 14, padding: '8px 12px', background: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)' }}>
         🕷 {getDetail('scraper-meta')}
       </div>
 
@@ -657,7 +661,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
       {section === 'meta' && (
         <div>
           {metaItems.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>No meta tags found.</p>
+            <p style={{ color: 'var(--text-muted)' }}>No meta tags found.</p>
           ) : (
             <table className="apple-table">
               <thead>
@@ -673,7 +677,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
                   const val = colonIdx > -1 ? item.slice(colonIdx + 2) : '';
                   return (
                     <tr key={i}>
-                      <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontSize: 12 }}>{key}</td>
+                      <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: 12 }}>{key}</td>
                       <td style={{ wordBreak: 'break-word', fontSize: 12.5 }}>{val}</td>
                     </tr>
                   );
@@ -688,7 +692,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
       {section === 'headings' && (
         <div>
           {headingItems.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>No headings found.</p>
+            <p style={{ color: 'var(--text-muted)' }}>No headings found.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {headingItems.map((h, i) => {
@@ -699,7 +703,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
                     style={{
                       marginLeft: (level - 1) * 18,
                       padding: '8px 12px',
-                      background: 'rgba(255,255,255,0.03)',
+                      background: 'var(--bg-hover)',
                       borderLeft: `3px solid var(--accent)`,
                       borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
                       display: 'flex',
@@ -707,7 +711,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
                       gap: 10,
                     }}
                   >
-                    <span className="pill" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 10 }}>
+                    <span className="pill" style={{ background: 'var(--bg-hover)', color: '#fff', fontSize: 10 }}>
                       H{level}
                     </span>
                     <span style={{ fontSize: Math.max(12, 15 - level * 0.8), fontWeight: level <= 2 ? 600 : 400 }}>
@@ -739,7 +743,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
             const filtered = rawLinks.filter((l) => l.toLowerCase().includes(linkSearch.toLowerCase()));
 
             if (filtered.length === 0) {
-              return <p style={{ color: 'var(--muted)' }}>No matching links found.</p>;
+              return <p style={{ color: 'var(--text-muted)' }}>No matching links found.</p>;
             }
 
             return (
@@ -777,7 +781,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
       {section === 'images' && (
         <div>
           {images.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>No images found.</p>
+            <p style={{ color: 'var(--text-muted)' }}>No images found.</p>
           ) : (
             <div className="image-gallery">
               {images.map((item, i) => {
@@ -816,9 +820,9 @@ function ScraperTab({ result }: { result: RunResponse }) {
       {section === 'forms' && (
         <div>
           {forms.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>No form elements found.</p>
+            <p style={{ color: 'var(--text-muted)' }}>No form elements found.</p>
           ) : (
-            <pre style={{ fontSize: 12, fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', padding: 14, background: 'rgba(0,0,0,0.4)', borderRadius: 'var(--radius-sm)' }}>
+            <pre style={{ fontSize: 12, fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', padding: 14, background: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)' }}>
               {forms.join('\n\n')}
             </pre>
           )}
@@ -829,9 +833,9 @@ function ScraperTab({ result }: { result: RunResponse }) {
       {section === 'navigation' && (
         <div>
           {navItems.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>No navigation landmarks found.</p>
+            <p style={{ color: 'var(--text-muted)' }}>No navigation landmarks found.</p>
           ) : (
-            <pre style={{ fontSize: 12, fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', padding: 14, background: 'rgba(0,0,0,0.4)', borderRadius: 'var(--radius-sm)' }}>
+            <pre style={{ fontSize: 12, fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', padding: 14, background: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)' }}>
               {navItems.join('\n')}
             </pre>
           )}
@@ -842,7 +846,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
       {section === 'structured-data' && (
         <div>
           {structuredData.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>No JSON-LD structured data detected on this page.</p>
+            <p style={{ color: 'var(--text-muted)' }}>No JSON-LD structured data detected on this page.</p>
           ) : (
             structuredData.map((item, i) => (
               <pre
@@ -852,7 +856,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
                   fontFamily: 'var(--font-mono)',
                   whiteSpace: 'pre-wrap',
                   padding: 14,
-                  background: 'rgba(0,0,0,0.4)',
+                  background: 'var(--bg-hover)',
                   borderRadius: 'var(--radius-sm)',
                   marginBottom: 12,
                 }}
@@ -868,7 +872,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
       {section === 'contacts' && (
         <div>
           {contacts.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>No phone numbers or email addresses found in visible text.</p>
+            <p style={{ color: 'var(--text-muted)' }}>No phone numbers or email addresses found in visible text.</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
               {contacts.map((c, i) => {
@@ -878,7 +882,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
                     key={i}
                     style={{
                       padding: '12px 14px',
-                      background: 'rgba(255,255,255,0.03)',
+                      background: 'var(--bg-hover)',
                       border: '1px solid var(--border)',
                       borderRadius: 'var(--radius-sm)',
                       display: 'flex',
@@ -906,7 +910,7 @@ function ScraperTab({ result }: { result: RunResponse }) {
       {section === 'text' && (
         <div>
           {textBlocks.length === 0 ? (
-            <p style={{ color: 'var(--muted)' }}>No text blocks found.</p>
+            <p style={{ color: 'var(--text-muted)' }}>No text blocks found.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {textBlocks.map((block, i) => (
@@ -914,8 +918,8 @@ function ScraperTab({ result }: { result: RunResponse }) {
                   key={i}
                   style={{
                     padding: '10px 14px',
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid var(--border-subtle)',
+                    background: 'var(--bg-hover)',
+                    border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: 13,
                     lineHeight: 1.5,
@@ -955,7 +959,7 @@ export function ResultsPanel({ result, onDownload, pdfing }: ResultsPanelProps) 
       {/* ── Results Hero Header ── */}
       <div className="results-hero">
         <div className="results-meta-left">
-          <span className="pill verdict" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text)' }}>
+          <span className="pill verdict" style={{ background: 'var(--bg-hover)', color: 'var(--text)' }}>
             {['passed', 'failed', 'warning', 'blocked'].includes(result.status) ? 'EXECUTED' : result.status.toUpperCase()}
           </span>
           {result.strict && <span className="pill warning">Strict</span>}
@@ -1014,7 +1018,7 @@ export function ResultsPanel({ result, onDownload, pdfing }: ResultsPanelProps) 
         {tab === 'steps' && <StepsTab result={result} />}
         {tab === 'scraper' && <ScraperTab result={result} />}
         {tab === 'raw' && (
-          <pre style={{ fontSize: 12, fontFamily: 'var(--font-mono)', padding: 16, background: 'rgba(0,0,0,0.5)', borderRadius: 'var(--radius-sm)', overflowX: 'auto' }}>
+          <pre style={{ fontSize: 12, fontFamily: 'var(--font-mono)', padding: 16, background: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', overflowX: 'auto' }}>
             {JSON.stringify(result, null, 2)}
           </pre>
         )}
