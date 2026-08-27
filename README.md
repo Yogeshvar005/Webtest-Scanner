@@ -39,7 +39,7 @@ You can use the scanner instantly without installing or cloning anything locally
 
 ---
 
-## 🚀 How Does It Work?
+## 🏗️ Architecture & How It Works
 
 ```mermaid
 flowchart TD
@@ -85,6 +85,7 @@ flowchart TD
 
 6. **Interactive Dashboard & PDF Generation (`@wts/web`)**:
    - Displays a tabbed interface with category scores, issue severities, and full screenshot galleries.
+   - Features custom CSS keyframe animations (Scanner / Radar effects) and dual-mode responsive backgrounds.
    - Generates downloadable, print-optimized **PDF reports** directly from the browser.
 
 ---
@@ -95,7 +96,7 @@ flowchart TD
 * **Framework**: [Next.js 15](https://nextjs.org/) (App Router, Server Components & Route Handlers)
 * **UI Library**: [React 19](https://react.dev/)
 * **Language**: [TypeScript 5](https://www.typescriptlang.org/) (Strict Mode)
-* **Styling**: Pure CSS Design System with Glassmorphism, CSS Custom Properties, and responsive layouts
+* **Styling & Animation**: Pure CSS Design System with Glassmorphism, CSS Custom Properties, and advanced keyframe animations (Custom SVG Scanner).
 * **Authentication**: [Firebase Authentication v12](https://firebase.google.com/products/auth) (Google OAuth, Email/Password, AuthContext Provider, Route Protection Gate)
 
 ### 🤖 Browser Automation & Testing Engines
