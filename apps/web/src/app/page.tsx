@@ -460,7 +460,7 @@ export default function Home() {
               <span>⚠️ Execution Failed</span>
             </div>
             <div style={{ marginTop: 8, fontSize: 13.5, color: 'var(--text)' }}>
-              {error.findings?.[0]?.detail || 'The run could not complete. Check URL connectivity.'}
+              {error.findings?.[0]?.detail || (error as any).detail || (error as any).error || 'The run could not complete. Check URL connectivity.'}
             </div>
           </div>
         )}
