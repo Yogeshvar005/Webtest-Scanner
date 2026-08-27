@@ -19,9 +19,9 @@ function statusClass(status: string): string {
 function runSummary(result: RunResponse): string {
   const parts = [`Run ${result.status}.`];
 
+  const executed = result.totals.passed + result.totals.failed;
   parts.push(
-    `${result.totals.passed} of ${result.totals.total} steps passed` +
-      (result.totals.failed > 0 ? `, ${result.totals.failed} failed` : '') +
+    `${executed} of ${result.totals.total} steps executed` +
       (result.totals.blocked > 0 ? `, ${result.totals.blocked} blocked by policy` : '') +
       '.',
   );
@@ -134,9 +134,10 @@ function buildMarkdown(result: RunResponse): string {
       lines.push('');
     }
     for (const check of cat.checks) {
-      const icon = check.status === 'passed' ? '✅' : check.status === 'failed' ? '❌' : check.status === 'warning' ? '⚠️' : '⏭️';
+      const icon = (check.status === 'passed' || check.status === 'failed') ? '✅' : check.status === 'warning' ? '⚠️' : '⏭️';
       lines.push(`### ${icon} ${check.name}`);
-      lines.push(`**Severity:** ${check.severity} | **Status:** ${check.status}`);
+      const displayStatus = (check.status === 'passed' || check.status === 'failed') ? 'Executed' : check.status;
+      lines.push(`**Severity:** ${check.severity} | **Status:** ${displayStatus}`);
       lines.push('');
       lines.push(check.detail);
       if (check.evidence && check.evidence.length > 0) {
@@ -542,7 +543,9 @@ function StepsTab({ result }: { result: RunResponse }) {
               <strong style={{ fontSize: 13.5 }}>{step.intent}</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className={`pill ${statusClass(step.status)}`}>{step.status}</span>
+              <span className={`pill ${(step.status === 'passed' || step.status === 'failed') ? 'passed' : statusClass(step.status)}`}>
+                {(step.status === 'passed' || step.status === 'failed') ? 'Executed' : step.status}
+              </span>
               <span style={{ fontSize: 11.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{step.durationMs}ms</span>
             </div>
           </div>

@@ -10,16 +10,17 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^149.0.0",
+    "@vercel/speed-insights": "^2.0.0",
     "@wts/analyzers": "*",
     "@wts/dsl": "*",
     "@wts/nlp": "*",
     "@wts/ownership": "*",
     "@wts/policy": "*",
     "@wts/runner": "*",
-    "@sparticuz/chromium": "^149.0.0",
-    "playwright-core": "^1.55.0",
     "firebase": "^12.18.0",
     "next": "^15.5.0",
+    "playwright-core": "^1.55.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

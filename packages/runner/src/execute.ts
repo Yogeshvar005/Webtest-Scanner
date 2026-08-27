@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium as playwrightCoreChromium, type Browser, type Page, type Response } from 'playwright-core';
+import { addExtra } from 'playwright-extra';
+import stealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { Scenario, Step, WaitCondition } from '@wts/dsl';
 import { detectInjection, sanitizeText, type InjectionSignal } from '@wts/nlp';
 import { evaluate, type PolicyRequest } from '@wts/policy';
@@ -213,8 +215,19 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
 
         console.log('Chromium binary resolved to:', executablePath);
 
-        browser = await playwrightCoreChromium.launch({
+        const proxyOptions = process.env.PROXY_SERVER ? {
+          server: process.env.PROXY_SERVER,
+          username: process.env.PROXY_USERNAME,
+          password: process.env.PROXY_PASSWORD,
+        } : undefined;
+
+        const stealth = stealthPlugin();
+        const stealthChromium = addExtra(playwrightCoreChromium as any);
+        stealthChromium.use(stealth);
+
+        browser = await stealthChromium.launch({
           executablePath,
+          proxy: proxyOptions,
           args: [
             ...chromium.args.filter((a: string) => a !== '--disable-http2'),
             '--disable-blink-features=AutomationControlled',
@@ -232,20 +245,36 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
           '--no-sandbox',
           '--disable-setuid-sandbox',
         ];
+        
+        const proxyOptions = process.env.PROXY_SERVER ? {
+          server: process.env.PROXY_SERVER,
+          username: process.env.PROXY_USERNAME,
+          password: process.env.PROXY_PASSWORD,
+        } : undefined;
+
         try {
           const { chromium } = await import('playwright');
-          browser = await chromium.launch({
+          const stealth = stealthPlugin();
+          const stealthChromium = addExtra(chromium as any);
+          stealthChromium.use(stealth);
+
+          browser = await stealthChromium.launch({
             headless: options.headless ?? true,
+            proxy: proxyOptions,
             args: launchArgs,
           });
         } catch {
-          browser = await playwrightCoreChromium.launch({
+          const stealth = stealthPlugin();
+          const stealthChromium = addExtra(playwrightCoreChromium as any);
+          stealthChromium.use(stealth);
+          browser = await stealthChromium.launch({
             headless: options.headless ?? true,
+            proxy: proxyOptions,
             args: launchArgs,
           });
         }
       }
-      const context = await browser.newContext({
+      const context = await browser!.newContext({
         viewport: { width: 1280, height: 800 },
         userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         locale: 'en-US',
