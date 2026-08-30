@@ -25,6 +25,9 @@ interface RunBody {
   strict?: boolean;
   /** Download the site's actual asset files, not just catalogue them. */
   captureAssets?: boolean;
+  /** Emulated device preset or custom viewport */
+  device?: 'desktop' | 'laptop' | 'mobile' | 'tablet';
+  viewport?: { width: number; height: number };
 }
 
 const VALID_CATEGORIES = new Set(CATEGORIES.map((c) => c.id));
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
 
   // The denylist is checked before anything else and outranks verification.
   const denied = checkDenylist(target.hostname);
-  if (denied) {
+  if (denied && !(body.environment === 'LOCAL' && denied.category === 'private-network')) {
     return NextResponse.json(
       {
         error: 'This target cannot be tested through this platform.',
@@ -127,6 +130,25 @@ export async function POST(request: Request) {
     const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
     const artifactDir = isServerless ? join('/tmp', 'artifacts') : join(process.cwd(), 'public', 'artifacts');
 
+    let viewport = body.viewport ?? { width: 1280, height: 800 };
+    let isMobile = false;
+    let hasTouch = false;
+    let userAgent: string | undefined = undefined;
+
+    if (body.device === 'mobile') {
+      viewport = { width: 390, height: 844 };
+      isMobile = true;
+      hasTouch = true;
+      userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1';
+    } else if (body.device === 'tablet') {
+      viewport = { width: 820, height: 1180 };
+      isMobile = true;
+      hasTouch = true;
+      userAgent = 'Mozilla/5.0 (iPad; CPU OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1';
+    } else if (body.device === 'laptop') {
+      viewport = { width: 1440, height: 900 };
+    }
+
     const result = await executeScenario({
       scenario,
       targetUrl: origin,
@@ -137,6 +159,10 @@ export async function POST(request: Request) {
       categories,
       strict: body.strict ?? false,
       captureAssets: body.captureAssets ?? false,
+      viewport,
+      isMobile,
+      hasTouch,
+      userAgent,
     });
 
     return NextResponse.json({

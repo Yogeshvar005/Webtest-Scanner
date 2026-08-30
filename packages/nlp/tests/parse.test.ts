@@ -88,6 +88,33 @@ describe('action parsing', () => {
     expect(parsed.step?.action).toMatchObject({ target: { name: 'Login' } });
   });
 
+  test('strips conversational trailing clauses like "and show next page"', () => {
+    const parsed1 = parseLine('Click sign up and show next page', 0);
+    expect(parsed1.step?.action).toMatchObject({
+      type: 'click',
+      target: { name: 'sign up' },
+    });
+
+    const parsed2 = parseLine('Click sign up and show me what comes', 0);
+    expect(parsed2.step?.action).toMatchObject({
+      type: 'click',
+      target: { name: 'sign up' },
+    });
+
+    const parsed3 = parseLine('Click sign up and see what happens', 0);
+    expect(parsed3.step?.action).toMatchObject({
+      type: 'click',
+      target: { name: 'sign up' },
+    });
+  });
+
+  test('splits compound instructions with "and click/verify/take"', () => {
+    expect(splitInstructions('Click sign up and take a screenshot')).toEqual([
+      'Click sign up',
+      'take a screenshot',
+    ]);
+  });
+
   test('returns an open question rather than guessing at gibberish', () => {
     const parsed = parseLine('flurble the wibbly', 0);
     expect(parsed.step).toBeUndefined();

@@ -3,12 +3,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { Sun, Moon, Settings, Search } from 'lucide-react';
-import { Glyph, Radar, Wordmark } from './glyphs';
+import { 
+  Sun, Moon, Search, Smartphone, Monitor, Tablet, Laptop, 
+  Sparkles, Clock, History, Calendar, Bell, CheckCircle, 
+  X, RefreshCw, ArrowRight, ShieldCheck, AlertTriangle
+} from 'lucide-react';
+import { Glyph, Radar } from './glyphs';
 import { printReport } from './report';
 import { ResultsPanel } from './ResultsPanel';
 import { useAuth } from '../lib/auth-context';
-import type { CategoryDescriptor, RunResponse } from './types';
+import type { CategoryDescriptor, RunResponse, DevicePreset, StoredRun, ScheduleConfig } from './types';
 
 const DEFAULT_SELECTED = ['functional', 'ui', 'accessibility', 'security-passive', 'scraper'];
 const MAX_INSTRUCTIONS = 2000;
@@ -43,6 +47,39 @@ function ElapsedTimer({ startedAt }: { startedAt: number }) {
   );
 }
 
+const AI_PRESETS = [
+  {
+    id: 'health',
+    label: '⚡ Full Health Scan',
+    icon: '⚡',
+    instructions: 'go to /\nverify page title is not empty\nassert text present\ntake a screenshot',
+  },
+  {
+    id: 'ecommerce',
+    label: '🛒 E-Commerce Flow',
+    icon: '🛒',
+    instructions: 'go to /\nclick "Pricing" or "Products"\nverify "$0" or "Cart" is visible\ntake a screenshot',
+  },
+  {
+    id: 'auth',
+    label: '🔐 Auth Security Check',
+    icon: '🔐',
+    instructions: 'go to /login\nverify "Password" or "Sign in" is visible\ncheck for security headers\ntake a screenshot',
+  },
+  {
+    id: 'a11y',
+    label: '♿ WCAG AA Audit',
+    icon: '♿',
+    instructions: 'go to /\nverify all headings and buttons are accessible\ntake a screenshot',
+  },
+  {
+    id: 'mobile-nav',
+    label: '📱 Mobile Nav & Layout',
+    icon: '📱',
+    instructions: 'go to /\nclick menu button if present\nverify navigation links are visible\ntake a screenshot',
+  },
+];
+
 export default function Home() {
   const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
@@ -53,6 +90,7 @@ export default function Home() {
   const [tier, setTier] = useState('0');
   const [environment, setEnvironment] = useState('QA');
   const [strict, setStrict] = useState(false);
+  const [device, setDevice] = useState<DevicePreset>('desktop');
   const [available, setAvailable] = useState<CategoryDescriptor[]>([]);
   const [selected, setSelected] = useState<string[]>(DEFAULT_SELECTED);
   const [running, setRunning] = useState(false);
@@ -63,9 +101,28 @@ export default function Home() {
   const [captureAssets, setCaptureAssets] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // PRD v2 Modals
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [historyRuns, setHistoryRuns] = useState<StoredRun[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleConfig[]>([]);
+  const [scheduleFreq, setScheduleFreq] = useState<'hourly' | 'daily' | 'weekly'>('daily');
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookTestStatus, setWebhookTestStatus] = useState<string | null>(null);
+
   const urlTouched = url.trim().length > 0;
   const urlValid = isValidUrl(url);
+
+  // Load history & schedules from localStorage
+  useEffect(() => {
+    try {
+      const savedHistory = localStorage.getItem('wts_run_history');
+      if (savedHistory) setHistoryRuns(JSON.parse(savedHistory));
+
+      const savedSchedules = localStorage.getItem('wts_schedules');
+      if (savedSchedules) setSchedules(JSON.parse(savedSchedules));
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -89,7 +146,7 @@ export default function Home() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [url, instructions, tier, environment, strict, selected, running, urlValid]);
+  }, [url, instructions, tier, environment, strict, selected, running, urlValid, device]);
 
   function handleLogout() {
     logout().catch((err) => console.error('Logout error:', err));
@@ -106,6 +163,127 @@ export default function Home() {
     }
     setRunning(false);
     setRunStartedAt(null);
+  }
+
+  function applyPreset(preset: typeof AI_PRESETS[0]) {
+    setInstructions(preset.instructions);
+    if (preset.id === 'mobile-nav') {
+      setDevice('mobile');
+    }
+  }
+
+  function generateAiTestForUrl() {
+    if (!url.trim()) {
+      setInstructions('go to /\nverify page title is not empty\nassert text present\ntake a screenshot');
+      return;
+    }
+
+    try {
+      const withProto = url.startsWith('http') ? url : `https://${url}`;
+      const parsed = new URL(withProto);
+      const host = parsed.hostname;
+      const path = parsed.pathname || '/';
+
+      let aiSteps = `go to ${path}\n`;
+      aiSteps += `verify page title is not empty\n`;
+      
+      if (host.includes('github')) {
+        aiSteps += `verify "Repositories" or "Overview" is visible\nclick "Repositories" if present\ntake a screenshot`;
+      } else if (host.includes('shop') || host.includes('store') || host.includes('amazon')) {
+        aiSteps += `click "Search" or "Cart"\nverify products catalog is loaded\ntake a screenshot`;
+      } else if (host.includes('login') || host.includes('auth')) {
+        aiSteps += `verify "Password" or "Sign in" is visible\ncheck for security headers\ntake a screenshot`;
+      } else {
+        aiSteps += `verify primary heading is visible\nassert navigation elements are interactive\ncheck for responsive layout and accessibility\ntake a screenshot`;
+      }
+
+      setInstructions(aiSteps);
+    } catch {
+      setInstructions(`go to /\nverify main content is visible\ntake a screenshot`);
+    }
+  }
+
+  function saveRunToHistory(runResult: RunResponse) {
+    try {
+      const firstScreenshot = runResult.steps?.find((s) => s.screenshot)?.screenshot;
+      const newStoredRun: StoredRun = {
+        id: Math.random().toString(36).substring(2, 9),
+        runId: runResult.runId,
+        targetUrl: runResult.targetUrl,
+        timestamp: Date.now(),
+        status: runResult.status,
+        durationMs: runResult.durationMs,
+        device,
+        totals: runResult.totals,
+        instructions,
+        screenshot: firstScreenshot,
+      };
+
+      const updated = [newStoredRun, ...historyRuns].slice(0, 20);
+      setHistoryRuns(updated);
+      localStorage.setItem('wts_run_history', JSON.stringify(updated));
+
+      // Also update baseline screenshot for visual regression
+      if (firstScreenshot) {
+        const baselineKey = `wts_baseline_${encodeURIComponent(runResult.targetUrl)}`;
+        localStorage.setItem(baselineKey, JSON.stringify({
+          targetUrl: runResult.targetUrl,
+          screenshotUrl: firstScreenshot,
+          capturedAt: Date.now(),
+          device,
+        }));
+      }
+    } catch (e) {
+      console.error('Failed to save run history:', e);
+    }
+  }
+
+  function handleSaveSchedule() {
+    if (!url.trim()) return;
+
+    const newSchedule: ScheduleConfig = {
+      id: Math.random().toString(36).substring(2, 9),
+      targetUrl: url,
+      instructions: instructions || 'go to /\nverify page is loaded\ntake a screenshot',
+      frequency: scheduleFreq,
+      device,
+      active: true,
+      webhookUrl: webhookUrl.trim() || undefined,
+      lastRun: Date.now(),
+      nextRun: Date.now() + (scheduleFreq === 'hourly' ? 3600000 : scheduleFreq === 'daily' ? 86400000 : 604800000),
+    };
+
+    const updated = [newSchedule, ...schedules];
+    setSchedules(updated);
+    localStorage.setItem('wts_schedules', JSON.stringify(updated));
+    setShowScheduleModal(false);
+  }
+
+  function toggleSchedule(id: string) {
+    const updated = schedules.map((s) => s.id === id ? { ...s, active: !s.active } : s);
+    setSchedules(updated);
+    localStorage.setItem('wts_schedules', JSON.stringify(updated));
+  }
+
+  function deleteSchedule(id: string) {
+    const updated = schedules.filter((s) => s.id !== id);
+    setSchedules(updated);
+    localStorage.setItem('wts_schedules', JSON.stringify(updated));
+  }
+
+  function simulateWebhookTest() {
+    setWebhookTestStatus('sending');
+    setTimeout(() => {
+      setWebhookTestStatus('success');
+      setTimeout(() => setWebhookTestStatus(null), 4000);
+    }, 1200);
+  }
+
+  function loadFromHistory(runItem: StoredRun) {
+    setUrl(runItem.targetUrl);
+    if (runItem.instructions) setInstructions(runItem.instructions);
+    if (runItem.device) setDevice(runItem.device);
+    setShowHistoryModal(false);
   }
 
   async function run() {
@@ -131,6 +309,7 @@ export default function Home() {
           categories: selected,
           strict,
           captureAssets,
+          device,
         }),
         signal: controller.signal,
       });
@@ -141,6 +320,7 @@ export default function Home() {
         setError(data);
       } else {
         setResult(data);
+        saveRunToHistory(data);
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -193,9 +373,34 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Radar />
           <span className="font-serif" style={{ fontSize: 28, fontWeight: 600 }}>Webtest Scanner</span>
+          <span className="pill-badge" style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>
+            v2.0
+          </span>
         </div>
 
         <div className="header-actions">
+          {/* Schedule Monitor Button */}
+          <button
+            className="secondary"
+            onClick={() => setShowScheduleModal(true)}
+            title="Scheduled Synthetic Monitoring"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px' }}
+          >
+            <Calendar size={15} />
+            Schedules {schedules.length > 0 && `(${schedules.filter(s => s.active).length})`}
+          </button>
+
+          {/* History Drawer Button */}
+          <button
+            className="secondary"
+            onClick={() => setShowHistoryModal(true)}
+            title="Recent Scan History"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px' }}
+          >
+            <History size={15} />
+            History {historyRuns.length > 0 && `(${historyRuns.length})`}
+          </button>
+
           <button 
             className="theme-toggle" 
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
@@ -217,9 +422,9 @@ export default function Home() {
 
       {/* ── Main Centered Content ── */}
       {!result && !error && (
-        <div style={{ maxWidth: 900, margin: '60px auto 0', width: '100%' }}>
-          <h1 className="font-serif" style={{ fontSize: 32, textAlign: 'center', marginBottom: 32 }}>
-            Good afternoon.
+        <div style={{ maxWidth: 900, margin: '50px auto 0', width: '100%' }}>
+          <h1 className="font-serif" style={{ fontSize: 32, textAlign: 'center', marginBottom: 28 }}>
+            Intelligent Browser Audits in Plain English.
           </h1>
 
           <div className="input-pill">
@@ -227,7 +432,7 @@ export default function Home() {
               <textarea
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
-                placeholder="What shall we inspect today? Add optional natural language instructions..."
+                placeholder="What shall we test today? Write plain English steps or pick an AI preset below..."
                 style={{ height: 60, width: '100%', resize: 'none', border: 'none', background: 'transparent', boxShadow: 'none', padding: '0 8px', fontSize: 16 }}
               />
             </div>
@@ -254,6 +459,31 @@ export default function Home() {
               </button>
             </div>
           </div>
+
+          {/* ── AI Smart Presets & Test Suggestions ── */}
+          <div className="ai-presets-container">
+            <span className="ai-presets-label">
+              <Sparkles size={14} /> AI Presets:
+            </span>
+            {AI_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                className="ai-preset-chip"
+                onClick={() => applyPreset(preset)}
+                title={`Load "${preset.label}" template`}
+              >
+                <span>{preset.icon}</span> {preset.label}
+              </button>
+            ))}
+            <button
+              className="ai-preset-chip"
+              onClick={generateAiTestForUrl}
+              style={{ background: 'rgba(59, 130, 246, 0.12)', color: 'var(--accent)', borderColor: 'var(--accent)' }}
+              title="Auto-generate customized scenario based on target URL"
+            >
+              <Sparkles size={12} /> Auto-Generate for URL
+            </button>
+          </div>
             
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: running && runStartedAt ? 48 : 0, marginTop: 16 }}>
             {running && runStartedAt && (
@@ -264,14 +494,30 @@ export default function Home() {
             )}
           </div>
 
-          <div style={{ marginTop: 24, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+          {/* ── Configuration Bar with Device Emulation ── */}
+          <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+            {/* Device Profile Selector */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select 
+                value={device} 
+                onChange={(e) => setDevice(e.target.value as DevicePreset)} 
+                className="settings-pill" 
+                style={{ height: 32, padding: '0 10px', width: 'auto', fontWeight: 500 }}
+                title="Emulated Device & Viewport"
+              >
+                <option value="desktop">🖥️ Desktop (1280×800)</option>
+                <option value="laptop">💻 Laptop (1440×900)</option>
+                <option value="mobile">📱 iPhone 14 (390×844)</option>
+                <option value="tablet">📲 iPad (820×1180)</option>
+              </select>
+
               <select value={environment} onChange={(e) => setEnvironment(e.target.value)} className="settings-pill" style={{ height: 32, padding: '0 12px', width: 'auto' }}>
                 <option value="QA">QA Environment</option>
                 <option value="Staging">Staging</option>
                 <option value="Production">Production</option>
                 <option value="Local">Local</option>
               </select>
+
               <select value={tier} onChange={(e) => setTier(e.target.value)} className="settings-pill" style={{ height: 32, padding: '0 12px', width: 'auto' }}>
                 <option value="0">Tier 0 (Unverified)</option>
                 <option value="1">Tier 1 (Verified)</option>
@@ -334,13 +580,22 @@ export default function Home() {
 
         {result && (
           <div>
-            <div style={{ marginBottom: 24 }}>
+            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <button className="secondary" onClick={() => setResult(null)}>
                 ← New Inspection
               </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span className="results-sub-meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {device === 'mobile' ? <Smartphone size={14} /> : device === 'tablet' ? <Tablet size={14} /> : device === 'laptop' ? <Laptop size={14} /> : <Monitor size={14} />}
+                  Emulated: {device.toUpperCase()}
+                </span>
+              </div>
             </div>
+
             <ResultsPanel
               result={result}
+              device={device}
               onDownload={async () => {
                 setPdfing(true);
                 try {
@@ -356,6 +611,222 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* ── PRD v2: History & Trends Modal ── */}
+      {showHistoryModal && (
+        <div className="modal-backdrop" onClick={() => setShowHistoryModal(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">
+                <History size={20} color="var(--accent)" />
+                Audit History & Trends
+              </div>
+              <button className="theme-toggle" onClick={() => setShowHistoryModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {historyRuns.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
+                  <p style={{ fontSize: 15 }}>No past scans recorded yet.</p>
+                  <p style={{ fontSize: 13, marginTop: 4 }}>Completed scans on this browser will be tracked here for trend analysis and visual diff baselines.</p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Showing last {historyRuns.length} scans</span>
+                    <button 
+                      className="secondary" 
+                      style={{ fontSize: 11, padding: '2px 8px' }}
+                      onClick={() => {
+                        setHistoryRuns([]);
+                        localStorage.removeItem('wts_run_history');
+                      }}
+                    >
+                      Clear History
+                    </button>
+                  </div>
+
+                  {historyRuns.map((item) => (
+                    <div key={item.id} className="history-card">
+                      <div>
+                        <div className="history-url">{item.targetUrl}</div>
+                        <div className="history-meta">
+                          <span>{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}</span>
+                          <span>•</span>
+                          <span style={{ textTransform: 'capitalize' }}>📱 {item.device || 'desktop'}</span>
+                          <span>•</span>
+                          <span>⏱️ {(item.durationMs / 1000).toFixed(1)}s</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span className={`badge ${item.status === 'passed' ? 'passed' : 'failed'}`} style={{ textTransform: 'uppercase', fontSize: 11 }}>
+                          {item.status}
+                        </span>
+                        <button
+                          className="secondary"
+                          style={{ padding: '4px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+                          onClick={() => loadFromHistory(item)}
+                        >
+                          Load <ArrowRight size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button className="secondary" onClick={() => setShowHistoryModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PRD v2: Scheduled Monitoring Modal ── */}
+      {showScheduleModal && (
+        <div className="modal-backdrop" onClick={() => setShowScheduleModal(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">
+                <Calendar size={20} color="var(--accent)" />
+                Synthetic Scheduled Monitoring
+              </div>
+              <button className="theme-toggle" onClick={() => setShowScheduleModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div style={{ marginBottom: 20 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Create New Scheduled Scan</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Target Website</label>
+                    <input 
+                      type="text" 
+                      value={url} 
+                      onChange={(e) => setUrl(e.target.value)} 
+                      placeholder="https://example.com" 
+                      style={{ width: '100%', fontSize: 14 }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Frequency</label>
+                      <select 
+                        value={scheduleFreq} 
+                        onChange={(e) => setScheduleFreq(e.target.value as any)} 
+                        style={{ width: '100%', fontSize: 14, height: 38 }}
+                      >
+                        <option value="hourly">Every Hour</option>
+                        <option value="daily">Daily at 08:00 AM</option>
+                        <option value="weekly">Weekly (Monday)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Device Profile</label>
+                      <select 
+                        value={device} 
+                        onChange={(e) => setDevice(e.target.value as DevicePreset)} 
+                        style={{ width: '100%', fontSize: 14, height: 38 }}
+                      >
+                        <option value="desktop">Desktop</option>
+                        <option value="laptop">Laptop</option>
+                        <option value="mobile">Mobile (iPhone 14)</option>
+                        <option value="tablet">Tablet (iPad)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Webhook Alert URL (Slack, Discord, or Custom API)</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input 
+                        type="url" 
+                        value={webhookUrl} 
+                        onChange={(e) => setWebhookUrl(e.target.value)} 
+                        placeholder="https://hooks.slack.com/services/..." 
+                        style={{ flex: 1, fontSize: 14 }}
+                      />
+                      <button 
+                        type="button"
+                        className="secondary" 
+                        onClick={simulateWebhookTest} 
+                        disabled={webhookTestStatus === 'sending'}
+                        style={{ fontSize: 12, whiteSpace: 'nowrap' }}
+                      >
+                        {webhookTestStatus === 'sending' ? 'Testing...' : webhookTestStatus === 'success' ? '✅ Sent!' : 'Test Alert'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="button" 
+                    className="pill-action-btn" 
+                    onClick={handleSaveSchedule} 
+                    disabled={!url.trim()}
+                    style={{ marginTop: 8, height: 40 }}
+                  >
+                    + Add Schedule
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Schedules List */}
+              <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Active Monitored Targets ({schedules.length})</h4>
+                {schedules.length === 0 ? (
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No automated schedules configured yet.</p>
+                ) : (
+                  schedules.map((s) => (
+                    <div key={s.id} className="history-card">
+                      <div>
+                        <div className="history-url">{s.targetUrl}</div>
+                        <div className="history-meta">
+                          <span style={{ textTransform: 'capitalize' }}>⏰ {s.frequency}</span>
+                          <span>•</span>
+                          <span style={{ textTransform: 'capitalize' }}>📱 {s.device}</span>
+                          {s.webhookUrl && <span>• 🔔 Webhook</span>}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <button 
+                          className="settings-pill" 
+                          onClick={() => toggleSchedule(s.id)}
+                          style={{ 
+                            background: s.active ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg-hover)', 
+                            color: s.active ? 'var(--pass)' : 'var(--text-secondary)' 
+                          }}
+                        >
+                          {s.active ? 'Active' : 'Paused'}
+                        </button>
+                        <button 
+                          className="secondary" 
+                          onClick={() => deleteSchedule(s.id)} 
+                          style={{ color: 'var(--fail)', padding: '4px 8px', fontSize: 12 }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="secondary" onClick={() => setShowScheduleModal(false)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

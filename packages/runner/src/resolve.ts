@@ -88,13 +88,50 @@ export async function resolveTarget(
   const exact = target.nameMatch === 'exact';
   const wantsInput = interaction === 'fill';
 
+  const isClick = interaction === 'click';
+
   const candidates: Array<[string, number, () => Locator]> = [];
 
   if (target.hints?.testId) {
     candidates.push(['test-id', 0.99, () => root.getByTestId(target.hints!.testId!)]);
   }
   if (target.name) {
-    candidates.push(['role+name', 0.96, () => root.getByRole(role, { name: target.name!, exact })]);
+    const rawName = target.name.trim();
+    // Common compound action words (e.g. signup -> sign up, signin -> sign in)
+    const splitCompound = rawName
+      .replace(/^sign\s*up$/i, 'sign up')
+      .replace(/^sign\s*in$/i, 'sign in')
+      .replace(/^log\s*in$/i, 'log in')
+      .replace(/^log\s*out$/i, 'log out')
+      .replace(/^check\s*out$/i, 'check out')
+      .replace(/^set\s*up$/i, 'set up');
+
+    const nameVariations = Array.from(new Set([rawName, splitCompound].filter(Boolean)));
+
+    for (const nameVar of nameVariations) {
+      candidates.push(['role+name', 0.96, () => root.getByRole(role, { name: nameVar, exact })]);
+      if (isClick && (role === 'button' || role === 'link')) {
+        const alternateRole = role === 'button' ? 'link' : 'button';
+        candidates.push(['alternate-role+name', 0.94, () => root.getByRole(alternateRole as Parameters<Page['getByRole']>[0], { name: nameVar, exact })]);
+      }
+    }
+
+    // Whitespace and casing tolerant regex for button/link names (e.g. "sign up" matches "signup", "Sign Up", "Sign up for...")
+    const flexiblePattern = new RegExp(
+      rawName
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .split(/[\s_-]+/)
+        .filter(Boolean)
+        .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('\\s*'),
+      'i',
+    );
+
+    candidates.push(['role+flexible-regex', 0.93, () => root.getByRole(role, { name: flexiblePattern })]);
+    if (isClick && (role === 'button' || role === 'link')) {
+      const alternateRole = role === 'button' ? 'link' : 'button';
+      candidates.push(['alternate-role+flexible-regex', 0.91, () => root.getByRole(alternateRole as Parameters<Page['getByRole']>[0], { name: flexiblePattern })]);
+    }
   }
   if (target.labelText) {
     candidates.push(['label', 0.92, () => root.getByLabel(target.labelText!, { exact })]);
@@ -122,12 +159,56 @@ export async function resolveTarget(
       candidates.push([`${inputRole}-only`, 0.5, () => root.getByRole(inputRole as Parameters<Page['getByRole']>[0])]);
     }
   } else if (target.name) {
-    candidates.push(['role-only+text-filter', 0.68, () => root.getByRole(role).filter({ hasText: target.name! })]);
+    const rawName = target.name.trim();
+    const flexiblePattern = new RegExp(
+      rawName
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .split(/[\s_-]+/)
+        .filter(Boolean)
+        .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('\\s*'),
+      'i',
+    );
+
+    candidates.push(['role-only+text-filter', 0.68, () => root.getByRole(role).filter({ hasText: flexiblePattern })]);
+    if (isClick && (role === 'button' || role === 'link')) {
+      const alternateRole = role === 'button' ? 'link' : 'button';
+      candidates.push(['alternate-role+text-filter', 0.66, () => root.getByRole(alternateRole as Parameters<Page['getByRole']>[0]).filter({ hasText: flexiblePattern })]);
+    }
     // Weakest: the accessible name may be unset but the text is visible.
-    candidates.push(['text', 0.6, () => root.getByText(target.name!, { exact: false })]);
+    candidates.push(['text', 0.6, () => root.getByText(flexiblePattern)]);
+
+    // Sub-token / Action stem matching for multi-word prompts:
+    // e.g. "sign up and show me what comes" -> actionStem: "sign up"
+    const stemMatch = target.name.match(/^([a-zA-Z0-9_-]+(?:\s+[a-zA-Z0-9_-]+)?)(?:\s+(?:and|or|to|for|so|with|in|on|show|see|what|me|next)\b.*)?$/i);
+    const actionStem = stemMatch ? stemMatch[1]!.trim() : '';
+
+    if (actionStem && actionStem.length >= 2 && actionStem.toLowerCase() !== target.name.toLowerCase()) {
+      const stemPattern = new RegExp(actionStem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      candidates.push(['stem-role+name', 0.65, () => root.getByRole(role, { name: stemPattern })]);
+      if (isClick && (role === 'button' || role === 'link')) {
+        const alternateRole = role === 'button' ? 'link' : 'button';
+        candidates.push(['stem-alternate-role+name', 0.63, () => root.getByRole(alternateRole as Parameters<Page['getByRole']>[0], { name: stemPattern })]);
+      }
+      candidates.push(['stem-text', 0.61, () => root.getByText(stemPattern)]);
+    }
+
+    // Sub-token / keyword fuzzy matching for multi-word prompts:
+    const keywords = target.name.split(/\s+/).filter((w) => w.length > 1 && !/^(and|for|the|with|next|page|show|this|that|from|what|comes|happens|see|view|tell|me|you|can|will|now|then)$/i.test(w));
+    if (keywords.length > 0 && keywords.join(' ').toLowerCase() !== target.name.toLowerCase()) {
+      const keywordPattern = new RegExp(keywords.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*?'), 'i');
+      candidates.push(['keyword-role+name', 0.58, () => root.getByRole(role, { name: keywordPattern })]);
+      if (isClick && (role === 'button' || role === 'link')) {
+        const alternateRole = role === 'button' ? 'link' : 'button';
+        candidates.push(['keyword-alternate-role+name', 0.56, () => root.getByRole(alternateRole as Parameters<Page['getByRole']>[0], { name: keywordPattern })]);
+      }
+      candidates.push(['keyword-text', 0.52, () => root.getByText(keywordPattern)]);
+    }
   }
 
-  if (!wantsInput) {
+  // ONLY fall back to role-only if NO specific name, label, placeholder, or testId was requested.
+  // This prevents clicking random first elements on the page when a named target isn't found.
+  if (!wantsInput && !target.name && !target.labelText && !target.placeholder && !target.hints?.testId) {
     candidates.push(['role-only', 0.45, () => root.getByRole(role)]);
   }
 

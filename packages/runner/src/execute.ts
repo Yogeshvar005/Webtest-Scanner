@@ -34,6 +34,11 @@ export interface ExecuteOptions {
   /** Download the site's actual asset files, not just catalogue them. */
   captureAssets?: boolean;
   onStep?: (result: StepResult) => void;
+  viewport?: { width: number; height: number };
+  isMobile?: boolean;
+  hasTouch?: boolean;
+  deviceScaleFactor?: number;
+  userAgent?: string;
 }
 
 /**
@@ -275,8 +280,11 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         }
       }
       const context = await browser!.newContext({
-        viewport: { width: 1280, height: 800 },
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        viewport: options.viewport ?? { width: 1280, height: 800 },
+        isMobile: options.isMobile ?? false,
+        hasTouch: options.hasTouch ?? false,
+        deviceScaleFactor: options.deviceScaleFactor ?? 1,
+        userAgent: options.userAgent ?? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         locale: 'en-US',
         extraHTTPHeaders: {
           'Accept-Language': 'en-US,en;q=0.9',
@@ -532,6 +540,12 @@ async function runStep(
         result.resolvedBy = resolved.resolution.strategy;
         result.resolutionConfidence = resolved.resolution.confidence;
         await resolved.resolution.locator.click({ timeout: ACTION_TIMEOUT_MS });
+        // Settle navigation or asynchronous dynamic loads if click triggered page transition
+        await Promise.race([
+          page.waitForLoadState('domcontentloaded', { timeout: 4000 }),
+          new Promise((resolve) => setTimeout(resolve, 2000)),
+        ]).catch(() => {});
+        await page.waitForTimeout(1500).catch(() => {});
         break;
       }
       case 'fill': {

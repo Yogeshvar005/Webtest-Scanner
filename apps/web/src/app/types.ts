@@ -27,3 +27,38 @@ export interface RunResponse {
   ownership: { recordedTier: number; effectiveTier: number };
   error?: string; detail?: string; hint?: string; issues?: Array<{ rule: string; message: string }>;
 }
+
+export type DevicePreset = 'desktop' | 'laptop' | 'mobile' | 'tablet';
+
+export interface StoredRun {
+  id: string;
+  runId: string;
+  targetUrl: string;
+  timestamp: number;
+  status: string;
+  durationMs: number;
+  device?: DevicePreset;
+  totals: { total: number; passed: number; failed: number; blocked: number; skipped: number };
+  instructions?: string;
+  screenshot?: string;
+}
+
+export interface ScheduleConfig {
+  id: string;
+  targetUrl: string;
+  instructions: string;
+  frequency: 'hourly' | 'daily' | 'weekly';
+  device: DevicePreset;
+  active: boolean;
+  webhookUrl?: string;
+  emailAlert?: string;
+  lastRun?: number;
+  nextRun?: number;
+}
+
+export interface VisualBaseline {
+  targetUrl: string;
+  screenshotUrl: string;
+  capturedAt: number;
+  device: DevicePreset;
+}

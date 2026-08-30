@@ -24,11 +24,21 @@ function target(role: ElementRole, name: string, origin: Provenance): SemanticTa
   return { kind: 'semantic', role, name, nameMatch: 'contains', origin };
 }
 
-/** Strips articles and quoting so "the \"Login\" button" becomes "Login". */
+/** Strips articles, conversational filler clauses, and quoting so "the \"Login\" button" or "sign up and show me what comes" becomes "Login" or "sign up". */
 function cleanName(raw: string): string {
   return raw
     .trim()
     .replace(/^(the|a|an)\s+/i, '')
+    // Strip trailing conversational intent/observation clauses:
+    // e.g. "and show me what comes", "and see what happens", "and let me see", "and display the result", "to see what appears"
+    .replace(/\s+(?:and\s+|to\s+|so\s+I\s+can\s+)?(?:show|display|see|view|tell|check|watch|observe|inspect|look\s+at)\s+(?:me\s+)?(?:what\s+.*|the\s+.*|how\s+.*|if\s+.*|next.*|results?|outcome|screen|page|view|comes.*|happens.*)?$/i, '')
+    // Strip trailing navigation/page filler:
+    .replace(/\s+(?:and\s+)?(?:open|go\s+to|navigate\s+to|load)\s+(?:the\s+)?(?:next\s+)?(?:page|screen|view|step|result|details|url).*$/i, '')
+    // Strip screenshot requests
+    .replace(/\s+(?:and\s+)?(?:take\s+a\s+|capture\s+a\s+)?screenshot.*$/i, '')
+    // Strip trailing waits
+    .replace(/\s+(?:and\s+)?(?:wait\s+for\s+.*|wait\s+until\s+.*)$/i, '')
+    // Strip element role suffixes
     .replace(/\s+(button|link|field|box|input|tab|menu item|checkbox)$/i, '')
     .replace(/^["'“”‘’]|["'“”‘’]$/g, '')
     .replace(/[.,;:!?]+$/, '')
@@ -204,7 +214,7 @@ const RULES: Rule[] = [
 /** Splits free text into candidate instruction lines. */
 export function splitInstructions(text: string): string[] {
   return text
-    .split(/\r?\n|(?<=[.;])\s+(?=[A-Z])|\s+then\s+/i)
+    .split(/\r?\n|(?<=[.;])\s+(?=[A-Z])|\s+then\s+|\s+and\s+(?=(?:click|press|tap|type|enter|fill|verify|check|assert|take|capture|open|go\s+to|browse\s+to|navigate\s+to|search|wait)\b)/i)
     .map((line) => line.replace(/^\s*(?:\d+[.)]|[-*•])\s*/, '').trim())
     .filter((line) => line.length > 0);
 }
