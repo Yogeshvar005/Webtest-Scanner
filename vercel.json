@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "name": "webtest-scanner-web",
   "framework": "nextjs",
   "installCommand": "npm install",
   "buildCommand": "npx turbo run build --filter=@wts/web...",
