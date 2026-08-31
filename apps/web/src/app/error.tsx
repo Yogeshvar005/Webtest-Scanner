@@ -38,7 +38,7 @@ export default function ErrorBoundary({
     <div className="wrap" style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <Radar />
-        <Wordmark />
+        <span className="font-serif" style={{ fontSize: 24, fontWeight: 600 }}>Webtest Scanner</span>
       </div>
       
       <div className="card" style={{ maxWidth: '500px', width: '100%', padding: '32px' }}>

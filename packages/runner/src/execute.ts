@@ -1,8 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chromium as playwrightCoreChromium, type Browser, type Page, type Response } from 'playwright-core';
-import { addExtra } from 'playwright-extra';
-import stealthPlugin from 'puppeteer-extra-plugin-stealth';
 import type { Scenario, Step, WaitCondition } from '@wts/dsl';
 import { detectInjection, sanitizeText, type InjectionSignal } from '@wts/nlp';
 import { evaluate, type PolicyRequest } from '@wts/policy';
@@ -226,11 +224,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
           password: process.env.PROXY_PASSWORD,
         } : undefined;
 
-        const stealth = stealthPlugin();
-        const stealthChromium = addExtra(playwrightCoreChromium as any);
-        stealthChromium.use(stealth);
-
-        browser = await stealthChromium.launch({
+        browser = await playwrightCoreChromium.launch({
           executablePath,
           proxy: proxyOptions,
           args: [
@@ -249,6 +243,8 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
           '--disable-blink-features=AutomationControlled',
           '--no-sandbox',
           '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
         ];
         
         const proxyOptions = process.env.PROXY_SERVER ? {
@@ -259,20 +255,13 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
 
         try {
           const { chromium } = await import('playwright');
-          const stealth = stealthPlugin();
-          const stealthChromium = addExtra(chromium as any);
-          stealthChromium.use(stealth);
-
-          browser = await stealthChromium.launch({
+          browser = await chromium.launch({
             headless: options.headless ?? true,
             proxy: proxyOptions,
             args: launchArgs,
           });
         } catch {
-          const stealth = stealthPlugin();
-          const stealthChromium = addExtra(playwrightCoreChromium as any);
-          stealthChromium.use(stealth);
-          browser = await stealthChromium.launch({
+          browser = await playwrightCoreChromium.launch({
             headless: options.headless ?? true,
             proxy: proxyOptions,
             args: launchArgs,
@@ -288,8 +277,23 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         locale: 'en-US',
         extraHTTPHeaders: {
           'Accept-Language': 'en-US,en;q=0.9',
+          'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+          'Sec-Ch-Ua-Mobile': options.isMobile ? '?1' : '?0',
+          'Sec-Ch-Ua-Platform': options.isMobile ? '"iOS"' : '"macOS"',
         },
         ignoreHTTPSErrors: true, // Needed for localhost and self-signed certificates
+      });
+
+      // Inject native stealth overrides without external plugin dependencies
+      await context.addInitScript(() => {
+        try {
+          Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+          if (!(window as any).chrome) {
+            (window as any).chrome = { runtime: {}, loadTimes: () => {}, csi: () => {}, app: {} };
+          }
+          Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+          Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+        } catch {}
       });
 
       installEgressGuard(context, {

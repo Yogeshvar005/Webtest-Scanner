@@ -95,12 +95,15 @@ export default function LoginPage() {
 
   return (
     <div className="wrap">
-      <header className="masthead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div className="masthead-row">
+      <header className="masthead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Radar />
-          <Wordmark />
+          <span className="font-serif" style={{ fontSize: 24, fontWeight: 600 }}>Webtest Scanner</span>
+          <span className="pill-badge" style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>
+            v2.0
+          </span>
         </div>
-        <div style={{ paddingTop: '8px' }}>
+        <div>
           <Link href="/" className="secondary" style={{ textDecoration: 'none' }}>
             Go Back
           </Link>

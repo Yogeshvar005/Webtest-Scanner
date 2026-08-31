@@ -166,14 +166,13 @@ export function Wordmark() {
   let index = 0;
 
   return (
-    <h1 className="wordmark">
-      <span className="sr-only">Webtest Scanner</span>
+    <h1 className="wordmark" aria-label="Webtest Scanner">
       {[...first].map((ch, i) => (
-        <span key={`a${i}`} className="ch" style={{ ['--i' as string]: index++ }} aria-hidden>{ch}</span>
+        <span key={`a${i}`} className="ch" style={{ ['--i' as string]: index++ }} aria-hidden="true">{ch}</span>
       ))}
-      <span className="ch gap" aria-hidden> </span>
+      <span className="ch gap" aria-hidden="true"> </span>
       {[...second].map((ch, i) => (
-        <span key={`b${i}`} className="ch accent" style={{ ['--i' as string]: index++ }} aria-hidden>{ch}</span>
+        <span key={`b${i}`} className="ch accent" style={{ ['--i' as string]: index++ }} aria-hidden="true">{ch}</span>
       ))}
     </h1>
   );
