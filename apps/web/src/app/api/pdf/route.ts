@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { chromium } from 'playwright';
 
 // Playwright needs a real Node runtime and a generous budget.
 export const runtime = 'nodejs';
@@ -20,7 +19,39 @@ export async function POST(request: Request) {
 
   let browser;
   try {
-    browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      const { chromium: playwrightCoreChromium } = await import('playwright-core');
+      const chromiumPkg = await import('@sparticuz/chromium');
+      const chromium = chromiumPkg.default || chromiumPkg;
+      chromium.setGraphicsMode = false;
+
+      const REMOTE_PACK_URL = 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
+      let executablePath: string;
+      try {
+        executablePath = await chromium.executablePath();
+        if (!executablePath) throw new Error('executablePath returned empty string');
+      } catch (packErr) {
+        console.warn('Local chromium pack not found, falling back to remote binary pack:', packErr);
+        executablePath = await chromium.executablePath(REMOTE_PACK_URL);
+      }
+
+      browser = await playwrightCoreChromium.launch({
+        executablePath,
+        args: [
+          ...chromium.args,
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--single-process',
+        ],
+        headless: true,
+      });
+    } else {
+      const { chromium } = await import('playwright');
+      browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    }
+    
     const page = await browser.newPage();
 
     // Set content directly — no round-trip required.
@@ -43,6 +74,9 @@ export async function POST(request: Request) {
         'Content-Disposition': 'attachment; filename="webtest-report.pdf"',
       },
     });
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    return NextResponse.json({ error: 'PDF generation failed.' }, { status: 500 });
   } finally {
     await browser?.close();
   }

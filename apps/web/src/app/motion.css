@@ -132,7 +132,7 @@
     transition-duration: 0.01ms !important;
     transform: none !important;
   }
-  .radar .sweep, .radar .blip {
+  .radar .scan-line, .radar .scan-node {
     display: none !important;
   }
 }

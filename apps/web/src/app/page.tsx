@@ -8,7 +8,7 @@ import {
   Sparkles, Clock, History, Calendar, Bell, CheckCircle, 
   X, RefreshCw, ArrowRight, ShieldCheck, AlertTriangle
 } from 'lucide-react';
-import { Glyph, Radar } from './glyphs';
+import { Glyph, Radar, Wordmark } from './glyphs';
 import { printReport } from './report';
 import { ResultsPanel } from './ResultsPanel';
 import { useAuth } from '../lib/auth-context';
@@ -372,7 +372,7 @@ export default function Home() {
       <header className="masthead">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Radar />
-          <span className="font-serif" style={{ fontSize: 28, fontWeight: 600 }}>Webtest Scanner</span>
+          <Wordmark />
           <span className="pill-badge" style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>
             v2.0
           </span>
@@ -444,7 +444,7 @@ export default function Home() {
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com"
+                  placeholder="https://github.com"
                   autoComplete="off"
                   spellCheck={false}
                   style={{ paddingLeft: 42, fontSize: 15, height: 44, border: 'none', background: 'transparent', boxShadow: 'none' }}
@@ -710,7 +710,7 @@ export default function Home() {
                       type="text" 
                       value={url} 
                       onChange={(e) => setUrl(e.target.value)} 
-                      placeholder="https://example.com" 
+                      placeholder="https://github.com" 
                       style={{ width: '100%', fontSize: 14 }}
                     />
                   </div>

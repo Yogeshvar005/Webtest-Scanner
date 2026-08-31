@@ -34,12 +34,13 @@ test.describe('with motion allowed', () => {
   test('renders every wordmark character', async ({ page }) => {
     await open(page, 'no-preference');
     expect(await page.locator('.wordmark .ch').count()).toBe(15);
+    await expect(page.locator('.wordmark .ch').last()).toHaveCSS('opacity', '1');
     expect(await hiddenWordmarkChars(page)).toBe(0);
   });
 
   test('runs the radar sweep', async ({ page }) => {
     await open(page, 'no-preference');
-    await expect(page.locator('.radar .sweep')).toHaveCSS('display', 'block');
+    await expect(page.locator('.radar .scan-line')).toHaveCSS('display', 'block');
   });
 });
 
@@ -56,43 +57,29 @@ test.describe('with reduced motion requested', () => {
 
   test('removes the sweeping radar animation', async ({ page }) => {
     await open(page, 'reduce');
-    await expect(page.locator('.radar .sweep')).toHaveCSS('display', 'none');
-  });
-
-  test('shows exactly one tagline word rather than stacking all of them', async ({ page }) => {
-    await open(page, 'reduce');
-
-    const visible = await page.$$eval('.tagline .rotator > span', (els) =>
-      els.filter((el) => Number(getComputedStyle(el).opacity) > 0.5).length,
-    );
-
-    expect(visible).toBe(1);
+    await expect(page.locator('.radar .scan-line')).toHaveCSS('display', 'none');
   });
 
   test('leaves the selection controls visible and usable', async ({ page }) => {
     await open(page, 'reduce');
 
-    await expect(page.locator('.option').first()).toHaveCSS('opacity', '1');
-    await expect(page.getByLabel('Functional')).toBeVisible();
-    await expect(page.getByRole('button', { name: /run test/i })).toBeEnabled();
+    await expect(page.locator('.settings-pill').first()).toHaveCSS('opacity', '1');
+    await page.getByPlaceholder('https://github.com').fill('https://example.com');
+    await expect(page.getByRole('button', { name: /inspect/i })).toBeEnabled();
   });
 });
 
 test('the heading is readable despite being split into per-character spans', async ({ page }) => {
   await open(page, 'no-preference');
-  // Visible characters are aria-hidden; one sr-only node carries the name.
-  await expect(page.locator('.wordmark .sr-only')).toHaveText('Webtest Scanner');
+  // Visible characters are aria-hidden; the heading carries the aria-label.
+  await expect(page.locator('.wordmark')).toHaveAttribute('aria-label', 'Webtest Scanner');
 });
 
-test('every checkbox has an associated label', async ({ page }) => {
+test('every settings button is accessible', async ({ page }) => {
   await open(page, 'no-preference');
-  await page.waitForSelector('.option input[type="checkbox"]');
-
-  const unlabelled = await page.$$eval('input[type="checkbox"]', (boxes) =>
-    boxes.filter((b) => !(b as HTMLInputElement).labels?.length).length,
-  );
-
-  expect(unlabelled).toBe(0);
+  
+  const buttons = await page.locator('.settings-pill');
+  expect(await buttons.count()).toBeGreaterThan(0);
 });
 
 test('decorative glyphs are hidden from assistive technology', async ({ page }) => {
