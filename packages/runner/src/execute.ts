@@ -337,16 +337,36 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         if (message.type() === 'error') consoleErrors.push(sanitizeText(message.text(), 300));
       });
 
+      let activePage = page;
       for (const step of scenario.steps) {
         const before = consoleErrors.length;
         const started = Date.now();
-        const result = await runStep(page, step, targetUrl, artifactDir, artifactUrlPrefix, runId);
+        const { result, page: nextPage } = await runStep(activePage, step, targetUrl, artifactDir, artifactUrlPrefix, runId);
+        // If the step opened a new tab (e.g. Sign Up), switch to it for all subsequent steps
+        if (nextPage !== activePage) {
+          activePage = nextPage;
+          // Re-attach response listener to the new page
+          activePage.on('response', (response) => {
+            const request = response.request();
+            const type = request.resourceType();
+            if (type === 'xhr' || type === 'fetch') {
+              const started2 = startedAtByUrl.get(response.url()) ?? Date.now();
+              apiCalls.push({
+                url: response.url(),
+                method: request.method(),
+                status: response.status(),
+                durationMs: Date.now() - started2,
+                contentType: response.headers()['content-type'] ?? '',
+              });
+            }
+          });
+        }
         result.durationMs = Date.now() - started;
         result.consoleErrors = consoleErrors.slice(before);
 
         // Page text is scanned as untrusted observation data, never merged into
         // instructions. A hit is reported rather than acted on.
-        const text = await page.textContent('body').catch(() => null);
+        const text = await activePage.textContent('body').catch(() => null);
         if (text) {
           for (const signal of detectInjection([text.slice(0, 20_000)])) {
             if (!injectionSignals.some((s) => s.pattern === signal.pattern)) injectionSignals.push(signal);
@@ -367,7 +387,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         categoryResults = await runAnalyzers({
           selected: analyzerCategories,
           context: {
-            page,
+            page: activePage,
             targetUrl,
             mainResponse,
             tier: (policyRequest.target.ownershipTier ?? 0) as 0 | 1 | 2,
@@ -498,7 +518,8 @@ async function runStep(
   artifactDir: string,
   artifactUrlPrefix: string,
   runId: string,
-): Promise<StepResult> {
+): Promise<{ result: StepResult; page: Page }> {
+  let activePage = page;
   const result: StepResult = {
     id: step.id,
     index: step.index,
@@ -512,7 +533,7 @@ async function runStep(
   };
 
   try {
-    for (const wait of step.preWaits) await applyWait(page, wait);
+    for (const wait of step.preWaits) await applyWait(activePage, wait);
 
     const action = step.action;
 
@@ -521,13 +542,13 @@ async function runStep(
         // The DSL cannot express an absolute URL, so the origin is always ours.
         const url = new URL(action.path, targetUrl).toString();
         try {
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: Math.min(step.timeoutMs, 25_000) });
+          await activePage.goto(url, { waitUntil: 'domcontentloaded', timeout: Math.min(step.timeoutMs, 25_000) });
         } catch (e: any) {
           result.consoleErrors = result.consoleErrors || [];
           result.consoleErrors.push(`Navigation notice: ${e.message}`);
           try {
             await Promise.race([
-              page.evaluate(() => window.stop()),
+              activePage.evaluate(() => window.stop()),
               new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
             ]);
           } catch {
@@ -535,25 +556,40 @@ async function runStep(
           }
         }
         // Brief settling pause for dynamic frameworks
-        await page.waitForTimeout(1000).catch(() => {});
+        await activePage.waitForTimeout(1000).catch(() => {});
         break;
       }
       case 'click': {
-        const resolved = await resolveTarget(page, action.target, 'click');
+        const resolved = await resolveTarget(activePage, action.target, 'click');
         if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'click'));
         result.resolvedBy = resolved.resolution.strategy;
         result.resolutionConfidence = resolved.resolution.confidence;
+
+        // Listen for a new tab/popup that the click might open (e.g. GitHub "Sign up")
+        const popupPromise = activePage.waitForEvent('popup', { timeout: 3000 }).catch(() => null);
         await resolved.resolution.locator.click({ timeout: ACTION_TIMEOUT_MS });
-        // Settle navigation or asynchronous dynamic loads if click triggered page transition
-        await Promise.race([
-          page.waitForLoadState('domcontentloaded', { timeout: 4000 }),
-          new Promise((resolve) => setTimeout(resolve, 2000)),
-        ]).catch(() => {});
-        await page.waitForTimeout(1500).catch(() => {});
+
+        // Check if a new tab was opened
+        const popup = await popupPromise;
+        if (popup) {
+          // Switch focus to the new tab so the screenshot shows the destination
+          await popup.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {});
+          await popup.waitForLoadState('networkidle', { timeout: 8_000 }).catch(() => {});
+          await popup.waitForTimeout(2000).catch(() => {});
+          activePage = popup;
+        } else {
+          // No popup — wait for in-page navigation to settle
+          await Promise.race([
+            activePage.waitForLoadState('networkidle', { timeout: 8000 }),
+            activePage.waitForLoadState('domcontentloaded', { timeout: 4000 }),
+            new Promise((resolve) => setTimeout(resolve, 3000)),
+          ]).catch(() => {});
+          await activePage.waitForTimeout(2000).catch(() => {});
+        }
         break;
       }
       case 'fill': {
-        const resolved = await resolveTarget(page, action.target, 'fill');
+        const resolved = await resolveTarget(activePage, action.target, 'fill');
         if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'fill'));
         result.resolvedBy = resolved.resolution.strategy;
         result.resolutionConfidence = resolved.resolution.confidence;
@@ -562,10 +598,10 @@ async function runStep(
         break;
       }
       case 'press':
-        await page.keyboard.press(action.keys);
+        await activePage.keyboard.press(action.keys);
         break;
       case 'waitFor':
-        await applyWait(page, action.condition);
+        await applyWait(activePage, action.condition);
         break;
       case 'setViewport': {
         const preset = action.preset;
@@ -573,7 +609,7 @@ async function runStep(
           typeof preset === 'string'
             ? { mobile: { w: 390, h: 844 }, tablet: { w: 820, h: 1180 }, desktop: { w: 1280, h: 800 } }[preset]
             : preset;
-        await page.setViewportSize({ width: size.w, height: size.h });
+        await activePage.setViewportSize({ width: size.w, height: size.h });
         break;
       }
       case 'screenshot':
@@ -584,8 +620,8 @@ async function runStep(
         throw new Error(`Action "${action.type}" is not supported by the local runner yet.`);
     }
 
-    for (const wait of step.postWaits) await applyWait(page, wait);
-    result.assertions = await runAssertions(page, step);
+    for (const wait of step.postWaits) await applyWait(activePage, wait);
+    result.assertions = await runAssertions(activePage, step);
 
     if (result.assertions.some((a) => !a.passed)) result.status = 'failed';
   } catch (error) {
@@ -597,8 +633,8 @@ async function runStep(
     try {
       const file = `${runId}-${String(step.index).padStart(2, '0')}.png`;
       // Allow fonts, dynamic layouts, and hero assets to paint cleanly
-      await page.waitForTimeout(1500).catch(() => {});
-      const buffer = await page.screenshot({ fullPage: step.evidence.fullPage, timeout: 15_000 });
+      await activePage.waitForTimeout(1500).catch(() => {});
+      const buffer = await activePage.screenshot({ fullPage: step.evidence.fullPage, timeout: 15_000 });
       await writeFile(join(artifactDir, file), buffer).catch(() => {});
       // In serverless / cloud mode, data URLs ensure screenshots render seamlessly everywhere
       result.screenshot = `data:image/png;base64,${buffer.toString('base64')}`;
@@ -607,7 +643,7 @@ async function runStep(
     }
   }
 
-  return result;
+  return { result, page: activePage };
 }
 
 
