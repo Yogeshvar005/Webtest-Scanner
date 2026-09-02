@@ -48,6 +48,16 @@ export interface ExecuteOptions {
  */
 const ACTION_TIMEOUT_MS = 10_000;
 
+/**
+ * Human-like random delay between min..max ms.
+ * Browsers detect bots partly by perfectly regular timing; adding noise makes
+ * the interaction pattern look like a real user.
+ */
+function humanDelay(minMs = 80, maxMs = 400): Promise<void> {
+  const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Resolves a literal value expression; non-literals are not yet supported here. */
 function literalValue(value: { kind: string; value?: unknown }): string {
   return value.kind === 'literal' ? String(value.value ?? '') : '';
@@ -205,31 +215,84 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
       console.log(`[browser] active tier: ${tier}`);
 
       const context = await browser!.newContext({
-        viewport: options.viewport ?? { width: 1280, height: 800 },
+        // MacBook Pro 14" native resolution
+        viewport: options.viewport ?? { width: 1512, height: 982 },
         isMobile: options.isMobile ?? false,
         hasTouch: options.hasTouch ?? false,
-        deviceScaleFactor: options.deviceScaleFactor ?? 1,
+        deviceScaleFactor: options.deviceScaleFactor ?? 2, // Retina
+        // Real Mac Chrome 131 UA
         userAgent: options.userAgent ?? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         locale: 'en-US',
+        timezoneId: 'Asia/Kolkata',
+        colorScheme: 'light',
         extraHTTPHeaders: {
           'Accept-Language': 'en-US,en;q=0.9',
           'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
           'Sec-Ch-Ua-Mobile': options.isMobile ? '?1' : '?0',
           'Sec-Ch-Ua-Platform': options.isMobile ? '"iOS"' : '"macOS"',
         },
-        ignoreHTTPSErrors: true, // Needed for localhost and self-signed certificates
+        ignoreHTTPSErrors: true,
       });
 
-      // Inject native stealth overrides without external plugin dependencies
+      // Aggressive in-page stealth overrides injected before any page script runs.
       await context.addInitScript(() => {
         try {
+          // 1. Remove webdriver flag
           Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-          if (!(window as any).chrome) {
-            (window as any).chrome = { runtime: {}, loadTimes: () => {}, csi: () => {}, app: {} };
-          }
+
+          // 2. Restore the chrome runtime object that real Chrome has
+          (window as any).chrome = {
+            app: { isInstalled: false, InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' }, RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' } },
+            runtime: {
+              OnInstalledReason: { CHROME_UPDATE: 'chrome_update', INSTALL: 'install', SHARED_MODULE_UPDATE: 'shared_module_update', UPDATE: 'update' },
+              OnRestartRequiredReason: { APP_UPDATE: 'app_update', OS_UPDATE: 'os_update', PERIODIC: 'periodic' },
+              PlatformArch: { ARM: 'arm', ARM64: 'arm64', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
+              PlatformOs: { ANDROID: 'android', CROS: 'cros', LINUX: 'linux', MAC: 'mac', OPENBSD: 'openbsd', WIN: 'win' },
+              RequestUpdateCheckStatus: { NO_UPDATE: 'no_update', THROTTLED: 'throttled', UPDATE_AVAILABLE: 'update_available' },
+            },
+            loadTimes: () => ({}),
+            csi: () => ({}),
+          };
+
+          // 3. Spoof real-looking plugins (Chrome has 3 on Mac)
+          const makeFakePlugin = (name: string, desc: string, filename: string) => {
+            const plugin = Object.create(Plugin.prototype);
+            Object.defineProperty(plugin, 'name', { get: () => name });
+            Object.defineProperty(plugin, 'description', { get: () => desc });
+            Object.defineProperty(plugin, 'filename', { get: () => filename });
+            Object.defineProperty(plugin, 'length', { get: () => 0 });
+            return plugin;
+          };
+          const fakePlugins = [
+            makeFakePlugin('Chrome PDF Plugin', 'Portable Document Format', 'internal-pdf-viewer'),
+            makeFakePlugin('Chrome PDF Viewer', '', 'mhjfbmdgcfjbbpaeojofohoefgiehjai'),
+            makeFakePlugin('Native Client', '', 'internal-nacl-plugin'),
+          ];
+          Object.defineProperty(navigator, 'plugins', {
+            get: () => Object.assign(fakePlugins, { item: (i: number) => fakePlugins[i], namedItem: (n: string) => fakePlugins.find(p => p.name === n) ?? null, refresh: () => {} }),
+          });
+
+          // 4. Languages
           Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-          Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-        } catch {}
+
+          // 5. Hardware concurrency (MacBook Pro M3 has 12 cores)
+          Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 12 });
+
+          // 6. Device memory
+          Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
+
+          // 7. Platform
+          Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' });
+
+          // 8. Permissions API — real browsers return 'prompt' or 'granted', not errors
+          const originalQuery = window.navigator.permissions?.query.bind(window.navigator.permissions);
+          if (originalQuery) {
+            (window.navigator.permissions as any).query = (parameters: any) =>
+              parameters.name === 'notifications'
+                ? Promise.resolve({ state: Notification.permission })
+                : originalQuery(parameters);
+          }
+        } catch { /* never crash the page */ }
       });
 
       // Egress guard is skipped for CDP connections — Bright Data handles
@@ -506,9 +569,16 @@ async function runStep(
         result.resolvedBy = resolved.resolution.strategy;
         result.resolutionConfidence = resolved.resolution.confidence;
 
+        // Human-like: hover over the element first, pause, then click
+        await resolved.resolution.locator.hover({ timeout: ACTION_TIMEOUT_MS }).catch(() => {});
+        await humanDelay(120, 350);
+
         // Listen for a new tab/popup that the click might open (e.g. GitHub "Sign up")
         const popupPromise = activePage.waitForEvent('popup', { timeout: 3000 }).catch(() => null);
-        await resolved.resolution.locator.click({ timeout: ACTION_TIMEOUT_MS });
+        await resolved.resolution.locator.click({ timeout: ACTION_TIMEOUT_MS, delay: Math.floor(Math.random() * 80) + 20 });
+
+        // Human-like pause after click before checking result
+        await humanDelay(200, 600);
 
         // Check if a new tab was opened
         const popup = await popupPromise;
@@ -534,7 +604,16 @@ async function runStep(
         if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'fill'));
         result.resolvedBy = resolved.resolution.strategy;
         result.resolutionConfidence = resolved.resolution.confidence;
-        await resolved.resolution.locator.fill(literalValue(action.value), { timeout: ACTION_TIMEOUT_MS });
+
+        // Click the field first, human-like
+        await resolved.resolution.locator.click({ timeout: ACTION_TIMEOUT_MS });
+        await humanDelay(80, 200);
+
+        // Type character by character with randomised inter-key delay
+        // (instant .fill() is a strong bot signal; real humans type ~80-200ms/key)
+        const text = literalValue(action.value);
+        await resolved.resolution.locator.pressSequentially(text, { delay: Math.floor(Math.random() * 80) + 60 });
+        await humanDelay(100, 300);
         await resolved.resolution.locator.press('Enter').catch(() => undefined);
         break;
       }

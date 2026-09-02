@@ -1,41 +1,71 @@
 /**
- * browser.ts — Four-tier stealth browser launch cascade
+ * browser.ts - Four-tier stealth browser launch cascade
  *
- * Tier 0 — Remote browser via WebSocket  (REMOTE_BROWSER_WS_ENDPOINT)
- *   Connects to any remote browser that speaks Playwright WS protocol or raw CDP.
- *   Compatible providers (all free/self-hostable):
- *     • browserless/browserless  — Docker, free self-host, also has free cloud tier
- *     • steel-dev/steel-browser  — open source, free cloud tier
- *     • `npx playwright run-server` — zero-cost, built into Playwright itself
- *     • Chromium --remote-debugging-port — raw CDP, zero cost
- *   Also works with paid providers: Bright Data (set BRIGHT_DATA_WS_ENDPOINT alias).
+ * Tier 0 - Remote browser via WebSocket  (REMOTE_BROWSER_WS_ENDPOINT)
+ * Tier 1 - playwright-extra + stealth plugin  (Vercel / serverless)
+ * Tier 2 - rebrowser-playwright  (local development, HEADED by default)
  *
- * Tier 1 — playwright-extra + stealth plugin  (Vercel / serverless)
- *   Patches 20 JS fingerprint signals at browser-context level.
- *   Works with @sparticuz/chromium on Vercel Lambda. Free, zero infra.
- *
- * Tier 2 — rebrowser-playwright  (local development)
- *   Fork of Playwright with C++-level stealth patches applied to Chromium.
- *   Falls back to playwright-extra if rebrowser is unavailable.
+ * LOCAL MODE: runs HEADED (visible browser window) by default.
+ * Headless mode leaks CSS media queries, runtime.enabledFeatures, and
+ * HiDPI timing signals that GitHub/Cloudflare detect immediately.
+ * A real Mac + residential IP + headed Chrome is essentially
+ * indistinguishable from a human user.
  */
 
 import { chromium as playwrightCoreChromium, type Browser } from 'playwright-core';
-// playwright-extra is a drop-in wrapper; register stealth plugin once at module load.
 import { chromium as playwrightExtra } from 'playwright-extra';
-// @ts-ignore — CJS default export
+// @ts-ignore - CJS default export
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 playwrightExtra.use(StealthPlugin());
 
-/** Args that make the browser appear less automated, applied in local tiers. */
+/**
+ * Maximally aggressive anti-detection flags.
+ * Mimics a real Mac user running Chrome 131 on a MacBook Pro 14".
+ */
 const STEALTH_ARGS = [
+  // ---- Core anti-detection (must come first) ----
   '--disable-blink-features=AutomationControlled',
-  '--disable-features=IsolateOrigins,site-per-process',
+  '--exclude-switches=enable-automation',
+  '--disable-infobars',
+
+  // ---- Kill every flag that leaks to JS as an automation signal ----
+  '--no-default-browser-check',
+  '--no-first-run',
+  '--disable-default-apps',
+  '--disable-translate',
+  '--disable-sync',
+  '--disable-background-networking',
+  '--disable-client-side-phishing-detection',
+  '--disable-hang-monitor',
+  '--disable-popup-blocking',
+  '--disable-prompt-on-repost',
+  '--disable-domain-reliability',
+  '--disable-component-update',
+  '--disable-features=IsolateOrigins,site-per-process,TranslateUI',
+  '--metrics-recording-only',
+  '--safebrowsing-disable-auto-update',
+  '--password-store=basic',
+  '--use-mock-keychain',
+
+  // ---- Sandbox (still needed on Linux / Docker) ----
   '--no-sandbox',
   '--disable-setuid-sandbox',
   '--disable-dev-shm-usage',
-  '--disable-gpu',
-  '--window-size=1280,800',
+
+  // ---- Enable GPU so WebGL/canvas fingerprints look REAL ----
+  '--enable-webgl',
+  '--use-gl=swiftshader',
+  '--enable-accelerated-2d-canvas',
+
+  // ---- Realistic window: MacBook Pro 14" native resolution ----
+  '--window-size=1512,982',
+  '--window-position=0,0',
+  '--start-maximized',
+
+  // ---- Language / locale identical to a real en-US Mac user ----
+  '--lang=en-US',
+  '--accept-lang=en-US,en;q=0.9',
 ];
 
 export interface LaunchOpts {
@@ -47,12 +77,9 @@ export interface LaunchResult {
   browser: Browser;
   /**
    * true when the browser is a remote connection (any WS provider).
-   * The egress guard is skipped in this mode — routing is handled by the
-   * remote browser. Installing a local route handler on a remote context
-   * has no effect and produces confusing errors.
+   * The egress guard is skipped in this mode.
    */
   usingCDP: boolean;
-  /** Human-readable label for log output and observability. */
   tier: 'remote-ws' | 'stealth-vercel' | 'rebrowser-local' | 'stealth-local';
 }
 
@@ -69,49 +96,26 @@ export async function launchBrowser(opts: LaunchOpts = {}): Promise<LaunchResult
       }
     : undefined);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // TIER 0 — Remote browser via WebSocket
-  //
-  // REMOTE_BROWSER_WS_ENDPOINT  ← provider-agnostic (recommended)
-  // BRIGHT_DATA_WS_ENDPOINT     ← legacy alias kept for backward compat
-  //
-  // Supported providers:
-  //   Free / open source:
-  //     browserless (self-hosted):  ws://localhost:3000
-  //     Steel browser:              ws://localhost:3000
-  //     Playwright server:          ws://localhost:9222  (npx playwright run-server)
-  //     Chromium debug port:        http://localhost:9222 (--remote-debugging-port)
-  //   Paid:
-  //     Bright Data:  wss://brd-customer-XXXXX:PASS@brd.superproxy.io:9222
-  //     Anchorbrowser, Nstbrowser, etc.
-  // ─────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
+  // TIER 0 - Remote browser via WebSocket
+  // -------------------------------------------------------------------------
   const remoteEndpoint =
     process.env.REMOTE_BROWSER_WS_ENDPOINT ||
-    process.env.BRIGHT_DATA_WS_ENDPOINT; // backward-compat alias
+    process.env.BRIGHT_DATA_WS_ENDPOINT;
 
   if (remoteEndpoint) {
-    console.log(`[browser] tier=remote-ws — connecting to ${remoteEndpoint.replace(/:[^:@]+@/, ':***@')}`);
+    console.log(`[browser] tier=remote-ws - connecting to ${remoteEndpoint.replace(/:[^:@]+@/, ':***@')}`);
 
-    // Strategy A — Playwright server protocol
-    // Works with: `npx playwright run-server`, browserless v2, some Steel configs.
-    // playwright.connect() uses Playwright's own multiplexed WS protocol which
-    // is more reliable than raw CDP for multi-page workflows.
+    // Strategy A - Playwright server protocol (browserless v2, npx playwright run-server)
     try {
-      const browser = await playwrightCoreChromium.connect(remoteEndpoint, {
-        timeout: 30_000,
-      });
+      const browser = await playwrightCoreChromium.connect(remoteEndpoint, { timeout: 30_000 });
       console.log('[browser] connected via Playwright server protocol');
       return { browser, usingCDP: true, tier: 'remote-ws' };
-    } catch {
-      // Not a Playwright server endpoint — try raw CDP next.
-    }
+    } catch { /* try CDP */ }
 
-    // Strategy B — Raw CDP WebSocket
-    // Works with: browserless v1, Steel, Bright Data, Chromium --remote-debugging-port.
+    // Strategy B - Raw CDP WebSocket (browserless v1, Steel, Bright Data, Chromium debug port)
     try {
-      const browser = await playwrightCoreChromium.connectOverCDP(remoteEndpoint, {
-        timeout: 30_000,
-      });
+      const browser = await playwrightCoreChromium.connectOverCDP(remoteEndpoint, { timeout: 30_000 });
       console.log('[browser] connected via raw CDP');
       return { browser, usingCDP: true, tier: 'remote-ws' };
     } catch (err) {
@@ -119,11 +123,11 @@ export async function launchBrowser(opts: LaunchOpts = {}): Promise<LaunchResult
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // TIER 1 — playwright-extra + stealth plugin on Vercel / Lambda
-  // ─────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
+  // TIER 1 - playwright-extra + stealth plugin on Vercel / Lambda
+  // -------------------------------------------------------------------------
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    console.log('[browser] tier=stealth-vercel — playwright-extra + stealth + @sparticuz/chromium');
+    console.log('[browser] tier=stealth-vercel - playwright-extra + stealth + @sparticuz/chromium');
     const chromiumPkg = await import('@sparticuz/chromium');
     const chromium = chromiumPkg.default || chromiumPkg;
     chromium.setGraphicsMode = false;
@@ -154,23 +158,29 @@ export async function launchBrowser(opts: LaunchOpts = {}): Promise<LaunchResult
     return { browser, usingCDP: false, tier: 'stealth-vercel' };
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // TIER 2 — rebrowser-playwright (C++-level stealth, local only)
-  // ─────────────────────────────────────────────────────────────────────
+  // -------------------------------------------------------------------------
+  // TIER 2 - rebrowser-playwright (C++-level stealth, local only)
+  //
+  // DEFAULT: headless=false (headed / visible window).
+  // A headed Chrome on a Mac with a residential IP is nearly impossible for
+  // bot-detection to distinguish from a real user. Headless mode is only used
+  // if the caller explicitly passes headless:true (e.g. a CI environment).
+  // -------------------------------------------------------------------------
+  const localHeadless = opts.headless ?? false;
+  console.log(`[browser] tier=rebrowser-local - headed=${!localHeadless} (AGGRESSIVE LOCAL STEALTH MODE)`);
+
   try {
-    console.log('[browser] tier=rebrowser-local — rebrowser-playwright C++ stealth');
     const { chromium: rebrowser } = await import('rebrowser-playwright');
     const browser = await rebrowser.launch({
-      headless: opts.headless ?? true,
+      headless: localHeadless,
       proxy: proxyOptions,
       args: STEALTH_ARGS,
     }) as unknown as Browser;
     return { browser, usingCDP: false, tier: 'rebrowser-local' };
   } catch {
-    // rebrowser not installed or failed — fall back to playwright-extra locally.
-    console.log('[browser] tier=stealth-local — rebrowser unavailable, using playwright-extra');
+    console.log('[browser] tier=stealth-local - rebrowser unavailable, using playwright-extra');
     const browser = await playwrightExtra.launch({
-      headless: opts.headless ?? true,
+      headless: localHeadless,
       proxy: proxyOptions,
       args: STEALTH_ARGS,
     });
