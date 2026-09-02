@@ -10,7 +10,15 @@ const nextConfig = {
     '@wts/analyzers',
     '@wts/data-forge',
   ],
-  serverExternalPackages: ['playwright', 'playwright-core', '@sparticuz/chromium', 'axe-core'],
+  serverExternalPackages: [
+    'playwright',
+    'playwright-core',
+    '@sparticuz/chromium',
+    'axe-core',
+    'rebrowser-playwright',
+    'puppeteer-extra-plugin-stealth',
+    'clone-deep',
+  ],
   outputFileTracingIncludes: {
     '/api/**/*': [
       './node_modules/@sparticuz/chromium/bin/**',
