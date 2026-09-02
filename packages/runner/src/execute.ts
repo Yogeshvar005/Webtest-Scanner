@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { chromium as playwrightCoreChromium, type Browser, type Page, type Response } from 'playwright-core';
+import type { Browser, Page, Response } from 'playwright-core';
+import { launchBrowser } from './browser';
 import type { Scenario, Step, WaitCondition } from '@wts/dsl';
 import { detectInjection, sanitizeText, type InjectionSignal } from '@wts/nlp';
 import { evaluate, type PolicyRequest } from '@wts/policy';
@@ -196,78 +197,13 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         });
       }
     } else {
-      if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-        const chromiumPkg = await import('@sparticuz/chromium');
-        const chromium = chromiumPkg.default || chromiumPkg;
-        chromium.setGraphicsMode = false;
+      // ── Stealth browser launch (three-tier cascade) ─────────────────────
+      const { browser: launchedBrowser, usingCDP, tier } = await launchBrowser({
+        headless: options.headless ?? true,
+      });
+      browser = launchedBrowser;
+      console.log(`[browser] active tier: ${tier}`);
 
-        // @sparticuz/chromium v149+ uses architecture-specific pack files.
-        // The fallback URL points to the x64 build which Vercel Lambda uses.
-        // Only needed if the local bundled binary extraction fails.
-        const REMOTE_PACK_URL =
-          'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar';
-
-        let executablePath: string;
-        try {
-          executablePath = await chromium.executablePath();
-          if (!executablePath) throw new Error('executablePath returned empty string');
-        } catch (packErr) {
-          console.warn('Local chromium pack not found, falling back to remote binary pack:', packErr);
-          executablePath = await chromium.executablePath(REMOTE_PACK_URL);
-        }
-
-        console.log('Chromium binary resolved to:', executablePath);
-
-        const proxyOptions = process.env.PROXY_SERVER ? {
-          server: process.env.PROXY_SERVER,
-          username: process.env.PROXY_USERNAME,
-          password: process.env.PROXY_PASSWORD,
-        } : undefined;
-
-        browser = await playwrightCoreChromium.launch({
-          executablePath,
-          proxy: proxyOptions,
-          args: [
-            ...chromium.args.filter((a: string) => a !== '--disable-http2'),
-            '--disable-blink-features=AutomationControlled',
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--single-process',
-          ],
-          headless: true,
-        });
-      } else {
-        const launchArgs = [
-          '--disable-blink-features=AutomationControlled',
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-        ];
-        
-        const proxyOptions = process.env.PROXY_SERVER ? {
-          server: process.env.PROXY_SERVER,
-          username: process.env.PROXY_USERNAME,
-          password: process.env.PROXY_PASSWORD,
-        } : undefined;
-
-        try {
-          const { chromium } = await import('playwright');
-          browser = await chromium.launch({
-            headless: options.headless ?? true,
-            proxy: proxyOptions,
-            args: launchArgs,
-          });
-        } catch {
-          browser = await playwrightCoreChromium.launch({
-            headless: options.headless ?? true,
-            proxy: proxyOptions,
-            args: launchArgs,
-          });
-        }
-      }
       const context = await browser!.newContext({
         viewport: options.viewport ?? { width: 1280, height: 800 },
         isMobile: options.isMobile ?? false,
@@ -296,17 +232,22 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         } catch {}
       });
 
-      installEgressGuard(context, {
-        allowedOrigins: [targetUrl],
-        mode: options.egressMode ?? 'balanced',
-        onBlocked: (blocked) => blockedRequests.push(blocked),
-        onThirdParty: ({ origin, resourceType }) => {
-          const key = `${origin}|${resourceType}`;
-          const existing = thirdPartyByOrigin.get(key);
-          if (existing) existing.count += 1;
-          else thirdPartyByOrigin.set(key, { origin, resourceType, count: 1 });
-        },
-      });
+      // Egress guard is skipped for CDP connections — Bright Data handles
+      // routing and proxying on its end; installing a local route handler on a
+      // CDP-connected context has no effect and produces confusing errors.
+      if (!usingCDP) {
+        installEgressGuard(context, {
+          allowedOrigins: [targetUrl],
+          mode: options.egressMode ?? 'balanced',
+          onBlocked: (blocked) => blockedRequests.push(blocked),
+          onThirdParty: ({ origin, resourceType }) => {
+            const key = `${origin}|${resourceType}`;
+            const existing = thirdPartyByOrigin.get(key);
+            if (existing) existing.count += 1;
+            else thirdPartyByOrigin.set(key, { origin, resourceType, count: 1 });
+          },
+        });
+      }
 
       const page = await context.newPage();
 
