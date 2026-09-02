@@ -188,7 +188,9 @@ export default function Home() {
       aiSteps += `verify page title is not empty\n`;
       
       if (host.includes('github')) {
-        aiSteps += `verify "Repositories" or "Overview" is visible\nclick "Repositories" if present\ntake a screenshot`;
+        aiSteps += `go to /signup
+verify "Create your account" or "Join GitHub" is visible
+take a screenshot`;
       } else if (host.includes('shop') || host.includes('store') || host.includes('amazon')) {
         aiSteps += `click "Search" or "Cart"\nverify products catalog is loaded\ntake a screenshot`;
       } else if (host.includes('login') || host.includes('auth')) {

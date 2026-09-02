@@ -88,8 +88,14 @@ export function installEgressGuard(context: BrowserContext, options: EgressOptio
     const isSameOriginOrSite =
       allowed.has(normaliseOrigin(parsed.origin)) || allowedSites.has(registrableDomain(parsed.hostname));
 
-    // (2) Navigating away from the verified origin is never permitted.
-    if (request.isNavigationRequest() && !isSameOriginOrSite) {
+    // Well-known bot-challenge / CAPTCHA intermediaries that always redirect
+    // back to the original site (DataDome, Cloudflare challenge, Akamai, etc.).
+    // Blocking them causes blank pages on sites like GitHub.
+    const isChallengeProvider = /captcha-delivery\.com|datadome\.co|cf-challenge|challenges\.cloudflare\.com|akam\.net|perimeterx\.net|px-cloud\.net/.test(parsed.hostname);
+
+    // (2) Navigating away from the verified origin is never permitted —
+    // unless it is a recognised challenge intermediary that will redirect back.
+    if (request.isNavigationRequest() && !isSameOriginOrSite && !isChallengeProvider) {
       onBlocked({
         url,
         reason: `Navigation to ${parsed.origin} would leave the verified target`,
