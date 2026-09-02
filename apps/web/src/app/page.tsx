@@ -444,7 +444,7 @@ export default function Home() {
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://github.com"
+                  placeholder="Enter website URL..."
                   autoComplete="off"
                   spellCheck={false}
                   style={{ paddingLeft: 42, fontSize: 15, height: 44, border: 'none', background: 'transparent', boxShadow: 'none' }}
@@ -710,7 +710,7 @@ export default function Home() {
                       type="text" 
                       value={url} 
                       onChange={(e) => setUrl(e.target.value)} 
-                      placeholder="https://github.com" 
+                      placeholder="Enter website URL..." 
                       style={{ width: '100%', fontSize: 14 }}
                     />
                   </div>
