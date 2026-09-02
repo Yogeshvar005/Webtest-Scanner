@@ -27,7 +27,7 @@ const TESTER: Provenance = { source: 'tester', confidence: 1 };
  * always show what the human actually asked for alongside what the engine
  * inferred, which is the auditability requirement in point 3 of the spec.
  */
-export function parseScenario(request: ParseRequest): ParseResult {
+export function parseScenarioRules(request: ParseRequest): ParseResult {
   const lines = splitInstructions(request.naturalLanguage);
   const steps: Step[] = [];
   const unparsed: string[] = [];
@@ -116,4 +116,17 @@ export function parseScenario(request: ParseRequest): ParseResult {
   });
 
   return { scenario, unparsed, meanConfidence };
+}
+
+import { parseScenarioLLM } from './parse-llm';
+
+export async function parseScenario(request: ParseRequest): Promise<ParseResult> {
+  if (process.env.OPENAI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    try {
+      return await parseScenarioLLM(request);
+    } catch (e) {
+      console.warn('LLM parsing failed, falling back to rules.', e);
+    }
+  }
+  return parseScenarioRules(request);
 }

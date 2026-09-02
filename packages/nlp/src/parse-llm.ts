@@ -1,0 +1,179 @@
+import { generateObject } from 'ai';
+import { google } from '@ai-sdk/google';
+import { z } from 'zod';
+import { Scenario, type Step } from '@wts/dsl';
+import type { ParseRequest, ParseResult } from './parse-scenario';
+
+const llmStepSchema = z.object({
+  intent: z.string().describe('The semantic intent of the action, e.g. "Click login"'),
+  action: z.object({
+    type: z.enum(['navigate', 'click', 'fill', 'check', 'screenshot', 'waitFor']),
+    path: z.string().optional().describe('Used for navigate'),
+    targetName: z.string().optional().describe('The semantic name of the element to interact with'),
+    targetRole: z.enum(['button', 'link', 'textbox', 'checkbox', 'searchbox', 'region', 'menuitem']).optional().describe('The ARIA role of the element'),
+    value: z.string().optional().describe('The text to type for "fill"'),
+    state: z.boolean().optional().describe('For "check", true or false'),
+    label: z.string().optional().describe('For "screenshot", a short label'),
+  }).describe('The specific action to take'),
+  assertionText: z.string().optional().describe('If the step verifies text, what text to look for'),
+});
+
+const llmResponseSchema = z.object({
+  steps: z.array(llmStepSchema),
+  unparsed: z.array(z.string()).describe('Any parts of the prompt that could not be mapped to a test action'),
+});
+
+export async function parseScenarioLLM(request: ParseRequest): Promise<ParseResult> {
+  const { object } = await generateObject({
+    model: google('gemini-3.6-flash'),
+    schema: llmResponseSchema,
+    system: `You are a test automation engine parsing natural language into structured actions.
+Your job is to map the user's natural language into a list of steps.
+BE EXTREMELY AGGRESSIVE AND CREATIVE: Always map the user's intent to one of the supported actions. If the user asks to interact with "all" or "every" of something (e.g. "click all buttons"), create a SINGLE action targeting a generic name like "button". 
+NEVER add a valid test instruction to 'unparsed', even if it is overly broad, vague, or ambitious. Force it into an action.
+For each action, infer the best ARIA role and a concise semantic name for the target.
+Supported action types: navigate, click, fill, check, screenshot, waitFor.
+If the user wants to check or verify text, use the 'screenshot' action and set assertionText.
+Only add a sentence to 'unparsed' if it is conversational filler or completely impossible to map to any test action.`,
+    prompt: request.naturalLanguage,
+  });
+
+  const steps: Step[] = [];
+  const defaultPath = request.initialPath || '/';
+
+  for (let i = 0; i < object.steps.length; i++) {
+    const rawStep = object.steps[i]!;
+    const index = steps.length;
+    
+    let actionPayload: any;
+    
+    switch (rawStep.action.type) {
+      case 'navigate':
+        actionPayload = { type: 'navigate', path: rawStep.action.path || '/', originRef: 'primary' };
+        break;
+      case 'click':
+        actionPayload = { 
+          type: 'click', 
+          target: { kind: 'semantic', role: rawStep.action.targetRole || 'button', name: rawStep.action.targetName || 'element', nameMatch: 'contains', origin: { source: 'inferred', confidence: 0.9, rationale: 'LLM generated' } }
+        };
+        break;
+      case 'fill':
+        actionPayload = { 
+          type: 'fill', 
+          target: { kind: 'semantic', role: rawStep.action.targetRole || 'textbox', name: rawStep.action.targetName || 'input', nameMatch: 'contains', origin: { source: 'inferred', confidence: 0.9, rationale: 'LLM generated' } },
+          value: { kind: 'literal', value: rawStep.action.value || '' }
+        };
+        break;
+      case 'check':
+        actionPayload = { 
+          type: 'check', 
+          target: { kind: 'semantic', role: rawStep.action.targetRole || 'checkbox', name: rawStep.action.targetName || 'checkbox', nameMatch: 'contains', origin: { source: 'inferred', confidence: 0.9, rationale: 'LLM generated' } },
+          state: rawStep.action.state ?? true
+        };
+        break;
+      case 'screenshot':
+        actionPayload = { type: 'screenshot', label: rawStep.action.label || 'Screenshot' };
+        break;
+      case 'waitFor':
+        actionPayload = { 
+          type: 'waitFor', 
+          condition: { 
+            type: 'elementVisible', 
+            target: { kind: 'semantic', role: rawStep.action.targetRole || 'region', name: rawStep.action.targetName || 'element', nameMatch: 'contains', origin: { source: 'inferred', confidence: 0.9, rationale: 'LLM generated' } },
+            timeoutMs: 15000 
+          } 
+        };
+        break;
+    }
+
+    const assertions = rawStep.assertionText ? [{
+      type: 'textPresent' as const,
+      text: { kind: 'literal' as const, value: rawStep.assertionText },
+      match: 'contains' as const,
+      negate: false,
+      origin: { source: 'inferred' as const, confidence: 0.9, rationale: 'LLM generated' },
+      severity: 'high' as const,
+      describe: `Expected to find "${rawStep.assertionText}" on the page.`,
+    }] : [];
+
+    steps.push({
+      id: `s${index}`,
+      index,
+      intent: rawStep.intent,
+      action: actionPayload,
+      preWaits: [],
+      postWaits: (rawStep.action.type === 'click' || rawStep.action.type === 'navigate') ? [{ type: 'networkQuiescent', idleMs: 500, ignorePatterns: [] }] : [],
+      assertions,
+      expected: rawStep.assertionText ? `"${rawStep.assertionText}" is visible` : undefined,
+      evidence: { screenshot: 'always', fullPage: false, console: true, network: true, domSnapshot: 'on-failure' },
+      onFailure: 'continue',
+      timeoutMs: 30000,
+      riskTags: ['read-only'],
+      provenance: { source: 'inferred', confidence: 0.9, rationale: 'Generated by LLM' }
+    });
+  }
+
+  // Same logic as parse-rules to ensure we have a valid starting point
+  if (steps.length === 0) {
+    steps.push({
+      id: 's0',
+      index: 0,
+      intent: 'Open the target page',
+      action: { type: 'navigate', path: defaultPath, originRef: 'primary' },
+      preWaits: [],
+      postWaits: [{ type: 'networkQuiescent', idleMs: 500, ignorePatterns: [] }],
+      assertions: [],
+      evidence: { screenshot: 'always', fullPage: false, console: true, network: true, domSnapshot: 'on-failure' },
+      onFailure: 'abort',
+      timeoutMs: 30_000,
+      riskTags: ['read-only'],
+      provenance: { source: 'generated', confidence: 0.5, rationale: 'Default step' },
+    });
+  }
+
+  if (steps[0]!.action.type !== 'navigate') {
+    steps.unshift({
+      id: 'sroot',
+      index: 0,
+      intent: 'Open the target page',
+      action: { type: 'navigate', path: defaultPath, originRef: 'primary' },
+      preWaits: [],
+      postWaits: [{ type: 'networkQuiescent', idleMs: 500, ignorePatterns: [] }],
+      assertions: [],
+      evidence: { screenshot: 'always', fullPage: false, console: true, network: true, domSnapshot: 'on-failure' },
+      onFailure: 'abort',
+      timeoutMs: 30_000,
+      riskTags: ['read-only'],
+      provenance: { source: 'generated', confidence: 0.9, rationale: 'Default step' },
+    });
+  }
+
+  const renumbered = steps.map((step, index) => ({ ...step, id: `s${index}`, index }));
+  const mutates = renumbered.some((s) => s.action.type === 'fill' || s.action.type === 'check');
+  const openQuestions = object.unparsed.map((q) => ({
+    question: `Could not interpret: "${q}"`,
+    assumedAnswer: 'Skipped — LLM could not map to an action.',
+    provenance: { source: 'inferred' as const, confidence: 0, rationale: 'No matching instruction pattern.' }
+  }));
+
+  const scenario = Scenario.parse({
+    schemaVersion: '1.0',
+    id: `sc_${Date.now().toString(36)}`,
+    version: 1,
+    title: request.title?.trim() || renumbered[0]?.intent || 'Untitled scenario',
+    originalNaturalLanguage: request.naturalLanguage,
+    testTypes: request.testTypes ?? ['functional', 'ui'],
+    priority: 'P2',
+    targetId: request.targetId,
+    environment: request.environment,
+    openQuestions,
+    steps: renumbered,
+    lifecycle: 'ai_generated',
+    policyClass: mutates ? 'mutating' : 'passive',
+    provenance: mutates
+      ? { source: 'inferred', confidence: 0.9, rationale: 'LLM generated input' }
+      : { source: 'tester', confidence: 1 },
+  });
+
+  return { scenario, unparsed: object.unparsed, meanConfidence: 0.9 };
+}

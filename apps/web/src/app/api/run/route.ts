@@ -86,7 +86,7 @@ export async function POST(request: Request) {
 
   const initialPath = (target.pathname && target.pathname !== '/' ? target.pathname : '') + (target.search || '') || '/';
 
-  const { scenario, unparsed, meanConfidence } = parseScenario({
+  const { scenario, unparsed, meanConfidence } = await parseScenario({
     naturalLanguage: body.instructions ?? '',
     targetId,
     environment,

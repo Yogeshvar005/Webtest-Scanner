@@ -13,10 +13,11 @@
  */
 
 import { chromium as playwrightCoreChromium, type Browser } from 'playwright-core';
-import { chromium as playwrightExtra } from 'playwright-extra';
+import { addExtra } from 'playwright-extra';
 // @ts-ignore - CJS default export
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
+const playwrightExtra = addExtra(playwrightCoreChromium);
 playwrightExtra.use(StealthPlugin());
 
 /**

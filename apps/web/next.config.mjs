@@ -16,7 +16,11 @@ const nextConfig = {
     '@sparticuz/chromium',
     'axe-core',
     'rebrowser-playwright',
+    'playwright-extra',
+    'puppeteer-extra-plugin',
     'puppeteer-extra-plugin-stealth',
+    'puppeteer-extra-plugin-user-preferences',
+    'puppeteer-extra-plugin-user-data-dir',
     'clone-deep',
   ],
   outputFileTracingIncludes: {

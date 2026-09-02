@@ -209,7 +209,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
     } else {
       // ── Stealth browser launch (three-tier cascade) ─────────────────────
       const { browser: launchedBrowser, usingCDP, tier } = await launchBrowser({
-        headless: options.headless ?? true,
+        headless: options.headless ?? false,
       });
       browser = launchedBrowser;
       console.log(`[browser] active tier: ${tier}`);

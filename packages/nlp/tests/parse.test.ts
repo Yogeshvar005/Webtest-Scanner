@@ -4,8 +4,8 @@ import { parseLine, parseScenario, splitInstructions } from '../src/index';
 
 const base = { targetId: 'example.com', environment: 'QA' as const };
 
-function stepsFor(instructions: string) {
-  return parseScenario({ ...base, naturalLanguage: instructions }).scenario.steps;
+async function stepsFor(instructions: string) {
+  return (await parseScenario({ ...base, naturalLanguage: instructions })).scenario.steps;
 }
 
 describe('splitInstructions', () => {
@@ -38,8 +38,8 @@ describe('rule ordering', () => {
     expect(parseLine('check the order total', 0).step?.assertions[0]?.type).toBe('textPresent');
   });
 
-  test('"verify X" is still a text assertion', () => {
-    const steps = stepsFor('go to /\nverify Welcome');
+  test('"verify X" is still a text assertion', async () => {
+    const steps = await stepsFor('go to /\nverify Welcome');
     const verify = steps[1]!;
     expect(verify.assertions[0]!.type).toBe('textPresent');
   });
@@ -123,79 +123,80 @@ describe('action parsing', () => {
 });
 
 describe('parseScenario', () => {
-  test('produces a schema-valid scenario', () => {
-    const { scenario } = parseScenario({ ...base, naturalLanguage: 'go to /\nclick Login' });
+  test('produces a schema-valid scenario', async () => {
+    const { scenario } = await parseScenario({ ...base, naturalLanguage: 'go to /\nclick Login' });
     expect(Scenario.safeParse(scenario).success).toBe(true);
   });
 
-  test('preserves the tester\'s original wording for the audit trail', () => {
+  test('preserves the tester\'s original wording for the audit trail', async () => {
     const text = 'go to /\nclick Login';
-    const { scenario } = parseScenario({ ...base, naturalLanguage: text });
+    const { scenario } = await parseScenario({ ...base, naturalLanguage: text });
     expect(scenario.originalNaturalLanguage).toBe(text);
   });
 
-  test('prepends a navigation step when the tester did not start with one', () => {
-    const steps = stepsFor('click Login');
+  test('prepends a navigation step when the tester did not start with one', async () => {
+    const steps = await stepsFor('click Login');
     expect(steps[0]!.action.type).toBe('navigate');
     expect(steps[0]!.provenance.source).toBe('generated');
   });
 
-  test('does not prepend when the tester already navigated', () => {
-    const steps = stepsFor('go to /\nclick Login');
+  test('does not prepend when the tester already navigated', async () => {
+    const steps = await stepsFor('go to /\nclick Login');
     expect(steps.filter((s) => s.action.type === 'navigate')).toHaveLength(1);
   });
 
-  test('records unparsed lines as open questions rather than dropping them', () => {
-    const { scenario, unparsed } = parseScenario({ ...base, naturalLanguage: 'go to /\nfrobnicate the widget' });
+  test('records unparsed lines as open questions rather than dropping them', async () => {
+    const { scenario, unparsed } = await parseScenario({ ...base, naturalLanguage: 'go to /\nfrobnicate the widget' });
     expect(unparsed).toEqual(['frobnicate the widget']);
     expect(scenario.openQuestions[0]!.question).toContain('frobnicate');
   });
 
-  test('falls back to opening the target when nothing is understood', () => {
-    const { scenario } = parseScenario({ ...base, naturalLanguage: 'asdf qwer' });
+  test('falls back to opening the target when nothing is understood', async () => {
+    const { scenario } = await parseScenario({ ...base, naturalLanguage: 'asdf qwer' });
     expect(scenario.steps).toHaveLength(1);
     expect(scenario.steps[0]!.action.type).toBe('navigate');
   });
 
-  test('handles empty input without throwing', () => {
-    expect(() => parseScenario({ ...base, naturalLanguage: '' })).not.toThrow();
+  test('handles empty input without throwing', async () => {
+    const { scenario } = await parseScenario({ ...base, naturalLanguage: '' });
+    expect(scenario).toBeDefined();
   });
 
-  test('classifies a read-only scenario as passive', () => {
-    const { scenario } = parseScenario({ ...base, naturalLanguage: 'go to /\nverify Welcome' });
+  test('classifies a read-only scenario as passive', async () => {
+    const { scenario } = await parseScenario({ ...base, naturalLanguage: 'go to /\nverify Welcome' });
     expect(scenario.policyClass).toBe('passive');
   });
 
-  test('classifies a scenario containing input as mutating', () => {
+  test('classifies a scenario containing input as mutating', async () => {
     // Typing into a field may change server state, so it cannot be passive.
-    const { scenario } = parseScenario({ ...base, naturalLanguage: 'go to /\nenter alice into Username' });
+    const { scenario } = await parseScenario({ ...base, naturalLanguage: 'go to /\nenter alice into Username' });
     expect(scenario.policyClass).toBe('mutating');
   });
 
-  test('marks generated scenarios for review rather than as approved', () => {
-    const { scenario } = parseScenario({ ...base, naturalLanguage: 'go to /' });
+  test('marks generated scenarios for review rather than as approved', async () => {
+    const { scenario } = await parseScenario({ ...base, naturalLanguage: 'go to /' });
     expect(scenario.lifecycle).toBe('ai_generated');
   });
 
-  test('numbers steps consecutively from zero', () => {
-    const steps = stepsFor('click Login\nverify Dashboard\ntake a screenshot');
+  test('numbers steps consecutively from zero', async () => {
+    const steps = await stepsFor('click Login\nverify Dashboard\ntake a screenshot');
     expect(steps.map((s) => s.index)).toEqual([0, 1, 2, 3]);
     expect(steps.map((s) => s.id)).toEqual(['s0', 's1', 's2', 's3']);
   });
 
-  test('reports mean confidence across the inferred steps', () => {
-    const { meanConfidence } = parseScenario({ ...base, naturalLanguage: 'go to /\nclick Login' });
+  test('reports mean confidence across the inferred steps', async () => {
+    const { meanConfidence } = await parseScenario({ ...base, naturalLanguage: 'go to /\nclick Login' });
     expect(meanConfidence).toBeGreaterThan(0);
     expect(meanConfidence).toBeLessThanOrEqual(1);
   });
 
-  test('uses a supplied title when given one', () => {
-    const { scenario } = parseScenario({ ...base, naturalLanguage: 'go to /', title: 'Smoke test' });
+  test('uses a supplied title when given one', async () => {
+    const { scenario } = await parseScenario({ ...base, naturalLanguage: 'go to /', title: 'Smoke test' });
     expect(scenario.title).toBe('Smoke test');
   });
 
-  test('falls back to the first step intent for the title', () => {
-    const { scenario } = parseScenario({ ...base, naturalLanguage: 'go to /pricing' });
+  test('falls back to the first step intent for the title', async () => {
+    const { scenario } = await parseScenario({ ...base, naturalLanguage: 'go to /pricing' });
     expect(scenario.title).toBe('Open /pricing');
   });
 });
