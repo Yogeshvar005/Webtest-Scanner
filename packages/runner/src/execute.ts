@@ -10,7 +10,7 @@ import {
   type CategoryResult, type ObservedApiCall, type TestCategory,
 } from '@wts/analyzers';
 import { installEgressGuard, type BlockedRequest, type EgressMode, type ThirdPartyContact } from './egress-guard';
-import { explainFailure, resolveTarget, targetDescription } from './resolve';
+import { explainFailure, resolveTarget, resolveTargetAll, targetDescription } from './resolve';
 import type { AssertionResult, Finding, RunResult, StepResult } from './types';
 
 export interface ExecuteOptions {
@@ -57,6 +57,23 @@ function humanDelay(minMs = 80, maxMs = 400): Promise<void> {
   const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Animates the mouse moving to a locator to simulate physical movement.
+ */
+async function animateMouseTo(page: Page, locator: import('playwright-core').Locator) {
+  try {
+    const box = await locator.boundingBox();
+    if (box) {
+      const targetX = box.x + box.width / 2;
+      const targetY = box.y + box.height / 2;
+      await page.mouse.move(targetX, targetY, { steps: 10 });
+    }
+  } catch {
+    // If it fails (e.g. element hidden or detached), ignore.
+  }
+}
+
 
 /** Resolves a literal value expression; non-literals are not yet supported here. */
 function literalValue(value: { kind: string; value?: unknown }): string {
@@ -295,6 +312,39 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         } catch { /* never crash the page */ }
       });
 
+      // Inject visual cursor to simulate physical mouse
+      await context.addInitScript(() => {
+        try {
+          if (window.top !== window) return; // Only in top frame
+          document.addEventListener('DOMContentLoaded', () => {
+            const cursor = document.createElement('div');
+            cursor.id = 'wts-agent-cursor';
+            cursor.style.width = '12px';
+            cursor.style.height = '12px';
+            cursor.style.background = 'rgba(255, 0, 0, 0.7)';
+            cursor.style.borderRadius = '50%';
+            cursor.style.position = 'fixed';
+            cursor.style.top = '0';
+            cursor.style.left = '0';
+            cursor.style.display = 'none';
+            cursor.style.pointerEvents = 'none';
+            cursor.style.zIndex = '999999999';
+            cursor.style.transition = 'top 0.1s ease-out, left 0.1s ease-out';
+            cursor.style.boxShadow = '0 0 5px rgba(255, 0, 0, 0.5)';
+            document.body.appendChild(cursor);
+
+            document.addEventListener('mousemove', (e) => {
+              const c = document.getElementById('wts-agent-cursor');
+              if (c) {
+                c.style.display = 'block';
+                c.style.left = `${e.clientX - 6}px`;
+                c.style.top = `${e.clientY - 6}px`;
+              }
+            });
+          });
+        } catch { /* never crash the page */ }
+      });
+
       // Egress guard is skipped for CDP connections — Bright Data handles
       // routing and proxying on its end; installing a local route handler on a
       // CDP-connected context has no effect and produces confusing errors.
@@ -345,7 +395,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
       for (const step of scenario.steps) {
         const before = consoleErrors.length;
         const started = Date.now();
-        const { result, page: nextPage } = await runStep(activePage, step, targetUrl, artifactDir, artifactUrlPrefix, runId);
+        const { result, subResults, page: nextPage } = await runStep(activePage, step, targetUrl, artifactDir, artifactUrlPrefix, runId);
         // If the step opened a new tab (e.g. Sign Up), switch to it for all subsequent steps
         if (nextPage !== activePage) {
           activePage = nextPage;
@@ -378,6 +428,9 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         }
 
         steps.push(result);
+        if (subResults) {
+          steps.push(...subResults);
+        }
         options.onStep?.(result);
 
         if (result.status === 'failed' && step.onFailure === 'abort') break;
@@ -522,7 +575,7 @@ async function runStep(
   artifactDir: string,
   artifactUrlPrefix: string,
   runId: string,
-): Promise<{ result: StepResult; page: Page }> {
+): Promise<{ result: StepResult; subResults?: StepResult[]; page: Page }> {
   let activePage = page;
   const result: StepResult = {
     id: step.id,
@@ -535,6 +588,7 @@ async function runStep(
     provenanceSource: step.provenance.source,
     provenanceConfidence: step.provenance.confidence,
   };
+  const subResults: StepResult[] = [];
 
   try {
     for (const wait of step.preWaits) await applyWait(activePage, wait);
@@ -559,8 +613,18 @@ async function runStep(
             // Ignore failure to stop
           }
         }
-        // Brief settling pause for dynamic frameworks
-        await activePage.waitForTimeout(1000).catch(() => {});
+        // Wait for challenge redirects (Akamai, Cloudflare, DataDome),
+        // WAF interstitials, or dynamic client-side SPA rendering to finish settling.
+        await Promise.race([
+          activePage.waitForLoadState('networkidle', { timeout: 8000 }),
+          activePage.waitForFunction(() => {
+            const body = document.body;
+            if (!body) return false;
+            const text = (body.innerText || '').trim();
+            return text.length > 40 || body.children.length > 3;
+          }, { timeout: 8000 }),
+        ]).catch(() => {});
+        await activePage.waitForTimeout(1500).catch(() => {});
         break;
       }
       case 'click': {
@@ -568,6 +632,8 @@ async function runStep(
         if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'click'));
         result.resolvedBy = resolved.resolution.strategy;
         result.resolutionConfidence = resolved.resolution.confidence;
+
+        await animateMouseTo(activePage, resolved.resolution.locator);
 
         // Human-like: hover over the element first, pause, then click
         await resolved.resolution.locator.hover({ timeout: ACTION_TIMEOUT_MS }).catch(() => {});
@@ -599,11 +665,136 @@ async function runStep(
         }
         break;
       }
+      case 'clickAll': {
+        const resolved = await resolveTargetAll(activePage, action.target, 'click');
+        if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'click'));
+        result.resolvedBy = resolved.resolution.strategy;
+        result.resolutionConfidence = resolved.resolution.confidence;
+
+        for (const loc of resolved.resolution.locators) {
+          await animateMouseTo(activePage, loc);
+          await loc.hover({ timeout: ACTION_TIMEOUT_MS }).catch(() => {});
+          await humanDelay(120, 350);
+          
+          await loc.click({ timeout: ACTION_TIMEOUT_MS, delay: Math.floor(Math.random() * 80) + 20 }).catch(() => {});
+          await humanDelay(200, 600);
+          
+          // Wait briefly for in-page actions
+          await Promise.race([
+            activePage.waitForLoadState('networkidle', { timeout: 2000 }),
+            new Promise((resolve) => setTimeout(resolve, 500)),
+          ]).catch(() => {});
+        }
+        break;
+      }
+      case 'explore': {
+        const maxDepth = action.maxDepth;
+        const initialUrl = activePage.url();
+        let exploredCount = 1;
+        
+        async function exploreNode(page: Page, currentDepth: number) {
+          if (currentDepth >= maxDepth) return;
+          
+          const locators = await page.locator('a:visible, button:visible').all().catch(() => []);
+          // Limit to first 5 visible elements to prevent exponentially long runs
+          const maxElements = Math.min(locators.length, 5);
+          
+          for (let i = 0; i < maxElements; i++) {
+            // Re-query because DOM could have changed after back navigation
+            const currentLocators = await page.locator('a:visible, button:visible').all().catch(() => []);
+            if (i >= currentLocators.length) continue;
+            
+            const loc = currentLocators[i]!;
+            if (!(await loc.isVisible().catch(()=>false))) continue;
+            
+            await animateMouseTo(page, loc);
+            await loc.hover({ timeout: 2000 }).catch(() => {});
+            await humanDelay(120, 350);
+            
+            const preUrl = page.url();
+            const exploreStartedAt = Date.now();
+            
+            const popupPromise = page.waitForEvent('popup', { timeout: 3000 }).catch(() => null);
+            await loc.click({ timeout: 5000, delay: 50 }).catch(() => {});
+            
+            const popup = await popupPromise;
+            let targetPage = popup || page;
+            
+            if (popup) {
+              await targetPage.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+            } else {
+              await Promise.race([
+                targetPage.waitForLoadState('networkidle', { timeout: 3000 }),
+                targetPage.waitForLoadState('domcontentloaded', { timeout: 2000 }),
+              ]).catch(() => {});
+            }
+            
+            const postUrl = targetPage.url();
+            
+            if (postUrl !== preUrl || popup) {
+              await targetPage.waitForTimeout(1500).catch(() => {});
+              const screenshotBuffer = await targetPage.screenshot({ fullPage: step.evidence.fullPage, timeout: 15_000 }).catch(() => null);
+              let screenshotUrl = undefined;
+              if (screenshotBuffer) {
+                const file = `${runId}-${String(step.index).padStart(2, '0')}-explore-${exploredCount}.png`;
+                await writeFile(join(artifactDir, file), screenshotBuffer).catch(() => {});
+                screenshotUrl = `data:image/png;base64,${screenshotBuffer.toString('base64')}`;
+              }
+
+              subResults.push({
+                id: `${step.id}-explore-${exploredCount}`,
+                index: Number((step.index + (exploredCount * 0.01)).toFixed(2)),
+                intent: `Explored: ${postUrl}`,
+                status: 'passed',
+                durationMs: Date.now() - exploreStartedAt,
+                screenshot: screenshotUrl,
+                assertions: [],
+                consoleErrors: [],
+                provenanceSource: step.provenance.source,
+                provenanceConfidence: step.provenance.confidence,
+              });
+              exploredCount++;
+
+              await exploreNode(targetPage, currentDepth + 1);
+            }
+            
+            if (popup) {
+              await popup.close().catch(() => {});
+            } else if (postUrl !== preUrl) {
+              await targetPage.goBack({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(async () => {
+                await targetPage.goto(preUrl, { waitUntil: 'domcontentloaded', timeout: 5000 }).catch(()=>{});
+              });
+              await targetPage.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+            }
+          }
+        }
+        
+        await exploreNode(activePage, 0);
+        
+        // Restore initial URL and ensure the page DOM settles so subsequent steps don't act on an unrendered page
+        if (activePage.url() !== initialUrl) {
+          await activePage.goto(initialUrl, { waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
+        }
+        await Promise.race([
+          activePage.waitForLoadState('networkidle', { timeout: 8000 }),
+          activePage.waitForFunction(() => {
+            const body = document.body;
+            if (!body) return false;
+            const text = (body.innerText || '').trim();
+            return text.length > 40 || body.children.length > 3;
+          }, { timeout: 8000 }),
+        ]).catch(() => {});
+        await activePage.waitForTimeout(1500).catch(() => {});
+        
+        break;
+      }
       case 'fill': {
         const resolved = await resolveTarget(activePage, action.target, 'fill');
         if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'fill'));
         result.resolvedBy = resolved.resolution.strategy;
         result.resolutionConfidence = resolved.resolution.confidence;
+
+        await animateMouseTo(activePage, resolved.resolution.locator);
 
         // Click the field first, human-like
         await resolved.resolution.locator.click({ timeout: ACTION_TIMEOUT_MS });
@@ -649,12 +840,30 @@ async function runStep(
     result.error = error instanceof Error ? error.message : String(error);
   }
 
-  if (step.evidence.screenshot !== 'never') {
+  // For 'explore' actions, subResults contain the screenshots for each visited page.
+  // The parent 'explore' container step should not produce a redundant screenshot.
+  if (step.evidence.screenshot !== 'never' && step.action.type !== 'explore') {
     try {
       const file = `${runId}-${String(step.index).padStart(2, '0')}.png`;
-      // Allow fonts, dynamic layouts, and hero assets to paint cleanly
-      await activePage.waitForTimeout(1500).catch(() => {});
+      // Allow fonts, dynamic layouts, and hero assets to paint cleanly and ensure body is not blank
+      await Promise.race([
+        activePage.waitForFunction(() => {
+          const body = document.body;
+          if (!body) return false;
+          return (body.innerText || '').trim().length > 30 || body.children.length > 2;
+        }, { timeout: 6000 }),
+        activePage.waitForTimeout(1500),
+      ]).catch(() => {});
+      // Temporarily hide the simulated cursor element during screenshot so it doesn't obstruct content
+      await activePage.evaluate(() => {
+        const c = document.getElementById('wts-agent-cursor');
+        if (c) c.style.display = 'none';
+      }).catch(() => {});
       const buffer = await activePage.screenshot({ fullPage: step.evidence.fullPage, timeout: 15_000 });
+      await activePage.evaluate(() => {
+        const c = document.getElementById('wts-agent-cursor');
+        if (c) c.style.display = 'block';
+      }).catch(() => {});
       await writeFile(join(artifactDir, file), buffer).catch(() => {});
       // In serverless / cloud mode, data URLs ensure screenshots render seamlessly everywhere
       result.screenshot = `data:image/png;base64,${buffer.toString('base64')}`;
@@ -663,7 +872,7 @@ async function runStep(
     }
   }
 
-  return { result, page: activePage };
+  return { result, subResults, page: activePage };
 }
 
 

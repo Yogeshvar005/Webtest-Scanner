@@ -7,13 +7,14 @@ import type { ParseRequest, ParseResult } from './parse-scenario';
 const llmStepSchema = z.object({
   intent: z.string().describe('The semantic intent of the action, e.g. "Click login"'),
   action: z.object({
-    type: z.enum(['navigate', 'click', 'fill', 'check', 'screenshot', 'waitFor']),
+    type: z.enum(['navigate', 'click', 'clickAll', 'explore', 'fill', 'check', 'screenshot', 'waitFor']),
     path: z.string().optional().describe('Used for navigate'),
     targetName: z.string().optional().describe('The semantic name of the element to interact with'),
     targetRole: z.enum(['button', 'link', 'textbox', 'checkbox', 'searchbox', 'region', 'menuitem']).optional().describe('The ARIA role of the element'),
     value: z.string().optional().describe('The text to type for "fill"'),
     state: z.boolean().optional().describe('For "check", true or false'),
     label: z.string().optional().describe('For "screenshot", a short label'),
+    maxDepth: z.number().optional().describe('For "explore", the maximum depth to traverse (default 2)'),
   }).describe('The specific action to take'),
   assertionText: z.string().optional().describe('If the step verifies text, what text to look for'),
 });
@@ -23,18 +24,34 @@ const llmResponseSchema = z.object({
   unparsed: z.array(z.string()).describe('Any parts of the prompt that could not be mapped to a test action'),
 });
 
+import { getAIModel } from './local-llm';
+
 export async function parseScenarioLLM(request: ParseRequest): Promise<ParseResult> {
+  const { model } = await getAIModel(request.aiConfig);
+
+  const siteContextText = request.siteContext
+    ? `
+LIVE WEBSITE ELEMENTS & CONTEXT (Ground actions using these real observed elements!):
+- Target URL: ${request.siteContext.url}
+- Title: ${request.siteContext.title}
+- Headings: ${request.siteContext.headings.slice(0, 8).join(', ')}
+- Buttons on page: ${request.siteContext.interactiveElements.filter(e => e.role === 'button').map(e => e.text).slice(0, 15).join(' | ')}
+- Inputs on page: ${request.siteContext.interactiveElements.filter(e => e.role === 'textbox' || e.role === 'searchbox').map(e => e.placeholder || e.name || e.text).slice(0, 10).join(' | ')}
+`
+    : '';
+
   const { object } = await generateObject({
-    model: google('gemini-3.6-flash'),
+    model,
     schema: llmResponseSchema,
-    system: `You are a test automation engine parsing natural language into structured actions.
-Your job is to map the user's natural language into a list of steps.
-BE EXTREMELY AGGRESSIVE AND CREATIVE: Always map the user's intent to one of the supported actions. If the user asks to interact with "all" or "every" of something (e.g. "click all buttons"), create a SINGLE action targeting a generic name like "button". 
-NEVER add a valid test instruction to 'unparsed', even if it is overly broad, vague, or ambitious. Force it into an action.
-For each action, infer the best ARIA role and a concise semantic name for the target.
-Supported action types: navigate, click, fill, check, screenshot, waitFor.
-If the user wants to check or verify text, use the 'screenshot' action and set assertionText.
-Only add a sentence to 'unparsed' if it is conversational filler or completely impossible to map to any test action.`,
+    system: `You are a test automation engine parsing natural language into structured Playwright DSL actions.
+Your job is to map the user's natural language into a list of executable steps.
+${siteContextText}
+BE AGGRESSIVE AND CREATIVE: Always map the user's intent to one of the supported actions. 
+If the user asks to interact with "all" or "every" of something (e.g. "click all buttons"), use 'clickAll'.
+If the user asks to explore the site, test paths, spider, or find where buttons go, use 'explore'.
+CRITICAL: Use real observed element names and roles from the live site context whenever matching elements!
+Supported action types: navigate, click, clickAll, explore, fill, check, screenshot, waitFor.
+If the user wants to check or verify text, use the 'screenshot' action and set assertionText.`,
     prompt: request.naturalLanguage,
   });
 
@@ -55,6 +72,18 @@ Only add a sentence to 'unparsed' if it is conversational filler or completely i
         actionPayload = { 
           type: 'click', 
           target: { kind: 'semantic', role: rawStep.action.targetRole || 'button', name: rawStep.action.targetName || 'element', nameMatch: 'contains', origin: { source: 'inferred', confidence: 0.9, rationale: 'LLM generated' } }
+        };
+        break;
+      case 'clickAll':
+        actionPayload = { 
+          type: 'clickAll', 
+          target: { kind: 'semantic', role: rawStep.action.targetRole || 'button', name: rawStep.action.targetName || 'element', nameMatch: 'contains', origin: { source: 'inferred', confidence: 0.9, rationale: 'LLM generated' } }
+        };
+        break;
+      case 'explore':
+        actionPayload = { 
+          type: 'explore', 
+          maxDepth: rawStep.action.maxDepth || 2 
         };
         break;
       case 'fill':
@@ -102,12 +131,12 @@ Only add a sentence to 'unparsed' if it is conversational filler or completely i
       intent: rawStep.intent,
       action: actionPayload,
       preWaits: [],
-      postWaits: (rawStep.action.type === 'click' || rawStep.action.type === 'navigate') ? [{ type: 'networkQuiescent', idleMs: 500, ignorePatterns: [] }] : [],
+      postWaits: (rawStep.action.type === 'click' || rawStep.action.type === 'clickAll' || rawStep.action.type === 'navigate') ? [{ type: 'networkQuiescent', idleMs: 500, ignorePatterns: [] }] : [],
       assertions,
       expected: rawStep.assertionText ? `"${rawStep.assertionText}" is visible` : undefined,
       evidence: { screenshot: 'always', fullPage: false, console: true, network: true, domSnapshot: 'on-failure' },
       onFailure: 'continue',
-      timeoutMs: 30000,
+      timeoutMs: rawStep.action.type === 'explore' ? 300000 : 30000,
       riskTags: ['read-only'],
       provenance: { source: 'inferred', confidence: 0.9, rationale: 'Generated by LLM' }
     });

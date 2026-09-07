@@ -83,6 +83,8 @@ export const FileRef = z.object({
 export const Action = z.discriminatedUnion('type', [
   z.object({ type: z.literal('navigate'), path: z.string().max(2000), originRef: z.string().max(64).default('primary') }),
   z.object({ type: z.literal('click'), target: SemanticTarget }),
+  z.object({ type: z.literal('clickAll'), target: SemanticTarget }),
+  z.object({ type: z.literal('explore'), maxDepth: z.number().int().min(1).max(5).default(2) }),
   z.object({ type: z.literal('fill'), target: SemanticTarget, value: ValueExpr }),
   z.object({ type: z.literal('select'), target: SemanticTarget, value: ValueExpr }),
   z.object({ type: z.literal('check'), target: SemanticTarget, state: z.boolean() }),

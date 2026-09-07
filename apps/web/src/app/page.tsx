@@ -6,13 +6,16 @@ import { useTheme } from 'next-themes';
 import { 
   Sun, Moon, Search, Smartphone, Monitor, Tablet, Laptop, 
   Sparkles, Clock, History, Calendar, Bell, CheckCircle, 
-  X, RefreshCw, ArrowRight, ShieldCheck, AlertTriangle
+  X, RefreshCw, ArrowRight, ShieldCheck, AlertTriangle,
+  Bot, Cpu, Globe, Zap, Loader2
 } from 'lucide-react';
 import { Glyph, Radar, Wordmark } from './glyphs';
 import { printReport } from './report';
 import { ResultsPanel } from './ResultsPanel';
+import { CopilotDrawer } from './CopilotDrawer';
 import { useAuth } from '../lib/auth-context';
 import type { CategoryDescriptor, RunResponse, DevicePreset, StoredRun, ScheduleConfig } from './types';
+import type { AIProviderConfig, SiteReconData } from '@wts/nlp';
 
 const DEFAULT_SELECTED = ['functional', 'ui', 'accessibility', 'security-passive', 'scraper'];
 const MAX_INSTRUCTIONS = 2000;
@@ -110,6 +113,15 @@ export default function Home() {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [webhookTestStatus, setWebhookTestStatus] = useState<string | null>(null);
 
+  // AI Engine & Copilot
+  const [aiProvider, setAiProvider] = useState<'local' | 'gemini' | 'auto'>('auto');
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [siteRecon, setSiteRecon] = useState<SiteReconData | null>(null);
+  const [reconLoading, setReconLoading] = useState(false);
+  const [autoGenLoading, setAutoGenLoading] = useState(false);
+
+  const aiConfig: AIProviderConfig = { provider: aiProvider };
+
   const urlTouched = url.trim().length > 0;
   const urlValid = isValidUrl(url);
 
@@ -172,36 +184,85 @@ export default function Home() {
     }
   }
 
-  function generateAiTestForUrl() {
-    if (!url.trim()) {
-      setInstructions('go to /\nverify page title is not empty\nassert text present\ntake a screenshot');
-      return;
-    }
-
+  async function runSiteRecon() {
+    if (!urlValid || reconLoading) return;
+    setReconLoading(true);
     try {
-      const withProto = url.startsWith('http') ? url : `https://${url}`;
-      const parsed = new URL(withProto);
-      const host = parsed.hostname;
-      const path = parsed.pathname || '/';
+      const res = await fetch('/api/recon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (res.ok) {
+        const data: SiteReconData = await res.json();
+        setSiteRecon(data);
+        return data;
+      }
+    } catch (e) {
+      console.error('Recon failed:', e);
+    } finally {
+      setReconLoading(false);
+    }
+    return null;
+  }
 
-      let aiSteps = `go to ${path}\n`;
-      aiSteps += `verify page title is not empty\n`;
-      
-      if (host.includes('github')) {
-        aiSteps += `go to /signup
-verify "Create your account" or "Join GitHub" is visible
-take a screenshot`;
-      } else if (host.includes('shop') || host.includes('store') || host.includes('amazon')) {
-        aiSteps += `click "Search" or "Cart"\nverify products catalog is loaded\ntake a screenshot`;
-      } else if (host.includes('login') || host.includes('auth')) {
-        aiSteps += `verify "Password" or "Sign in" is visible\ncheck for security headers\ntake a screenshot`;
-      } else {
-        aiSteps += `verify primary heading is visible\nassert navigation elements are interactive\ncheck for responsive layout and accessibility\ntake a screenshot`;
+  async function generateAiTestForUrl() {
+    if (!urlValid || autoGenLoading) return;
+    setAutoGenLoading(true);
+    try {
+      // Step 1: Run reconnaissance on the target site
+      let recon = siteRecon;
+      if (!recon) {
+        recon = await runSiteRecon() ?? null;
       }
 
-      setInstructions(aiSteps);
-    } catch {
+      if (!recon) {
+        // Fallback to basic heuristic
+        setInstructions(`go to /\nverify page title is not empty\nassert text present\ntake a screenshot`);
+        return;
+      }
+
+      // Step 2: Generate site-specific test suites via AI
+      const res = await fetch('/api/generate-scenarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recon, aiConfig }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Convert generated suites into human-readable DSL instructions
+        const allSteps: string[] = [];
+        for (const suite of (data.suites || [])) {
+          allSteps.push(`# ${suite.title}`);
+          for (const step of (suite.steps || [])) {
+            if (step.action?.type === 'navigate') {
+              allSteps.push(`go to ${step.action.path || '/'}`);
+            } else if (step.action?.type === 'click') {
+              allSteps.push(`click "${step.action.targetName || 'button'}"`);
+            } else if (step.action?.type === 'fill') {
+              allSteps.push(`fill "${step.action.targetName || 'input'}" with "${step.action.value || 'test'}"`);
+            } else if (step.action?.type === 'explore') {
+              allSteps.push('explore the site');
+            } else if (step.action?.type === 'screenshot') {
+              allSteps.push('take a screenshot');
+            } else if (step.action?.type === 'waitFor') {
+              allSteps.push('wait for page to load');
+            } else {
+              allSteps.push(step.intent || 'take a screenshot');
+            }
+          }
+          allSteps.push('');
+        }
+        setInstructions(allSteps.join('\n').trim());
+      } else {
+        setInstructions(`go to /\nverify main content is visible\ntake a screenshot`);
+      }
+    } catch (e) {
+      console.error('Auto-generate failed:', e);
       setInstructions(`go to /\nverify main content is visible\ntake a screenshot`);
+    } finally {
+      setAutoGenLoading(false);
     }
   }
 
@@ -480,10 +541,21 @@ take a screenshot`;
             <button
               className="ai-preset-chip"
               onClick={generateAiTestForUrl}
-              style={{ background: 'rgba(59, 130, 246, 0.12)', color: 'var(--accent)', borderColor: 'var(--accent)' }}
-              title="Auto-generate customized scenario based on target URL"
+              disabled={!urlValid || autoGenLoading}
+              style={{
+                background: 'linear-gradient(135deg, rgba(217,119,87,0.15), rgba(59,130,246,0.12))',
+                color: 'var(--accent)',
+                borderColor: 'var(--accent)',
+                opacity: (!urlValid || autoGenLoading) ? 0.5 : 1,
+                cursor: (!urlValid || autoGenLoading) ? 'not-allowed' : 'pointer',
+              }}
+              title="AI scans the real website structure and auto-generates precise test scenarios"
             >
-              <Sparkles size={12} /> Auto-Generate for URL
+              {autoGenLoading ? (
+                <><Loader2 size={12} className="spinner" /> Analyzing Site...</>
+              ) : (
+                <><Zap size={12} /> ✨ Auto-Generate Site Tests</>
+              )}
             </button>
           </div>
             
@@ -496,8 +568,82 @@ take a screenshot`;
             )}
           </div>
 
-          {/* ── Configuration Bar with Device Emulation ── */}
+          {/* ── Configuration Bar with Device Emulation & AI Engine ── */}
           <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+            {/* AI Engine Selector */}
+            <div style={{
+              display: 'flex',
+              gap: 4,
+              alignItems: 'center',
+              background: 'var(--bg-hover)',
+              borderRadius: 10,
+              padding: '3px 4px',
+              border: '1px solid var(--border)',
+            }}>
+              <button
+                className={`settings-pill ${aiProvider === 'auto' ? 'active' : ''}`}
+                onClick={() => setAiProvider('auto')}
+                style={{
+                  height: 28,
+                  padding: '0 10px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: aiProvider === 'auto' ? 'var(--accent)' : 'transparent',
+                  color: aiProvider === 'auto' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 8,
+                }}
+                title="Automatically pick best available model (Local first, Cloud fallback)"
+              >
+                <Zap size={11} /> Auto
+              </button>
+              <button
+                className={`settings-pill ${aiProvider === 'local' ? 'active' : ''}`}
+                onClick={() => setAiProvider('local')}
+                style={{
+                  height: 28,
+                  padding: '0 10px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: aiProvider === 'local' ? '#2E7D32' : 'transparent',
+                  color: aiProvider === 'local' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 8,
+                }}
+                title="Use local Ollama model (Llama 3.2 / Qwen 2.5) — zero latency, private"
+              >
+                <Cpu size={11} /> Local LLM
+              </button>
+              <button
+                className={`settings-pill ${aiProvider === 'gemini' ? 'active' : ''}`}
+                onClick={() => setAiProvider('gemini')}
+                style={{
+                  height: 28,
+                  padding: '0 10px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: aiProvider === 'gemini' ? '#F57F17' : 'transparent',
+                  color: aiProvider === 'gemini' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 8,
+                }}
+                title="Use Google Gemini cloud model"
+              >
+                <Globe size={11} /> Gemini
+              </button>
+            </div>
+
+            <div style={{ width: '1px', height: 24, background: 'var(--border)', margin: '4px' }} />
+
             {/* Device Profile Selector */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <select 
@@ -829,6 +975,65 @@ take a screenshot`;
           </div>
         </div>
       )}
+
+      {/* ── AI Copilot FAB ── */}
+      {!copilotOpen && (
+        <button
+          onClick={() => {
+            setCopilotOpen(true);
+            // Auto-run recon if we have a URL and no recon yet
+            if (urlValid && !siteRecon && !reconLoading) {
+              runSiteRecon();
+            }
+          }}
+          style={{
+            position: 'fixed',
+            bottom: 28,
+            right: 28,
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #D97757, #E58E73)',
+            color: '#fff',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 6px 20px rgba(217, 119, 87, 0.4)',
+            zIndex: 9998,
+            transition: 'transform 0.2s, box-shadow 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)';
+            e.currentTarget.style.boxShadow = '0 8px 28px rgba(217, 119, 87, 0.55)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(217, 119, 87, 0.4)';
+          }}
+          title="Open AI QA Copilot"
+        >
+          <Bot size={26} />
+        </button>
+      )}
+
+      {/* ── Copilot Drawer ── */}
+      <CopilotDrawer
+        isOpen={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+        siteRecon={siteRecon}
+        targetUrl={url}
+        aiConfig={aiConfig}
+        onRunSteps={(generatedInstructions) => {
+          setInstructions(generatedInstructions);
+          setCopilotOpen(false);
+          // Auto-run if URL is valid
+          if (urlValid) {
+            setTimeout(() => run(), 300);
+          }
+        }}
+      />
     </div>
   );
 }

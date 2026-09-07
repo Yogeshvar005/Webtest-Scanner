@@ -120,55 +120,9 @@ export function installEgressGuard(context: BrowserContext, options: EgressOptio
       onThirdParty?.({ origin: parsed.origin, resourceType: request.resourceType() });
     }
 
-    // Fulfill request using Node fetch to prevent HTTP/2 fingerprint drops on CDNs (Akamai/Cloudflare)
-    try {
-      const incomingHeaders = request.headers();
-      const fetchHeaders: Record<string, string> = {
-        'User-Agent': incomingHeaders['user-agent'] || DEFAULT_UA,
-        'Accept': incomingHeaders['accept'] || '*/*',
-        'Accept-Language': incomingHeaders['accept-language'] || 'en-US,en;q=0.9',
-      };
-      if (primaryOrigin) {
-        fetchHeaders['Referer'] = primaryOrigin;
-      }
-
-      const method = request.method();
-      const postData = request.postDataBuffer();
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-      const resp = await fetch(url, {
-        method,
-        headers: fetchHeaders,
-        body: method !== 'GET' && method !== 'HEAD' && postData ? (new Uint8Array(postData) as unknown as BodyInit) : undefined,
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      const buffer = Buffer.from(await resp.arrayBuffer());
-      const responseHeaders: Record<string, string> = {};
-      resp.headers.forEach((value, key) => {
-        const k = key.toLowerCase();
-        // Skip hop-by-hop & compression headers since Node fetch decodes automatically
-        if (k !== 'content-encoding' && k !== 'content-length' && k !== 'transfer-encoding') {
-          responseHeaders[k] = value;
-        }
-      });
-
-      await route.fulfill({
-        status: resp.status,
-        headers: responseHeaders,
-        body: buffer,
-      });
-    } catch {
-      // If direct fetch fails, fallback to standard route continuation or silent abort
-      try {
-        await route.continue();
-      } catch {
-        await route.abort('failed').catch(() => {});
-      }
-    }
+    // Allow the browser to fulfill the request natively with its full TLS fingerprint,
+    // HTTP/2 multiplexing, session cookies, and security tokens preserved.
+    await route.continue();
   });
 }
 

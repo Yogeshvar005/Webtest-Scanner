@@ -529,6 +529,8 @@ function StepsTab({ result }: { result: RunResponse }) {
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-md)',
             overflow: 'hidden',
+            breakInside: 'avoid',
+            pageBreakInside: 'avoid',
           }}
         >
           <div
@@ -548,8 +550,8 @@ function StepsTab({ result }: { result: RunResponse }) {
               <strong style={{ fontSize: 13.5 }}>{step.intent}</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className={`pill ${(step.status === 'passed' || step.status === 'failed') ? 'passed' : statusClass(step.status)}`}>
-                {(step.status === 'passed' || step.status === 'failed') ? 'Executed' : step.status}
+              <span className={`pill ${step.status === 'passed' ? 'passed' : step.status === 'failed' ? 'failed' : statusClass(step.status)}`}>
+                {step.status === 'passed' ? 'Executed' : step.status === 'failed' ? 'Failed' : step.status}
               </span>
               <span style={{ fontSize: 11.5, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{step.durationMs}ms</span>
             </div>
@@ -586,7 +588,7 @@ function StepsTab({ result }: { result: RunResponse }) {
                 <img
                   src={step.screenshot}
                   alt={`Screenshot after: ${step.intent}`}
-                  style={{ width: '100%', maxHeight: 400, objectFit: 'contain', background: '#000', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
+                  style={{ width: '100%', maxHeight: 400, objectFit: 'contain', background: 'var(--bg-surface, #ffffff)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}
                 />
               </div>
             )}

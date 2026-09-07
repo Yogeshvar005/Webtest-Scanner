@@ -1,6 +1,9 @@
 import { Scenario, type EnvName, type Provenance, type Step, type TestType } from '@wts/dsl';
 import { parseLine, splitInstructions } from './parse-rules';
 
+import type { SiteReconData } from './site-generator';
+import type { AIProviderConfig } from './local-llm';
+
 export interface ParseRequest {
   naturalLanguage: string;
   targetId: string;
@@ -8,6 +11,8 @@ export interface ParseRequest {
   title?: string;
   testTypes?: TestType[];
   initialPath?: string;
+  siteContext?: SiteReconData;
+  aiConfig?: AIProviderConfig;
 }
 
 export interface ParseResult {
@@ -119,13 +124,18 @@ export function parseScenarioRules(request: ParseRequest): ParseResult {
 }
 
 import { parseScenarioLLM } from './parse-llm';
+import { getOllamaStatus } from './local-llm';
 
 export async function parseScenario(request: ParseRequest): Promise<ParseResult> {
-  if (process.env.OPENAI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  const ollama = await getOllamaStatus();
+  const hasLocal = ollama.online && ollama.models.length > 0;
+  const hasCloud = Boolean(process.env.OPENAI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+
+  if (hasLocal || hasCloud || request.aiConfig?.provider === 'local') {
     try {
       return await parseScenarioLLM(request);
     } catch (e) {
-      console.warn('LLM parsing failed, falling back to rules.', e);
+      console.warn('[nlp] LLM parsing failed, falling back to heuristic rules.', e);
     }
   }
   return parseScenarioRules(request);

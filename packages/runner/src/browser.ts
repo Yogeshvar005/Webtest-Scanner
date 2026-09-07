@@ -172,11 +172,21 @@ export async function launchBrowser(opts: LaunchOpts = {}): Promise<LaunchResult
 
   try {
     const { chromium: rebrowser } = await import('rebrowser-playwright');
-    const browser = await rebrowser.launch({
-      headless: localHeadless,
-      proxy: proxyOptions,
-      args: STEALTH_ARGS,
-    }) as unknown as Browser;
+    let browser: Browser;
+    try {
+      browser = await rebrowser.launch({
+        channel: 'chrome',
+        headless: localHeadless,
+        proxy: proxyOptions,
+        args: STEALTH_ARGS,
+      }) as unknown as Browser;
+    } catch {
+      browser = await rebrowser.launch({
+        headless: localHeadless,
+        proxy: proxyOptions,
+        args: STEALTH_ARGS,
+      }) as unknown as Browser;
+    }
     return { browser, usingCDP: false, tier: 'rebrowser-local' };
   } catch {
     console.log('[browser] tier=stealth-local - rebrowser unavailable, using playwright-extra');

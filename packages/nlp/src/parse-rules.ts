@@ -81,6 +81,15 @@ const RULES: Rule[] = [
   // Ordered most-specific first. `verify-text` is a catch-all whose pattern
   // also matches phrases like "check accessibility", so it must be tried last.
   {
+    name: 'explore',
+    pattern: /^(?:explore|spider|crawl|test\s+all\s+paths|click\s+(?:all|every)(?:\s+the)?\s+(?:buttons|links|elements)).*$/i,
+    confidence: 0.95,
+    build: () => ({
+      action: { type: 'explore', maxDepth: 2 },
+      intent: 'Explore the application',
+    }),
+  },
+  {
     name: 'health-check',
     pattern: /^(?:verify|check|ensure|confirm|test)\s+(?:that\s+)?(?:the\s+)?(?:site|website|page|app|application|server)\s+(?:is\s+)?(?:running|working|up|online|alive|loaded|ok|healthy)$/i,
     confidence: 0.95,

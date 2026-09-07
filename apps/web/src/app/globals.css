@@ -820,3 +820,24 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   to { opacity: 1; transform: scale(1); }
 }
 
+@media print {
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+    padding: 0 !important;
+  }
+
+  /* Prevent cards and critical timeline items from breaking in the middle across pages */
+  [style*="breakInside"],
+  .pill {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  img {
+    max-height: 420px !important;
+    object-fit: contain !important;
+    background: #ffffff !important;
+  }
+}
+

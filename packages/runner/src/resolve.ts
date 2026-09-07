@@ -206,10 +206,24 @@ export async function resolveTarget(
     }
   }
 
-  // ONLY fall back to role-only if NO specific name, label, placeholder, or testId was requested.
-  // This prevents clicking random first elements on the page when a named target isn't found.
-  if (!wantsInput && !target.name && !target.labelText && !target.placeholder && !target.hints?.testId) {
-    candidates.push(['role-only', 0.45, () => root.getByRole(role)]);
+  // Fall back to role-only if NO specific name was requested, or if the name is a generic placeholder (e.g. "button", "link", "element")
+  const isGeneric = Boolean(
+    target.name &&
+    (['button', 'buttons', 'link', 'links', 'element', 'elements', 'all', 'any', 'item', 'items'].includes(target.name.trim().toLowerCase()) ||
+     target.name.trim().toLowerCase() === target.role.toLowerCase())
+  );
+
+  if (!wantsInput && (isGeneric || (!target.name && !target.labelText && !target.placeholder && !target.hints?.testId))) {
+    candidates.push(['role-only', 0.55, () => root.getByRole(role)]);
+    candidates.push([
+      'css-role-fallback',
+      0.5,
+      () => root.locator(
+        role === 'button'
+          ? 'button, [role="button"], input[type="button"], input[type="submit"]'
+          : 'a[href], [role="link"]'
+      ),
+    ]);
   }
 
   // A human-approved CSS fallback is the last resort and is never AI-authored;
@@ -263,6 +277,145 @@ export function explainFailure(target: SemanticTarget, failure: ResolutionFailur
   }
 
   return `Could not use ${what}: ${failure.rejected[0]!.reason}.`;
+}
+
+export type ResolutionAllResult =
+  | { ok: true; resolution: { locators: Locator[]; strategy: string; confidence: number } }
+  | { ok: false; failure: ResolutionFailure };
+
+export async function resolveTargetAll(
+  page: Page,
+  target: SemanticTarget,
+  interaction: Interaction,
+  rootLocator?: Locator,
+): Promise<ResolutionAllResult> {
+  const root = rootLocator ?? page.locator('body');
+  
+  // We can just reuse the same logic from resolveTarget but without .first() and with .all()
+  // But wait, to avoid duplicating the huge candidate list, I'll extract it, or just duplicate for now.
+  // Actually, I can just call resolveTarget and change it? No, resolveTarget returns one locator.
+  // We must re-implement the candidates list or extract it. For simplicity, let's just duplicate the list generation 
+  // by copy-pasting the candidate logic from resolveTarget.
+  
+  // Actually, let's write a small helper or just put the logic in resolveTargetAll.
+  // It's better to just reuse resolveTarget, wait, no, resolveTarget applies .first().
+  // Let me just write the minimal resolveTargetAll using a similar approach.
+  
+  // I will just copy the candidates generation from resolveTarget for safety since we are inside a code block.
+  
+  const role = (ARIA_ROLE[target.role] ?? target.role) as Parameters<Page['getByRole']>[0];
+  const isClick = interaction === 'click';
+  const wantsInput = interaction === 'fill';
+
+  const candidates: Array<[string, number, () => Locator]> = [];
+
+  if (target.hints?.testId) {
+    candidates.push(['testId', 1.0, () => root.getByTestId(target.hints!.testId!)]);
+  }
+
+  if (target.labelText) {
+    candidates.push(['label', 0.9, () => root.getByLabel(target.labelText!, { exact: false })]);
+  }
+
+  if (target.placeholder) {
+    candidates.push(['placeholder', 0.85, () => root.getByPlaceholder(target.placeholder!, { exact: false })]);
+  }
+
+  const isGenericAll = Boolean(
+    target.name &&
+    (['button', 'buttons', 'link', 'links', 'element', 'elements', 'all', 'any', 'item', 'items'].includes(target.name.trim().toLowerCase()) ||
+     target.name.trim().toLowerCase() === target.role.toLowerCase())
+  );
+
+  if (target.name && !isGenericAll) {
+    const exactMatch = target.nameMatch === 'exact';
+    candidates.push(['role+name', 0.8, () => root.getByRole(role, { name: target.name!, exact: exactMatch })]);
+    if (isClick && (role === 'button' || role === 'link')) {
+      const alternateRole = role === 'button' ? 'link' : 'button';
+      candidates.push(['alternate-role+name', 0.78, () => root.getByRole(alternateRole as Parameters<Page['getByRole']>[0], { name: target.name!, exact: exactMatch })]);
+    }
+  }
+
+  if (wantsInput) {
+    const EDITABLE_ROLES = ['textbox', 'checkbox', 'radio', 'combobox', 'spinbutton', 'searchbox', 'slider'];
+    if (target.name) {
+      for (const inputRole of EDITABLE_ROLES) {
+        candidates.push([
+          `${inputRole}+name`,
+          0.75,
+          () => root.getByRole(inputRole as Parameters<Page['getByRole']>[0], { name: target.name!, exact: false }),
+        ]);
+      }
+    }
+    for (const inputRole of EDITABLE_ROLES) {
+      candidates.push([`${inputRole}-only`, 0.5, () => root.getByRole(inputRole as Parameters<Page['getByRole']>[0])]);
+    }
+  } else if (target.name && !isGenericAll) {
+    const rawName = target.name.trim();
+    const flexiblePattern = new RegExp(
+      rawName
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .split(/[\\s_-]+/)
+        .filter(Boolean)
+        .map((w) => w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&'))
+        .join('\\\\s*'),
+      'i',
+    );
+
+    candidates.push(['role-only+text-filter', 0.68, () => root.getByRole(role).filter({ hasText: flexiblePattern })]);
+    if (isClick && (role === 'button' || role === 'link')) {
+      const alternateRole = role === 'button' ? 'link' : 'button';
+      candidates.push(['alternate-role+text-filter', 0.66, () => root.getByRole(alternateRole as Parameters<Page['getByRole']>[0]).filter({ hasText: flexiblePattern })]);
+    }
+    candidates.push(['text', 0.6, () => root.getByText(flexiblePattern)]);
+  }
+
+  if (!wantsInput && (isGenericAll || (!target.name && !target.labelText && !target.placeholder && !target.hints?.testId))) {
+    candidates.push(['role-only', 0.8, () => root.getByRole(role)]);
+    candidates.push([
+      'css-role-fallback',
+      0.75,
+      () => root.locator(
+        role === 'button'
+          ? 'button, [role="button"], input[type="button"], input[type="submit"]'
+          : 'a[href], [role="link"]'
+      ),
+    ]);
+  }
+
+  const rejected: ResolutionFailure['rejected'] = [];
+
+  for (const [strategy, confidence, build] of candidates) {
+    let locatorBase: Locator;
+    try {
+      locatorBase = build();
+    } catch {
+      rejected.push({ strategy, reason: 'invalid selector' });
+      continue;
+    }
+
+    const locators = await locatorBase.all();
+    if (locators.length === 0) {
+      rejected.push({ strategy, reason: 'no element matched' });
+      continue;
+    }
+
+    const acceptedLocators: Locator[] = [];
+    for (const loc of locators) {
+      const problem = await canAccept(loc, interaction);
+      if (problem === undefined) {
+        acceptedLocators.push(loc);
+      }
+    }
+
+    if (acceptedLocators.length > 0) {
+      return { ok: true, resolution: { locators: acceptedLocators, strategy, confidence } };
+    } else {
+      rejected.push({ strategy, reason: 'none of the matched elements were visible/interactable' });
+    }
+  }
+
+  return { ok: false, failure: { rejected } };
 }
 
 export function targetDescription(target: SemanticTarget): string {

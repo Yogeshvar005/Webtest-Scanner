@@ -7,6 +7,7 @@ import { checkDenylist, effectiveTier, requiresManualReview } from '@wts/ownersh
 import { CATEGORIES, type TestCategory } from '@wts/analyzers';
 import type { PolicyRequest, Role } from '@wts/policy';
 import { executeScenario } from '@wts/runner';
+import type { AIProviderConfig, SiteReconData } from '@wts/nlp';
 
 // Playwright needs a real Node runtime and a generous budget.
 export const runtime = 'nodejs';
@@ -28,6 +29,8 @@ interface RunBody {
   /** Emulated device preset or custom viewport */
   device?: 'desktop' | 'laptop' | 'mobile' | 'tablet';
   viewport?: { width: number; height: number };
+  aiConfig?: AIProviderConfig;
+  siteContext?: SiteReconData;
 }
 
 const VALID_CATEGORIES = new Set(CATEGORIES.map((c) => c.id));
@@ -91,6 +94,8 @@ export async function POST(request: Request) {
     targetId,
     environment,
     initialPath,
+    siteContext: body.siteContext,
+    aiConfig: body.aiConfig,
   });
 
   // Lint runs here and would run again in the worker, which never trusts this tier.
