@@ -73,4 +73,7 @@ export interface RunResult {
   injectionSignals: InjectionSignal[];
   policyDecision: PolicyDecision;
   totals: { total: number; passed: number; failed: number; blocked: number; skipped: number };
+  siteScreenshot?: string;
+  siteNavLinks?: Array<{ text: string; href: string; screenshot?: string }>;
+  siteButtons?: string[];
 }

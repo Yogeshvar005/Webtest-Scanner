@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { 
-  Bot, Send, Sparkles, X, Play, Copy, Check, 
-  ChevronRight, AlertCircle, RefreshCw, Cpu, Globe
+  Bot, Send, Sparkles, X, Play,
+  Cpu, Globe
 } from 'lucide-react';
 import type { SiteReconData, AIProviderConfig, CopilotMessage, CopilotResponse } from '@wts/nlp';
 
@@ -84,6 +84,7 @@ export function CopilotDrawer({
         setSuggestedPrompts(data.suggestedFollowUps);
       }
     } catch (err) {
+      console.warn('Copilot failed:', err);
       setMessages((prev) => [
         ...prev,
         {
@@ -166,8 +167,8 @@ export function CopilotDrawer({
                   fontSize: 10,
                   padding: '2px 7px',
                   borderRadius: 12,
-                  background: aiConfig.provider === 'local' ? '#E8F5E9' : '#FFF3E0',
-                  color: aiConfig.provider === 'local' ? '#2E7D32' : '#F57F17',
+                  background: aiConfig.provider === 'local' ? 'var(--pass-bg)' : 'var(--warn-bg)',
+                  color: aiConfig.provider === 'local' ? 'var(--pass)' : 'var(--warn)',
                   fontWeight: 700,
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -283,7 +284,7 @@ export function CopilotDrawer({
         {loading && (
           <div style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12 }}>
             <span className="spinner" style={{ width: 12, height: 12 }} />
-            Local LLM thinking...
+            {aiConfig.provider === 'local' ? 'Local LLM thinking...' : 'Gemini thinking...'}
           </div>
         )}
         <div ref={chatEndRef} />

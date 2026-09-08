@@ -13,7 +13,7 @@ export async function GET() {
       cloudAvailable,
       recommended: status.online && status.models.length > 0 ? 'local' : 'gemini',
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         local: { online: false, models: [] },

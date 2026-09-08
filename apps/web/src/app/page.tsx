@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { 
@@ -127,13 +127,26 @@ export default function Home() {
 
   // Load history & schedules from localStorage
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowHistoryModal(false);
+        setShowScheduleModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
     try {
       const savedHistory = localStorage.getItem('wts_run_history');
       if (savedHistory) setHistoryRuns(JSON.parse(savedHistory));
 
       const savedSchedules = localStorage.getItem('wts_schedules');
       if (savedSchedules) setSchedules(JSON.parse(savedSchedules));
-    } catch {}
+    } catch (e) {
+      console.warn('Failed to load history or schedules from localStorage', e);
+    }
   }, []);
 
   useEffect(() => {
@@ -146,19 +159,26 @@ export default function Home() {
     fetch('/api/categories')
       .then((r) => r.json())
       .then((d: { categories: CategoryDescriptor[] }) => setAvailable(d.categories))
-      .catch(() => {});
+      .catch((e) => {
+        console.warn('Failed to fetch categories:', e);
+      });
   }, []);
+
+  const runRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    runRef.current = run;
+  }, [url, instructions, tier, environment, strict, selected, running, urlValid, device, captureAssets, siteRecon]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
-        run();
+        runRef.current();
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [url, instructions, tier, environment, strict, selected, running, urlValid, device]);
+  }, []);
 
   function handleLogout() {
     logout().catch((err) => console.error('Logout error:', err));
@@ -282,19 +302,33 @@ export default function Home() {
         screenshot: firstScreenshot,
       };
 
-      const updated = [newStoredRun, ...historyRuns].slice(0, 20);
+      let updated = [newStoredRun, ...historyRuns].slice(0, 20);
       setHistoryRuns(updated);
-      localStorage.setItem('wts_run_history', JSON.stringify(updated));
+
+      try {
+        localStorage.setItem('wts_run_history', JSON.stringify(updated));
+      } catch (err: any) {
+        if (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+          const updatedNoScreen = updated.map(r => ({ ...r, screenshot: undefined }));
+          localStorage.setItem('wts_run_history', JSON.stringify(updatedNoScreen));
+        } else {
+          throw err;
+        }
+      }
 
       // Also update baseline screenshot for visual regression
       if (firstScreenshot) {
         const baselineKey = `wts_baseline_${encodeURIComponent(runResult.targetUrl)}`;
-        localStorage.setItem(baselineKey, JSON.stringify({
-          targetUrl: runResult.targetUrl,
-          screenshotUrl: firstScreenshot,
-          capturedAt: Date.now(),
-          device,
-        }));
+        try {
+          localStorage.setItem(baselineKey, JSON.stringify({
+            targetUrl: runResult.targetUrl,
+            screenshotUrl: firstScreenshot,
+            capturedAt: Date.now(),
+            device,
+          }));
+        } catch (err: any) {
+          console.warn('Could not save baseline due to quota limits');
+        }
       }
     } catch (e) {
       console.error('Failed to save run history:', e);
@@ -303,6 +337,7 @@ export default function Home() {
 
   function handleSaveSchedule() {
     if (!url.trim()) return;
+    alert('Disclaimer: Scheduled Monitoring is UI-only and has no server-side execution engine implemented yet.');
 
     const newSchedule: ScheduleConfig = {
       id: Math.random().toString(36).substring(2, 9),
@@ -335,6 +370,7 @@ export default function Home() {
   }
 
   function simulateWebhookTest() {
+    alert('Disclaimer: This is a UI simulation. No actual HTTP request is being sent.');
     setWebhookTestStatus('sending');
     setTimeout(() => {
       setWebhookTestStatus('success');
@@ -373,6 +409,7 @@ export default function Home() {
           strict,
           captureAssets,
           device,
+          siteContext: siteRecon || undefined,
         }),
         signal: controller.signal,
       });
@@ -436,8 +473,23 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Radar />
           <Wordmark />
-          <span className="pill-badge" style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>
-            v2.0
+          <span className="pill-badge" style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: 6, 
+            background: 'var(--bg-surface)', 
+            color: 'var(--text)', 
+            fontSize: 11, 
+            fontWeight: 700, 
+            padding: '4px 10px', 
+            borderRadius: 999, 
+            fontVariantNumeric: 'tabular-nums', 
+            transform: 'translateY(-2px)',
+            boxShadow: 'var(--shadow-sm), 0 0 0 1px var(--border)',
+            letterSpacing: '0.04em'
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)' }}></span>
+            V2.0
           </span>
         </div>
 
@@ -661,9 +713,9 @@ export default function Home() {
 
               <select value={environment} onChange={(e) => setEnvironment(e.target.value)} className="settings-pill" style={{ height: 32, padding: '0 12px', width: 'auto' }}>
                 <option value="QA">QA Environment</option>
-                <option value="Staging">Staging</option>
-                <option value="Production">Production</option>
-                <option value="Local">Local</option>
+                <option value="STAGING">Staging</option>
+                <option value="PRODUCTION">Production</option>
+                <option value="LOCAL">Local</option>
               </select>
 
               <select value={tier} onChange={(e) => setTier(e.target.value)} className="settings-pill" style={{ height: 32, padding: '0 12px', width: 'auto' }}>

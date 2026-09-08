@@ -26,6 +26,9 @@ export interface RunResponse {
   unparsed: string[]; meanConfidence: number;
   ownership: { recordedTier: number; effectiveTier: number };
   error?: string; detail?: string; hint?: string; issues?: Array<{ rule: string; message: string }>;
+  siteScreenshot?: string;
+  siteNavLinks?: Array<{ text: string; href: string; screenshot?: string }>;
+  siteButtons?: string[];
 }
 
 export type DevicePreset = 'desktop' | 'laptop' | 'mobile' | 'tablet';

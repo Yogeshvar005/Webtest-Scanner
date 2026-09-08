@@ -4,3 +4,5 @@ export * from './parse-scenario';
 export * from './local-llm';
 export * from './site-generator';
 export * from './copilot';
+export * from './resolve-llm';
+export * from './decide-route';

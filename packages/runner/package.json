@@ -19,6 +19,7 @@
     "@wts/nlp": "*",
     "@wts/ownership": "*",
     "@wts/policy": "*",
+    "chromium-bidi": "^17.0.2",
     "playwright": "^1.55.0",
     "playwright-core": "^1.62.1",
     "playwright-extra": "^4.3.6",

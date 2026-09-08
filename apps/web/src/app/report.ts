@@ -144,7 +144,44 @@ export async function buildReportHtml(result: RunResponse): Promise<string> {
     })
     .join('');
 
-  const findingsHtml = result.findings
+  const privacyFindings = result.findings.filter((f) => f.type === 'blocked_egress' || f.type === 'third_party_contact');
+  const regularFindings = result.findings.filter((f) => f.type !== 'blocked_egress' && f.type !== 'third_party_contact');
+
+  let privacyHtml = '';
+  if (privacyFindings.length > 0) {
+    const listHtml = privacyFindings.map((f) => {
+      const evidenceStr = f.evidence ? cleanEvidence(f.evidence.split('\n')) : '';
+      let formattedEvidence = '';
+      if (evidenceStr) {
+        if (f.type === 'third_party_contact') {
+          const items = evidenceStr.split('\n').map(line => `<li style="margin-bottom:3px"><code style="background:#f1f5f9;padding:2px 5px;border-radius:3px;border:1px solid #e2e8f0;color:#334155">${escapeHtml(line)}</code></li>`).join('');
+          formattedEvidence = `<div style="margin-top:10px;font-weight:600;font-size:12px;color:#475569;text-transform:uppercase;letter-spacing:0.03em;">Top Trackers and Third-Party Origins Included:</div><ul style="margin:6px 0 0 0;padding-left:22px;font-size:11.5px;">${items}</ul>`;
+        } else {
+          formattedEvidence = `<pre style="margin:6px 0 0;padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;font-size:11px;line-height:1.35;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:360px">${escapeHtml(evidenceStr)}</pre>`;
+        }
+      }
+      return `
+      <div class="finding-item" style="border:1px solid #e2e8f0;border-left:3.5px solid ${severityColor(f.severity)};border-radius:6px;padding:10px 12px;margin-bottom:10px;background:#fff;page-break-inside:avoid;break-inside:avoid">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#0f172a">${escapeHtml(f.title)}</div>
+        <div style="font-size:12.5px;color:#475569;line-height:1.5">${escapeHtml(f.detail)}</div>
+        ${formattedEvidence}
+      </div>`;
+    }).join('');
+
+    privacyHtml = `
+      <div style="margin-top:24px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#f8fafc;">
+        <div style="background:#f1f5f9;padding:12px 14px;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:13px;color:#0f172a;display:flex;align-items:center;gap:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Privacy & Supply Chain Egress
+        </div>
+        <div style="padding:14px 14px 4px 14px;">
+          ${listHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  const findingsHtml = regularFindings
     .map((f) => {
       const evidenceStr = f.evidence ? cleanEvidence(f.evidence.split('\n')) : '';
       return `
@@ -155,6 +192,49 @@ export async function buildReportHtml(result: RunResponse): Promise<string> {
       </div>`;
     })
     .join('');
+
+
+  const hasLinks = result.siteNavLinks && result.siteNavLinks.length > 0;
+  const hasButtons = result.siteButtons && result.siteButtons.length > 0;
+
+  let reconHtml = '';
+  if (hasLinks || hasButtons) {
+    if (hasLinks) {
+      const linksHtml = result.siteNavLinks!.map(link => {
+        const screenshotHtml = link.screenshot 
+          ? `<div style="border-bottom:1px solid #e2e8f0;background:#000;"><img src="${escapeHtml(link.screenshot)}" alt="Screenshot of ${escapeHtml(link.text)}" style="width:100%;height:160px;object-fit:contain;display:block;" /></div>`
+          : `<div style="height:160px;display:flex;align-items:center;justify-content:center;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#94a3b8;font-size:12px;">No Preview</div>`;
+        return `
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;page-break-inside:avoid;break-inside:avoid;">
+          ${screenshotHtml}
+          <div style="padding:10px;">
+            <div style="font-weight:600;font-size:12.5px;color:#0f172a;margin-bottom:4px;">${escapeHtml(link.text || 'Unnamed Link')}</div>
+            <div style="font-size:11.5px;color:#3b82f6;word-break:break-all;">${escapeHtml(link.href)}</div>
+          </div>
+        </div>`;
+      }).join('');
+      reconHtml += `
+      <div style="margin-top:24px;">
+        <h2 style="margin-top:0;">Extracted Navigation Links</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;">
+          ${linksHtml}
+        </div>
+      </div>`;
+    }
+
+    if (hasButtons) {
+      const buttonsHtml = result.siteButtons!.map(btn => {
+        return `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:6px 10px;font-size:12px;font-weight:500;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(btn)}">${escapeHtml(btn)}</div>`;
+      }).join('');
+      reconHtml += `
+      <div style="margin-top:24px;">
+        <h2>Extracted Buttons</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${buttonsHtml}
+        </div>
+      </div>`;
+    }
+  }
 
   return `<!doctype html>
 <html lang="en">
@@ -267,8 +347,10 @@ export async function buildReportHtml(result: RunResponse): Promise<string> {
     </div>
   </div>
 
+  ${reconHtml}
+  ${privacyHtml}
   ${result.categories.length > 0 ? `<h2>Categories (${result.categories.length})</h2>${categoriesHtml}` : ''}
-  ${result.findings.length > 0 ? `<h2>Findings (${result.findings.length})</h2>${findingsHtml}` : ''}
+  ${regularFindings.length > 0 ? `<h2>Findings (${regularFindings.length})</h2>${findingsHtml}` : ''}
   ${result.steps.length > 0 ? `<h2>Steps &amp; Screenshots (${result.steps.length})</h2>${stepsHtml.join('')}` : ''}
 
   <div style="color:#94a3b8;font-size:10.5px;margin-top:20px;padding-top:10px;border-top:1px solid #e2e8f0;text-align:center">
@@ -291,7 +373,7 @@ export async function downloadReport(result: RunResponse): Promise<void> {
   link.click();
   document.body.removeChild(link);
 
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
 /**
@@ -322,5 +404,5 @@ export async function printReport(result: RunResponse): Promise<void> {
   link.click();
   document.body.removeChild(link);
 
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 }

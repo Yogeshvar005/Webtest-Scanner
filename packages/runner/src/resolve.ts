@@ -1,5 +1,6 @@
 import type { Locator, Page } from 'playwright';
 import { describeTarget, type ElementRole, type SemanticTarget } from '@wts/dsl';
+import { resolveTargetLLM } from '@wts/nlp';
 
 /**
  * Maps our semantic roles onto ARIA roles Playwright understands. The DSL role
@@ -248,6 +249,57 @@ export async function resolveTarget(
     const problem = await canAccept(locator, interaction);
     if (problem === undefined) return { ok: true, resolution: { locator, strategy, confidence } };
     if (problem !== 'no element matched') rejected.push({ strategy, reason: problem });
+  }
+
+  // AI FALLBACK: if no heuristic candidates worked, ask the LLM.
+  try {
+    const locators = await root.locator('a, button, input, [role="button"], [role="link"], select, textarea').all();
+    const interactiveElements = [];
+    for (let i = 0; i < Math.min(locators.length, 50); i++) {
+      const loc = locators[i]!;
+      if (await loc.isVisible().catch(() => false)) {
+        const text = await loc.textContent().catch(() => '') || '';
+        const tagName = await loc.evaluate((el: any) => el.tagName.toLowerCase()).catch(() => '');
+        const elemRole = await loc.getAttribute('role').catch(() => null) || '';
+        const nameAttr = await loc.getAttribute('name').catch(() => null) || '';
+        const placeholder = await loc.getAttribute('placeholder').catch(() => null) || '';
+        
+        interactiveElements.push({
+          id: i.toString(),
+          role: elemRole || tagName,
+          text: text.trim().substring(0, 100),
+          placeholder,
+          name: nameAttr,
+          tagName,
+        });
+      }
+    }
+
+    if (interactiveElements.length > 0) {
+      const selectedId = await resolveTargetLLM({
+        target,
+        elements: interactiveElements,
+        pageUrl: page.url(),
+        pageTitle: await page.title().catch(() => ''),
+      });
+
+      if (selectedId) {
+        const selectedIndex = parseInt(selectedId, 10);
+        const locator = locators[selectedIndex];
+        if (locator) {
+          const problem = await canAccept(locator, interaction);
+          if (problem === undefined) {
+            return { ok: true, resolution: { locator, strategy: 'ai-fallback', confidence: 0.8 } };
+          } else {
+            rejected.push({ strategy: 'ai-fallback', reason: problem });
+          }
+        }
+      } else {
+        rejected.push({ strategy: 'ai-fallback', reason: 'LLM returned null' });
+      }
+    }
+  } catch (error) {
+    rejected.push({ strategy: 'ai-fallback', reason: error instanceof Error ? error.message : 'AI fallback failed' });
   }
 
   return { ok: false, failure: { rejected } };

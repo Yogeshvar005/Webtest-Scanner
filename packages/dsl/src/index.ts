@@ -1,4 +1,5 @@
 export * from './provenance';
+export * from './explorer';
 export * from './value';
 export * from './target';
 export * from './action';

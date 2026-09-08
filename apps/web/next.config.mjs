@@ -22,12 +22,34 @@ const nextConfig = {
     'puppeteer-extra-plugin-user-preferences',
     'puppeteer-extra-plugin-user-data-dir',
     'clone-deep',
+    'fsevents',
+    'chromium-bidi'
   ],
   outputFileTracingIncludes: {
     '/api/**/*': [
       './node_modules/@sparticuz/chromium/bin/**',
       './node_modules/@sparticuz/chromium/**',
     ],
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals.push(
+        'playwright',
+        'playwright-core',
+        '@sparticuz/chromium',
+        'axe-core',
+        'rebrowser-playwright',
+        'playwright-extra',
+        'puppeteer-extra-plugin',
+        'puppeteer-extra-plugin-stealth',
+        'puppeteer-extra-plugin-user-preferences',
+        'puppeteer-extra-plugin-user-data-dir',
+        'clone-deep',
+        'fsevents',
+        'chromium-bidi'
+      );
+    }
+    return config;
   },
 };
 

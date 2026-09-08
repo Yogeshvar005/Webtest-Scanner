@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       const seen = new Set<string>();
 
       // Buttons
-      document.querySelectorAll('button:visible, [role="button"]:visible, input[type="button"]:visible, input[type="submit"]:visible').forEach((el) => {
+      document.querySelectorAll('button, [role="button"], input[type="button"], input[type="submit"]').forEach((el) => {
         const text = (el.textContent || (el as HTMLInputElement).value || el.getAttribute('aria-label') || '').trim();
         if (text && text.length < 50 && !seen.has(text.toLowerCase())) {
           seen.add(text.toLowerCase());
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       });
 
       // Inputs
-      document.querySelectorAll('input:visible, select:visible, textarea:visible').forEach((el) => {
+      document.querySelectorAll('input, select, textarea').forEach((el) => {
         const input = el as HTMLInputElement;
         const type = input.type || 'text';
         if (['hidden', 'submit', 'button', 'reset'].includes(type)) return;

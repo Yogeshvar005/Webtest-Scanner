@@ -95,7 +95,7 @@ function downloadFile(filename: string, content: string, mime: string) {
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
 function buildCsv(result: RunResponse): string {
@@ -258,6 +258,19 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
 
   return (
     <div>
+      {(result.siteScreenshot) && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 10, color: 'var(--text)' }}>
+            Target Page Overview
+          </div>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ flex: '0 0 350px', maxWidth: '100%', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: '#000' }}>
+              <img src={result.siteScreenshot} alt="Site Snapshot" style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="stats-strip">
         <div className="stat-box">
           <div className="num" style={{ color: 'var(--text)' }}>{result.totals.total}</div>
@@ -366,6 +379,48 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
           </div>
         </div>
       )}
+
+      {(result.siteNavLinks && result.siteNavLinks.length > 0) && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 10, color: 'var(--text)' }}>
+            Extracted Navigation Links
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            {result.siteNavLinks!.map((link, i) => (
+              <div key={i} style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                {link.screenshot ? (
+                  <div style={{ borderBottom: '1px solid var(--border)', background: '#000' }}>
+                    <img src={link.screenshot} alt={`Screenshot of ${link.text}`} style={{ width: '100%', height: 160, objectFit: 'contain', display: 'block' }} />
+                  </div>
+                ) : (
+                  <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12 }}>
+                    No Preview
+                  </div>
+                )}
+                <div style={{ padding: '12px 14px' }}>
+                  <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text)', marginBottom: 4 }}>{link.text || 'Unnamed Link'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--accent)', wordBreak: 'break-all' }}>{link.href}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(result.siteButtons && result.siteButtons.length > 0) && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 10, color: 'var(--text)' }}>
+            Extracted Buttons
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {result.siteButtons!.map((btn, i) => (
+              <div key={i} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12.5, fontWeight: 500, color: 'var(--text-secondary)' }}>
+                {btn}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -392,14 +447,12 @@ function CategoriesTab({ result }: { result: RunResponse }) {
           <summary
             style={{
               padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
               cursor: 'pointer',
               userSelect: 'none',
               background: 'var(--bg-hover)',
             }}
           >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span className={`pill ${statusClass(category.status)}`}>{category.status}</span>
               <Glyph id={category.category} />
@@ -407,6 +460,7 @@ function CategoriesTab({ result }: { result: RunResponse }) {
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
               {category.totals.passed} pass · {category.totals.failed} fail · {category.totals.warning} warn
+            </div>
             </div>
           </summary>
 
@@ -1039,7 +1093,7 @@ function VisualDiffTab({ result, device }: { result: RunResponse; device?: Devic
 
       {/* Match Metric Bar */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', background: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', marginBottom: 16, fontSize: 13 }}>
-        <span style={{ color: 'var(--pass)', fontWeight: 600 }}>● 99.4% Visual Match</span>
+        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>● Visual Comparison (Manual Review)</span>
         <span style={{ color: 'var(--text-secondary)' }}>·</span>
         <span style={{ color: 'var(--text-secondary)' }}>Viewport: {device === 'mobile' ? '390×844' : device === 'tablet' ? '820×1180' : '1280×800'}</span>
         <span style={{ color: 'var(--text-secondary)' }}>·</span>
@@ -1121,18 +1175,91 @@ function VisualDiffTab({ result, device }: { result: RunResponse; device?: Devic
       {/* View Mode: Overlay Diff */}
       {viewMode === 'overlay' && (
         <div style={{ position: 'relative', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: '#000', maxWidth: 900, margin: '0 auto' }}>
-          <img src={effectiveBaseline} alt="Baseline Base" style={{ width: '100%', height: 'auto', display: 'block' }} />
-          <img 
-            src={currentScreenshot} 
-            alt="Current Diff Overlay" 
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'difference', opacity: 0.85 }} 
-          />
-          <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'rgba(0,0,0,0.8)', color: '#fff', padding: '4px 10px', borderRadius: 4, fontSize: 12 }}>
-            💡 Difference Mode: Identical pixels render pure black; visual shifts glow bright.
-          </div>
+          <PixelDiffOverlay baselineUrl={effectiveBaseline} currentUrl={currentScreenshot} />
         </div>
       )}
     </div>
+  );
+}
+
+function PixelDiffOverlay({ baselineUrl, currentUrl }: { baselineUrl: string; currentUrl: string }) {
+  const [diffImageUrl, setDiffImageUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const img1 = new Image();
+    const img2 = new Image();
+    img1.crossOrigin = "anonymous";
+    img2.crossOrigin = "anonymous";
+    
+    Promise.all([
+      new Promise((resolve, reject) => { img1.onload = resolve; img1.onerror = reject; img1.src = baselineUrl; }),
+      new Promise((resolve, reject) => { img2.onload = resolve; img2.onerror = reject; img2.src = currentUrl; })
+    ]).then(() => {
+       if (!active) return;
+       const canvas = document.createElement('canvas');
+       const w = Math.max(img1.width, img2.width);
+       const h = Math.max(img1.height, img2.height);
+       canvas.width = w;
+       canvas.height = h;
+       const ctx = canvas.getContext('2d');
+       if (!ctx) return;
+       
+       ctx.drawImage(img1, 0, 0);
+       const data1 = ctx.getImageData(0, 0, w, h).data;
+       
+       ctx.clearRect(0, 0, w, h);
+       ctx.drawImage(img2, 0, 0);
+       const imgData2 = ctx.getImageData(0, 0, w, h);
+       const data2 = imgData2.data;
+       
+       for (let i = 0; i < data1.length; i += 4) {
+         if (data1[i] !== data2[i] || data1[i+1] !== data2[i+1] || data1[i+2] !== data2[i+2]) {
+           data2[i] = 255;   // R
+           data2[i+1] = 0;   // G
+           data2[i+2] = 0;   // B
+           data2[i+3] = 255; // A
+         } else {
+           data2[i] = Math.floor(data2[i] * 0.3);
+           data2[i+1] = Math.floor(data2[i+1] * 0.3);
+           data2[i+2] = Math.floor(data2[i+2] * 0.3);
+           data2[i+3] = 255;
+         }
+       }
+       ctx.putImageData(imgData2, 0, 0);
+       setDiffImageUrl(canvas.toDataURL());
+    }).catch(err => {
+      console.warn("Pixel diff generation failed:", err);
+      if (active) setError(true);
+    });
+    
+    return () => { active = false; };
+  }, [baselineUrl, currentUrl]);
+
+  if (diffImageUrl) {
+    return (
+      <>
+        <img src={diffImageUrl} alt="Pixel Diff" style={{ width: '100%', height: 'auto', display: 'block' }} />
+        <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'rgba(0,0,0,0.8)', color: '#fff', padding: '4px 10px', borderRadius: 4, fontSize: 12 }}>
+          🔍 Actual Pixel Diff: Changed pixels are highlighted in pure red. Unchanged pixels are darkened.
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <img src={baselineUrl} alt="Baseline Base" style={{ width: '100%', height: 'auto', display: 'block' }} />
+      <img 
+        src={currentUrl} 
+        alt="Current Diff Overlay" 
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'difference', opacity: 0.85 }} 
+      />
+      <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'rgba(0,0,0,0.8)', color: '#fff', padding: '4px 10px', borderRadius: 4, fontSize: 12 }}>
+        {error ? '⚠️ Pixel diff failed. Showing CSS difference mode.' : '⏳ Generating pixel diff...'}
+      </div>
+    </>
   );
 }
 
@@ -1149,6 +1276,7 @@ export function ResultsPanel({ result, onDownload, pdfing, device }: ResultsPane
     { id: 'steps', label: 'Steps & Timeline', count: result.steps.length },
     ...(hasScreenshots ? [{ id: 'diff' as TabId, label: '🔍 Visual & Diff' }] : []),
     ...(hasScraperData ? [{ id: 'scraper' as TabId, label: '🕷 Extracted Content' }] : []),
+
     { id: 'raw', label: 'Raw JSON' },
   ];
 
@@ -1195,7 +1323,7 @@ export function ResultsPanel({ result, onDownload, pdfing, device }: ResultsPane
       </div>
 
       {/* ── Export Dock ── */}
-      <ExportDock result={result} />
+      {(result.steps.length > 0 || result.categories.length > 0) && <ExportDock result={result} />}
 
       {/* ── Segmented Tab Controls ── */}
       <div className="tabs-segmented no-print" style={{ marginTop: 20 }}>

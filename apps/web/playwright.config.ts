@@ -7,6 +7,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'retain-on-failure',
+    channel: 'chrome',
   },
   // Reuses an already-running dev server locally; starts one in CI.
   webServer: {

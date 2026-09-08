@@ -13,7 +13,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing html field.' }, { status: 400 });
     }
     html = body.html;
-  } catch {
+  } catch (error) {
+    console.warn('Failed to parse PDF request body:', error);
     return NextResponse.json({ error: 'Request body must be JSON.' }, { status: 400 });
   }
 
@@ -54,11 +55,8 @@ export async function POST(request: Request) {
     
     const page = await browser.newPage();
 
-    // Set content directly — no round-trip required.
-    await page.setContent(html, { waitUntil: 'networkidle' });
-
-    // Wait for any inline images to finish rendering.
-    await page.waitForLoadState('domcontentloaded');
+    // Set content directly and wait for load event
+    await page.setContent(html, { waitUntil: 'load' });
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
