@@ -28,6 +28,7 @@ interface RunBody {
   captureAssets?: boolean;
   /** Emulated device preset or custom viewport */
   device?: 'desktop' | 'laptop' | 'mobile' | 'tablet';
+  browserType?: 'chromium' | 'webkit';
   viewport?: { width: number; height: number };
   aiConfig?: AIProviderConfig;
   siteContext?: SiteReconData;
@@ -154,30 +155,63 @@ export async function POST(request: Request) {
       viewport = { width: 1440, height: 900 };
     }
 
-    const result = await executeScenario({
-      scenario,
-      targetUrl: origin,
-      policyRequest,
-      artifactDir,
-      artifactUrlPrefix: '/artifacts',
-      runId,
-      categories,
-      strict: body.strict ?? false,
-      captureAssets: body.captureAssets ?? false,
-      viewport,
-      isMobile,
-      hasTouch,
-      userAgent,
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const result = await executeScenario({
+            scenario,
+            targetUrl: origin,
+            policyRequest,
+            artifactDir,
+            artifactUrlPrefix: '/artifacts',
+            runId,
+            categories,
+            strict: body.strict ?? false,
+            captureAssets: body.captureAssets ?? false,
+            browserType: body.browserType,
+            viewport,
+            isMobile,
+            hasTouch,
+            userAgent,
+            onStep: (stepResult) => {
+              const event = JSON.stringify({ type: 'step', data: stepResult });
+              controller.enqueue(new TextEncoder().encode(event + '\n'));
+            }
+          });
+
+          const finalEvent = JSON.stringify({
+            type: 'done',
+            data: {
+              ...result,
+              lintIssues,
+              unparsed,
+              meanConfidence,
+              reviewFlag: requiresManualReview(target.hostname) ?? null,
+              selectedCategories: categories,
+              ownership: { recordedTier, effectiveTier: tier },
+            }
+          });
+          controller.enqueue(new TextEncoder().encode(finalEvent + '\n'));
+          controller.close();
+        } catch (error) {
+          console.error('Scan execution failure:', error);
+          const errorEvent = JSON.stringify({
+            type: 'error',
+            error: 'Execution failed on target website.',
+            detail: error instanceof Error ? error.message : String(error),
+          });
+          controller.enqueue(new TextEncoder().encode(errorEvent + '\n'));
+          controller.close();
+        }
+      }
     });
 
-    return NextResponse.json({
-      ...result,
-      lintIssues,
-      unparsed,
-      meanConfidence,
-      reviewFlag: requiresManualReview(target.hostname) ?? null,
-      selectedCategories: categories,
-      ownership: { recordedTier, effectiveTier: tier },
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'application/x-ndjson',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+      },
     });
   } catch (error) {
     console.error('Scan execution failure:', error);

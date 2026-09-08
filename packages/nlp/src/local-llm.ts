@@ -2,7 +2,7 @@ import { createOllama } from 'ollama-ai-provider-v2';
 import { google } from '@ai-sdk/google';
 
 export interface AIProviderConfig {
-  provider?: 'local' | 'gemini' | 'auto';
+  provider?: 'local' | 'gemini' | 'auto' | 'rules';
   model?: string;
   ollamaBaseUrl?: string;
 }

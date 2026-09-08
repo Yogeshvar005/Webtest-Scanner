@@ -29,8 +29,7 @@ const copilotResponseSchema = z.object({
         }),
       })
     )
-    .optional()
-    .describe('Executable DSL test actions if the user asked to test or interact with something'),
+    .describe('Executable DSL test actions. Must contain steps if the user asked to test or verify a flow, even if it is just a generic navigate or explore action.'),
   suggestedFollowUps: z.array(z.string()).describe('2-3 quick follow-up testing suggestions'),
 });
 
@@ -67,9 +66,9 @@ ${contextBrief}
 
 YOUR CAPABILITIES:
 1. You can inspect any website feature, diagnose issues, or recommend test strategies.
-2. If the user gives an instruction to test or do something on the site (e.g. "test flight search", "click login", "test with invalid coupon", "check footer links"):
+2. If the user gives an instruction to test or verify a flow or URL (e.g. "test flight search", "Verify the 'Book a flight' process", "https://example.com"):
    - Explain what you are going to verify in 'reply'.
-   - Generate exact, executable actions in 'actionableSteps' using real elements from the site context!
+   - You MUST generate exact, executable actions in 'actionableSteps'. If you have context, use real elements. If you lack context, at least generate 'navigate' and 'explore' steps!
 3. If the user asks a general QA question or asks for insights:
    - Provide sharp, expert QA analysis and 2-3 actionable follow-up questions or prompts.
 4. Never be vague. Always reference real buttons and inputs found on this website.`;

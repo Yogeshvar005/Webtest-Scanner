@@ -42,7 +42,7 @@ export async function analyzeFailureRCA(request: RCARequest): Promise<RCARespons
   const { model, provider, modelName } = await getAIModel(request.aiConfig);
 
   const prompt = `
-You are KaneAI-style Smart Root Cause Analysis (RCA) Engine for automated web testing.
+You are an AI-style Smart Root Cause Analysis (RCA) Engine for automated web testing.
 A test step has just failed while testing: ${request.targetUrl}
 
 FAILED STEP INTENT:

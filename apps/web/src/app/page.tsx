@@ -14,7 +14,7 @@ import { printReport } from './report';
 import { ResultsPanel } from './ResultsPanel';
 import { CopilotDrawer } from './CopilotDrawer';
 import { useAuth } from '../lib/auth-context';
-import type { CategoryDescriptor, RunResponse, DevicePreset, StoredRun, ScheduleConfig } from './types';
+import type { CategoryDescriptor, RunResponse, DevicePreset, StoredRun, ScheduleConfig, StepResult } from './types';
 import type { AIProviderConfig, SiteReconData } from '@wts/nlp';
 
 const DEFAULT_SELECTED = ['functional', 'ui', 'accessibility', 'security-passive', 'scraper'];
@@ -103,12 +103,14 @@ export default function Home() {
   const [environment, setEnvironment] = useState('QA');
   const [strict, setStrict] = useState(false);
   const [device, setDevice] = useState<DevicePreset>('desktop');
+  const [browserType, setBrowserType] = useState<'chromium' | 'webkit'>('chromium');
   const [available, setAvailable] = useState<CategoryDescriptor[]>([]);
   const [selected, setSelected] = useState<string[]>(DEFAULT_SELECTED);
   const [running, setRunning] = useState(false);
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
   const [result, setResult] = useState<RunResponse | null>(null);
   const [error, setError] = useState<RunResponse | null>(null);
+  const [liveSteps, setLiveSteps] = useState<StepResult[]>([]);
   const [pdfing, setPdfing] = useState(false);
   const [captureAssets, setCaptureAssets] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
@@ -421,6 +423,7 @@ export default function Home() {
     setRunStartedAt(Date.now());
     setResult(null);
     setError(null);
+    setLiveSteps([]);
 
     const controller = new AbortController();
     setAbortController(controller);
@@ -438,18 +441,57 @@ export default function Home() {
           strict,
           captureAssets,
           device,
+          browserType,
           siteContext: siteRecon || undefined,
         }),
         signal: controller.signal,
       });
 
-      const data = (await response.json()) as RunResponse;
-
       if (!response.ok) {
-        setError(data);
-      } else {
-        setResult(data);
-        saveRunToHistory(data);
+        let errData;
+        try {
+          errData = await response.json();
+        } catch {
+          throw new Error('Connection error');
+        }
+        setError(errData as RunResponse);
+        return;
+      }
+
+      if (!response.body) throw new Error('ReadableStream not supported in this browser.');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line);
+            if (event.type === 'step') {
+              setLiveSteps((prev) => [...prev, event.data]);
+            } else if (event.type === 'done') {
+              const fullResult = event.data as RunResponse;
+              setResult(fullResult);
+              saveRunToHistory(fullResult);
+              setLiveSteps([]);
+            } else if (event.type === 'error') {
+              setError(event as unknown as RunResponse);
+              setLiveSteps([]);
+            }
+          } catch (e) {
+            console.warn('Failed to parse NDJSON line:', line, e);
+          }
+        }
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -640,7 +682,7 @@ export default function Home() {
             </button>
           </div>
 
-          {/* ── Autonomous User Journeys (KaneAI Engine) ── */}
+          {/* ── Autonomous User Journeys (AI Engine) ── */}
           {recommendedJourneys.length > 0 && (
             <div style={{
               marginTop: 16,
@@ -653,7 +695,7 @@ export default function Home() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent)' }}>
-                    <Sparkles size={14} /> Autonomous User Journeys (KaneAI Engine)
+                    <Sparkles size={14} /> Autonomous User Journeys (AI Engine)
                   </span>
                   <span className="pill info" style={{ fontSize: 10, padding: '2px 8px' }}>
                     {recommendedJourneys.length} Auto-Discovered Flows
@@ -733,11 +775,85 @@ export default function Home() {
             </div>
           )}
             
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: running && runStartedAt ? 48 : 0, marginTop: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: running && runStartedAt ? 48 : 0, marginTop: 16, width: '100%' }}>
             {running && runStartedAt && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <ElapsedTimer startedAt={runStartedAt} />
-                <button className="settings-pill" onClick={handleCancel}>Cancel</button>
+              <div style={{ width: '100%', maxWidth: 800, background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>Live Execution Preview</span>
+                    </div>
+                    <span style={{ color: 'var(--text-muted)' }}>|</span>
+                    <ElapsedTimer startedAt={runStartedAt} />
+                  </div>
+                  <button className="settings-pill" onClick={handleCancel}>Cancel Run</button>
+                </div>
+                
+                {/* Live Preview Screen */}
+                <div style={{ background: '#000', padding: '16px', display: 'flex', justifyContent: 'center', minHeight: 300, position: 'relative' }}>
+                  {(() => {
+                    // Find the most recent screenshot in the streamed steps
+                    const lastStepWithScreenshot = liveSteps.slice().reverse().find((s) => Boolean(s.screenshot));
+                    const currentStep = liveSteps[liveSteps.length - 1];
+                    
+                    return (
+                      <>
+                        {lastStepWithScreenshot?.screenshot ? (
+                          <img 
+                            src={lastStepWithScreenshot.screenshot} 
+                            alt="Live browser preview" 
+                            style={{ 
+                              maxWidth: '100%', 
+                              maxHeight: 500, 
+                              objectFit: 'contain', 
+                              borderRadius: 4,
+                              boxShadow: '0 0 20px rgba(0,0,0,0.5)'
+                            }} 
+                          />
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', height: 300 }}>
+                            <Globe size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
+                            <p>Launching browser environment...</p>
+                          </div>
+                        )}
+                        
+                        {/* Current step overlay overlaying the bottom of the image container */}
+                        {currentStep && (
+                          <div style={{ 
+                            position: 'absolute', 
+                            bottom: 16, 
+                            left: '50%', 
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(0,0,0,0.8)',
+                            backdropFilter: 'blur(4px)',
+                            color: '#fff',
+                            padding: '8px 16px',
+                            borderRadius: 20,
+                            fontSize: 13,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            maxWidth: '90%',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            <span style={{ color: '#10b981' }}>▶</span> 
+                            {currentStep.intent ||
+                             (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` : 
+                              currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
+                              currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
+                              currentStep.action?.type === 'waitFor' ? `Waiting for page load` :
+                              `Executing ${currentStep.action?.type || 'step'}...`)}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             )}
           </div>
@@ -820,6 +936,17 @@ export default function Home() {
 
             {/* Device Profile Selector */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select 
+                value={browserType} 
+                onChange={(e) => setBrowserType(e.target.value as 'chromium' | 'webkit')} 
+                className="settings-pill" 
+                style={{ height: 32, padding: '0 10px', width: 'auto', fontWeight: 500 }}
+                title="Browser Type"
+              >
+                <option value="chromium">🌍 Chromium</option>
+                <option value="webkit">🧭 Safari (WebKit)</option>
+              </select>
+
               <select 
                 value={device} 
                 onChange={(e) => setDevice(e.target.value as DevicePreset)} 

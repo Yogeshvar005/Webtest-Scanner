@@ -8,7 +8,7 @@ import {
 } from '../src/export';
 import { scenario, step, target } from './factories';
 
-describe('Multi-Framework Code Export (KaneAI Engine)', () => {
+describe('Multi-Framework Code Export (AI Engine)', () => {
   const sampleScenario = scenario({
     title: 'User Login Journey',
     steps: [
@@ -24,7 +24,7 @@ describe('Multi-Framework Code Export (KaneAI Engine)', () => {
         intent: 'Enter username',
         action: {
           type: 'fill',
-          target: target({ name: 'username', selector: 'input[name="username"]' }),
+          target: target({ role: 'textbox', name: 'username' }),
           value: { kind: 'literal', value: 'testuser' },
         },
       }),
@@ -34,7 +34,7 @@ describe('Multi-Framework Code Export (KaneAI Engine)', () => {
         intent: 'Click submit button',
         action: {
           type: 'click',
-          target: target({ name: 'Sign in', selector: 'button[type="submit"]' }),
+          target: target({ role: 'button', name: 'Sign in' }),
         },
       }),
       step({

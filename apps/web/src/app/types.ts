@@ -6,6 +6,7 @@ export interface StepResult {
   assertions: AssertionResult[]; error?: string; policyReason?: string;
   consoleErrors: string[]; provenanceSource: string; provenanceConfidence: number;
   selfHealed?: { healed: boolean; originalTarget: string; strategy: string; healedSelector?: string; reason?: string };
+  action?: any;
 }
 
 export interface CheckResult { id: string; name: string; status: string; severity: string; detail: string; evidence?: string[] }

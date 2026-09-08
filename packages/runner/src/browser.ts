@@ -12,7 +12,7 @@
  * indistinguishable from a human user.
  */
 
-import { chromium as playwrightCoreChromium, type Browser } from 'playwright-core';
+import { chromium as playwrightCoreChromium, webkit as playwrightCoreWebkit, type Browser } from 'playwright-core';
 import { addExtra } from 'playwright-extra';
 // @ts-ignore - CJS default export
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
@@ -72,6 +72,7 @@ const STEALTH_ARGS = [
 export interface LaunchOpts {
   headless?: boolean;
   proxy?: { server: string; username?: string; password?: string };
+  browserType?: 'chromium' | 'webkit';
 }
 
 export interface LaunchResult {
@@ -81,7 +82,7 @@ export interface LaunchResult {
    * The egress guard is skipped in this mode.
    */
   usingCDP: boolean;
-  tier: 'remote-ws' | 'stealth-vercel' | 'rebrowser-local' | 'stealth-local';
+  tier: 'remote-ws' | 'stealth-vercel' | 'rebrowser-local' | 'stealth-local' | 'webkit';
 }
 
 /**
@@ -96,6 +97,15 @@ export async function launchBrowser(opts: LaunchOpts = {}): Promise<LaunchResult
         password: process.env.PROXY_PASSWORD,
       }
     : undefined);
+
+  if (opts.browserType === 'webkit') {
+    console.log('[browser] tier=webkit - launching Safari engine (WebKit)');
+    const browser = await playwrightCoreWebkit.launch({
+      headless: opts.headless ?? false,
+      proxy: proxyOptions,
+    });
+    return { browser, usingCDP: false, tier: 'webkit' };
+  }
 
   // -------------------------------------------------------------------------
   // TIER 0 - Remote browser via WebSocket

@@ -31,7 +31,7 @@ export interface StepResult {
   consoleErrors: string[];
   provenanceSource: string;
   provenanceConfidence: number;
-  /** KaneAI-style Self-healing locator metadata when primary selector drifted or broke. */
+  /** AI-style Self-healing locator metadata when primary selector drifted or broke. */
   selfHealed?: {
     healed: boolean;
     originalTarget: string;

@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Glyph } from './glyphs';
 import type { RunResponse, CategoryResult, DevicePreset, StepResult } from './types';
 import { exportToPlaywrightTS, exportToPlaywrightPython, exportToCypress, exportToSeleniumPython } from '@wts/dsl';
-import { Sparkles, AlertTriangle, ShieldCheck, CheckCircle2, Copy, Download, RefreshCw, Wand2, Terminal, Code2 } from 'lucide-react';
+import { Sparkles, AlertTriangle, ShieldCheck, CheckCircle2, Copy, Download, RefreshCw, Wand2, Terminal, Code2, Link } from 'lucide-react';
 
 interface ResultsPanelProps {
   result: RunResponse;
@@ -307,7 +307,7 @@ function AIDiagnosticCard({ failedStep, targetUrl, onApplyFix }: AIDiagnosticCar
     return (
       <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 8, background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)' }}>
         <span className="spinner" style={{ width: 14, height: 14 }} />
-        <span>KaneAI Smart Root Cause Engine diagnosing step failure...</span>
+        <span>AI Smart Root Cause Engine diagnosing step failure...</span>
       </div>
     );
   }
@@ -330,7 +330,7 @@ function AIDiagnosticCard({ failedStep, targetUrl, onApplyFix }: AIDiagnosticCar
           <span>AI Root Cause Analysis: {data.category}</span>
         </div>
         <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'rgba(239, 68, 68, 0.12)', color: '#b91c1c', fontWeight: 600 }}>
-          KaneAI Diagnostic
+          AI Diagnostic
         </span>
       </div>
       <p style={{ margin: '0 0 6px', fontWeight: 600, color: 'var(--text)' }}>
@@ -469,7 +469,7 @@ function CodeExportTab({ result }: { result: RunResponse }) {
         <div>
           <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Code2 size={18} color="var(--accent)" />
-            Multi-Framework Code Export (KaneAI Engine)
+            Multi-Framework Code Export (AI Engine)
           </h3>
           <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
             Export this test into clean, zero-dependency production code for your team's CI/CD pipeline.
@@ -713,25 +713,58 @@ function OverviewTab({ result, onGoTo, onApplyFix }: { result: RunResponse; onGo
           <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 10, color: 'var(--text)' }}>
             Extracted Navigation Links
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-            {result.siteNavLinks!.map((link, i) => (
-              <div key={i} style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                {link.screenshot ? (
-                  <div style={{ borderBottom: '1px solid var(--border)', background: '#000' }}>
-                    <img src={link.screenshot} alt={`Screenshot of ${link.text}`} style={{ width: '100%', height: 160, objectFit: 'contain', display: 'block' }} />
-                  </div>
-                ) : (
-                  <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 12 }}>
-                    No Preview
+          {(() => {
+            const withPreview = result.siteNavLinks!.filter(l => !!l.screenshot);
+            const withoutPreview = result.siteNavLinks!.filter(l => !l.screenshot);
+            
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {withPreview.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                    {withPreview.map((link, i) => (
+                      <div key={`preview-${i}`} style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                        <div style={{ borderBottom: '1px solid var(--border)', background: '#000' }}>
+                          <img src={link.screenshot} alt={`Screenshot of ${link.text}`} style={{ width: '100%', height: 160, objectFit: 'contain', display: 'block' }} />
+                        </div>
+                        <div style={{ padding: '12px 14px' }}>
+                          <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text)', marginBottom: 4 }}>{link.text || 'Unnamed Link'}</div>
+                          <div style={{ fontSize: 12, color: 'var(--accent)', wordBreak: 'break-all' }}>{link.href}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
-                <div style={{ padding: '12px 14px' }}>
-                  <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text)', marginBottom: 4 }}>{link.text || 'Unnamed Link'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--accent)', wordBreak: 'break-all' }}>{link.href}</div>
-                </div>
+                
+                {withoutPreview.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {withoutPreview.map((link, i) => (
+                      <a 
+                        key={`link-${i}`} 
+                        href={link.href} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          padding: '10px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border)', 
+                          borderRadius: 'var(--radius-sm)', textDecoration: 'none', transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: 'rgba(59,130,246,0.1)', color: 'var(--accent)', flexShrink: 0 }}>
+                          <Link size={14} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                          <span style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{link.text || 'Unnamed Link'}</span>
+                          <span style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{link.href}</span>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+            );
+          })()}
         </div>
       )}
 
@@ -974,7 +1007,7 @@ function StepsTab({ result, onApplyFix }: { result: RunResponse; onApplyFix?: (i
               }}>
                 <Sparkles size={14} color="#059669" />
                 <div>
-                  <strong>KaneAI Self-Healing:</strong> Target <code>"{step.selfHealed.originalTarget}"</code> drifted. Repaired via <em>{step.selfHealed.strategy}</em>.
+                  <strong>AI Self-Healing:</strong> Target <code>"{step.selfHealed.originalTarget}"</code> drifted. Repaired via <em>{step.selfHealed.strategy}</em>.
                 </div>
               </div>
             )}
@@ -1498,12 +1531,12 @@ function VisualDiffTab({ result, device }: { result: RunResponse; device?: Devic
         </div>
       </div>
 
-      {/* ── AI Smart Noise Filter Card (KaneAI Vision) ── */}
+      {/* ── AI Smart Noise Filter Card (AI Vision) ── */}
       <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-hover)', border: '1px solid var(--border)', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Sparkles size={16} color="var(--accent)" />
-            <strong style={{ fontSize: 13.5 }}>AI Smart Noise Filter (KaneAI Vision)</strong>
+            <strong style={{ fontSize: 13.5 }}>AI Smart Noise Filter (AI Vision)</strong>
             <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>Filters out rotating carousels & timestamp false positives</span>
           </div>
           <button

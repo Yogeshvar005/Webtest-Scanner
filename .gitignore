@@ -59,6 +59,9 @@ Thumbs.db
 # Claude folder
 .claude/
 
+# Antigravity agents folder
+.agents/
+
 # Scratch test files
 scratch/
 

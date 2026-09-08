@@ -200,25 +200,52 @@ export async function buildReportHtml(result: RunResponse): Promise<string> {
   let reconHtml = '';
   if (hasLinks || hasButtons) {
     if (hasLinks) {
-      const linksHtml = result.siteNavLinks!.map(link => {
-        const screenshotHtml = link.screenshot 
-          ? `<div style="border-bottom:1px solid #e2e8f0;background:#000;"><img src="${escapeHtml(link.screenshot)}" alt="Screenshot of ${escapeHtml(link.text)}" style="width:100%;height:160px;object-fit:contain;display:block;" /></div>`
-          : `<div style="height:160px;display:flex;align-items:center;justify-content:center;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#94a3b8;font-size:12px;">No Preview</div>`;
-        return `
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;page-break-inside:avoid;break-inside:avoid;">
-          ${screenshotHtml}
-          <div style="padding:10px;">
-            <div style="font-weight:600;font-size:12.5px;color:#0f172a;margin-bottom:4px;">${escapeHtml(link.text || 'Unnamed Link')}</div>
-            <div style="font-size:11.5px;color:#3b82f6;word-break:break-all;">${escapeHtml(link.href)}</div>
+      const withPreview = result.siteNavLinks!.filter(l => !!l.screenshot);
+      const withoutPreview = result.siteNavLinks!.filter(l => !l.screenshot);
+
+      let withPreviewHtml = '';
+      if (withPreview.length > 0) {
+        withPreviewHtml = `
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-bottom:16px;">
+            ${withPreview.map(link => `
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;page-break-inside:avoid;break-inside:avoid;">
+                <div style="border-bottom:1px solid #e2e8f0;background:#000;">
+                  <img src="${escapeHtml(link.screenshot!)}" alt="Screenshot of ${escapeHtml(link.text)}" style="width:100%;height:160px;object-fit:contain;display:block;" />
+                </div>
+                <div style="padding:10px;">
+                  <div style="font-weight:600;font-size:12.5px;color:#0f172a;margin-bottom:4px;">${escapeHtml(link.text || 'Unnamed Link')}</div>
+                  <div style="font-size:11.5px;color:#3b82f6;word-break:break-all;">${escapeHtml(link.href)}</div>
+                </div>
+              </div>
+            `).join('')}
           </div>
-        </div>`;
-      }).join('');
+        `;
+      }
+
+      let withoutPreviewHtml = '';
+      if (withoutPreview.length > 0) {
+        withoutPreviewHtml = `
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${withoutPreview.map(link => `
+              <a href="${escapeHtml(link.href)}" target="_blank" rel="noreferrer" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;text-decoration:none;page-break-inside:avoid;break-inside:avoid;">
+                <div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:rgba(59,130,246,0.1);color:#3b82f6;flex-shrink:0;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                </div>
+                <div style="display:flex;flex-direction:column;overflow:hidden;">
+                  <span style="font-weight:600;font-size:13.5px;color:#0f172a;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">${escapeHtml(link.text || 'Unnamed Link')}</span>
+                  <span style="font-size:12px;color:#64748b;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">${escapeHtml(link.href)}</span>
+                </div>
+              </a>
+            `).join('')}
+          </div>
+        `;
+      }
+
       reconHtml += `
       <div style="margin-top:24px;">
         <h2 style="margin-top:0;">Extracted Navigation Links</h2>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;">
-          ${linksHtml}
-        </div>
+        ${withPreviewHtml}
+        ${withoutPreviewHtml}
       </div>`;
     }
 

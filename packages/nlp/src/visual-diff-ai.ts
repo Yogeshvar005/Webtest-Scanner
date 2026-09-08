@@ -29,7 +29,7 @@ export async function analyzeVisualNoise(request: VisualDiffAIRequest): Promise<
   const { model } = await getAIModel(request.aiConfig);
 
   const prompt = `
-You are KaneAI-style Smart Visual Regression Intelligence.
+You are an AI-style Smart Visual Regression Intelligence.
 You are evaluating visual differences on ${request.targetUrl} on ${request.device || 'desktop'} viewport.
 
 In automated testing, pixel diffs produce massive amounts of "false positives" because of:

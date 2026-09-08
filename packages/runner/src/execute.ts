@@ -26,6 +26,7 @@ export interface ExecuteOptions {
   artifactUrlPrefix: string;
   runId: string;
   headless?: boolean;
+  browserType?: 'chromium' | 'webkit';
   /** See EgressMode: 'balanced' keeps screenshots faithful, 'strict' blocks all off-site requests. */
   egressMode?: EgressMode;
   /** Categories the tester selected. The report covers these and nothing else. */
@@ -232,6 +233,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
       // ── Stealth browser launch (three-tier cascade) ─────────────────────
       const { browser: launchedBrowser, usingCDP, tier } = await launchBrowser({
         headless: options.headless ?? false,
+        browserType: options.browserType,
       });
       browser = launchedBrowser;
       console.log(`[browser] active tier: ${tier}`);
@@ -499,11 +501,13 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
       }
 
       for (let i = 0; i < Math.min(5, siteNavLinks.length); i++) {
+        const linkItem = siteNavLinks[i];
+        if (!linkItem) continue;
         try {
           const linkPage = await context.newPage();
-          await linkPage.goto(siteNavLinks[i].href, { waitUntil: 'domcontentloaded', timeout: 10000 });
+          await linkPage.goto(linkItem.href, { waitUntil: 'domcontentloaded', timeout: 10000 });
           const buffer = await linkPage.screenshot({ type: 'jpeg', quality: 60, scale: 'css' });
-          siteNavLinks[i].screenshot = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+          linkItem.screenshot = `data:image/jpeg;base64,${buffer.toString('base64')}`;
           await linkPage.close();
         } catch (e) {
           // Ignore

@@ -65,7 +65,7 @@ export function CopilotDrawer({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: newMessages,
-          siteContext: siteRecon || undefined,
+          siteContext: siteRecon || (targetUrl ? { url: targetUrl, domain: targetUrl, title: targetUrl, headings: [], interactiveElements: [], forms: [] } : undefined),
           aiConfig,
         }),
       });
