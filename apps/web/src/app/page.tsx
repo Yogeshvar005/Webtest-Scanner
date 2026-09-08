@@ -162,7 +162,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    const isGuest = typeof window !== 'undefined' && localStorage.getItem('wts_guest') === 'true';
+    if (!authLoading && !user && !isGuest) {
       router.push('/login');
     }
   }, [user, authLoading, router]);
@@ -442,6 +443,7 @@ export default function Home() {
           captureAssets,
           device,
           browserType,
+          aiConfig: { provider: aiProvider },
           siteContext: siteRecon || undefined,
         }),
         signal: controller.signal,
@@ -794,8 +796,9 @@ export default function Home() {
                 <div style={{ background: '#000', padding: '16px', display: 'flex', justifyContent: 'center', minHeight: 300, position: 'relative' }}>
                   {(() => {
                     // Find the most recent screenshot in the streamed steps
-                    const lastStepWithScreenshot = liveSteps.slice().reverse().find((s) => Boolean(s.screenshot));
-                    const currentStep = liveSteps[liveSteps.length - 1];
+                    const stepsList = liveSteps;
+                    const lastStepWithScreenshot = stepsList.slice().reverse().find((s) => Boolean(s.screenshot));
+                    const currentStep = stepsList[stepsList.length - 1];
                     
                     return (
                       <>
@@ -1333,9 +1336,9 @@ export default function Home() {
         onRunSteps={(generatedInstructions) => {
           setInstructions(generatedInstructions);
           setCopilotOpen(false);
-          // Auto-run if URL is valid
+          // Auto-run with the generated steps if URL is valid
           if (urlValid) {
-            setTimeout(() => run(), 300);
+            setTimeout(() => run(generatedInstructions), 100);
           }
         }}
         onInsertSteps={(generatedInstructions) => {

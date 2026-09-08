@@ -274,6 +274,31 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <div style={{ textAlign: 'center', marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('wts_guest', 'true');
+                  router.push('/');
+                }
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontSize: 12.5,
+                fontWeight: 600,
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                padding: '4px 8px',
+              }}
+              title="Test the application locally without creating an account"
+            >
+              🚀 Continue as Guest (Skip Sign-In)
+            </button>
+          </div>
         </div>
       </main>
     </div>

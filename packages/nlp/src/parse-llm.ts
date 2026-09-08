@@ -29,14 +29,18 @@ import { getAIModel } from './local-llm';
 export async function parseScenarioLLM(request: ParseRequest): Promise<ParseResult> {
   const { model } = await getAIModel(request.aiConfig);
 
-  const siteContextText = request.siteContext
+  const site = request.siteContext;
+  const headings = Array.isArray(site?.headings) ? site.headings : [];
+  const elements = Array.isArray(site?.interactiveElements) ? site.interactiveElements : [];
+
+  const siteContextText = site
     ? `
 LIVE WEBSITE ELEMENTS & CONTEXT (Ground actions using these real observed elements!):
-- Target URL: ${request.siteContext.url}
-- Title: ${request.siteContext.title}
-- Headings: ${request.siteContext.headings.slice(0, 8).join(', ')}
-- Buttons on page: ${request.siteContext.interactiveElements.filter(e => e.role === 'button').map(e => e.text).slice(0, 15).join(' | ')}
-- Inputs on page: ${request.siteContext.interactiveElements.filter(e => e.role === 'textbox' || e.role === 'searchbox').map(e => e.placeholder || e.name || e.text).slice(0, 10).join(' | ')}
+- Target URL: ${site.url || ''}
+- Title: ${site.title || site.domain || ''}
+- Headings: ${headings.slice(0, 8).join(', ')}
+- Buttons on page: ${elements.filter(e => e && e.role === 'button').map(e => e.text || 'Button').slice(0, 15).join(' | ')}
+- Inputs on page: ${elements.filter(e => e && (e.role === 'textbox' || e.role === 'searchbox')).map(e => e.placeholder || e.name || e.text || 'Input').slice(0, 10).join(' | ')}
 `
     : '';
 

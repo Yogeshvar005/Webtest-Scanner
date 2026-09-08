@@ -39,29 +39,54 @@ export type CopilotResponse = z.infer<typeof copilotResponseSchema>;
  * Handles conversational QA Copilot interactions with the website.
  */
 export async function chatWithQACopilot(request: CopilotRequest): Promise<CopilotResponse> {
-  const { model, provider, modelName } = await getAIModel(request.aiConfig);
+  const lastUserMsg = (request.messages && request.messages.length > 0)
+    ? String(request.messages[request.messages.length - 1]?.content || '')
+    : '';
 
-  const contextBrief = request.siteContext
-    ? `
+  const fallbackResponse: CopilotResponse = {
+    reply: lastUserMsg
+      ? `I analyzed your request: "${lastUserMsg}". Here are the recommended test actions based on the site's detected elements.`
+      : "I'm ready to help test your website. What flow would you like to inspect?",
+    actionableSteps: [
+      { intent: 'Navigate to target page', action: { type: 'navigate', path: '/' } },
+      { intent: 'Inspect visible interactive elements', action: { type: 'screenshot' } },
+    ],
+    suggestedFollowUps: [
+      'Test search functionality with edge case inputs',
+      'Verify navigation bar links and sub-menus',
+      'Run boundary validation on all forms',
+    ],
+  };
+
+  try {
+    const { model, provider, modelName } = await getAIModel(request.aiConfig);
+
+    const site = request.siteContext;
+    const headings = Array.isArray(site?.headings) ? site.headings : [];
+    const elements = Array.isArray(site?.interactiveElements) ? site.interactiveElements : [];
+    const forms = Array.isArray(site?.forms) ? site.forms : [];
+
+    const contextBrief = site
+      ? `
 CURRENT WEBSITE UNDER TEST:
-- Title: ${request.siteContext.title}
-- URL: ${request.siteContext.url}
-- Headings: ${request.siteContext.headings.slice(0, 8).join(' | ')}
-- Available Buttons: ${request.siteContext.interactiveElements
-        .filter((e) => e.role === 'button')
-        .map((e) => e.text)
-        .slice(0, 15)
-        .join(', ')}
-- Available Inputs: ${request.siteContext.interactiveElements
-        .filter((e) => e.role === 'textbox' || e.role === 'searchbox')
-        .map((e) => e.placeholder || e.name || e.text)
-        .slice(0, 10)
-        .join(', ')}
-- Available Forms: ${request.siteContext.forms.map((f) => f.name || 'Form').join(', ')}
+- Title: ${site.title || site.domain || 'Target Website'}
+- URL: ${site.url || ''}
+- Headings: ${headings.slice(0, 8).join(' | ')}
+- Available Buttons: ${elements
+          .filter((e) => e && e.role === 'button')
+          .map((e) => e.text || 'Button')
+          .slice(0, 15)
+          .join(', ')}
+- Available Inputs: ${elements
+          .filter((e) => e && (e.role === 'textbox' || e.role === 'searchbox'))
+          .map((e) => e.placeholder || e.name || e.text || 'Input')
+          .slice(0, 10)
+          .join(', ')}
+- Available Forms: ${forms.map((f) => (f && f.name) || 'Form').join(', ')}
 `
-    : 'No active website context available yet.';
+      : 'No active website context available yet.';
 
-  const systemPrompt = `You are the Webtest Scanner AI QA Copilot — an expert test automation engineer embedded directly into the browser.
+    const systemPrompt = `You are the Webtest Scanner AI QA Copilot — an expert test automation engineer embedded directly into the browser.
 ${contextBrief}
 
 YOUR CAPABILITIES:
@@ -73,31 +98,52 @@ YOUR CAPABILITIES:
    - Provide sharp, expert QA analysis and 2-3 actionable follow-up questions or prompts.
 4. Never be vague. Always reference real buttons and inputs found on this website.`;
 
-  const conversation = request.messages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+    const conversation = (Array.isArray(request.messages) ? request.messages : [])
+      .map((m) => `${String(m?.role || 'USER').toUpperCase()}: ${String(m?.content || '')}`)
+      .join('\n\n');
 
-  try {
     const { object } = await generateObject({
       model,
       schema: copilotResponseSchema,
       system: systemPrompt,
-      prompt: conversation,
+      prompt: conversation || 'Hello, please recommend test scenarios.',
     });
-    return object;
-  } catch (error) {
-    console.warn(`[copilot] AI response failed with ${provider}:${modelName}`, error);
-    // Fallback response
-    const lastUserMsg = request.messages[request.messages.length - 1]?.content || '';
+
+    // Defensive normalization of returned object
+    const safeReply = typeof object?.reply === 'string'
+      ? object.reply
+      : (typeof object?.reply === 'object' && object?.reply !== null
+          ? JSON.stringify(object.reply)
+          : fallbackResponse.reply);
+
+    const safeSteps = Array.isArray(object?.actionableSteps)
+      ? object.actionableSteps
+          .filter((s) => s && typeof s === 'object')
+          .map((s) => ({
+            intent: String(s.intent || 'Execute test step'),
+            action: {
+              type: (['navigate', 'click', 'clickAll', 'explore', 'fill', 'check', 'screenshot', 'waitFor'].includes(s.action?.type)
+                ? s.action.type
+                : 'navigate') as any,
+              path: s.action?.path ? String(s.action.path) : undefined,
+              targetName: s.action?.targetName ? String(s.action.targetName) : undefined,
+              targetRole: s.action?.targetRole,
+              value: s.action?.value ? String(s.action.value) : undefined,
+            },
+          }))
+      : fallbackResponse.actionableSteps;
+
+    const safeFollowUps = Array.isArray(object?.suggestedFollowUps)
+      ? object.suggestedFollowUps.map(String).filter(Boolean)
+      : fallbackResponse.suggestedFollowUps;
+
     return {
-      reply: `I analyzed your request: "${lastUserMsg}". Here are the recommended test actions based on the site's detected elements.`,
-      actionableSteps: [
-        { intent: 'Navigate to target page', action: { type: 'navigate', path: '/' } },
-        { intent: 'Inspect visible interactive elements', action: { type: 'screenshot' } },
-      ],
-      suggestedFollowUps: [
-        'Test search functionality with edge case inputs',
-        'Verify navigation bar links and sub-menus',
-        'Run boundary validation on all forms',
-      ],
+      reply: safeReply,
+      actionableSteps: safeSteps,
+      suggestedFollowUps: safeFollowUps,
     };
+  } catch (error) {
+    console.warn('[copilot] AI interaction fallback activated:', error);
+    return fallbackResponse;
   }
 }

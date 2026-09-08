@@ -1,11 +1,85 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Component, type ReactNode } from 'react';
 import { 
   Bot, Send, Sparkles, X, Play,
   Cpu, Globe
 } from 'lucide-react';
 import type { SiteReconData, AIProviderConfig, CopilotMessage, CopilotResponse } from '@wts/nlp';
+
+interface CopilotErrorBoundaryProps {
+  children: ReactNode;
+  onReset?: () => void;
+}
+
+interface CopilotErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+export class CopilotErrorBoundary extends Component<CopilotErrorBoundaryProps, CopilotErrorBoundaryState> {
+  constructor(props: CopilotErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): CopilotErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: unknown) {
+    console.error('Copilot caught render error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            width: 440,
+            maxWidth: 'calc(100vw - 48px)',
+            background: 'var(--bg-surface, #ffffff)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius, 16px)',
+            boxShadow: 'var(--shadow-lg, 0 12px 32px rgba(0,0,0,0.18))',
+            padding: 24,
+            zIndex: 9999,
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8, color: 'var(--fail, #dc2626)' }}>
+            AI QA Copilot encountered a display error
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+            {this.state.error?.message || 'An unexpected rendering error occurred.'}
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              this.props.onReset?.();
+            }}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              background: 'var(--accent, #D97757)',
+              color: '#fff',
+              border: 'none',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            Reset Copilot
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface CopilotDrawerProps {
   isOpen: boolean;
@@ -31,7 +105,7 @@ export function CopilotDrawer({
       role: 'assistant',
       content: siteRecon
         ? `Hello! I'm your AI QA Copilot. I've analyzed **${siteRecon.title || siteRecon.domain}**. You can ask me to test any flow, interact with specific buttons, or verify edge-case boundaries on this website.`
-        : `Hello! I'm your AI QA Copilot powered by your ${aiConfig.provider === 'local' ? 'local Ollama model' : 'AI engine'}. Enter a website URL or tell me what you'd like to test!`,
+        : `Hello! I'm your AI QA Copilot powered by your ${aiConfig?.provider === 'local' ? 'local Ollama model' : 'AI engine'}. Enter a website URL or tell me what you'd like to test!`,
     },
   ]);
   const [input, setInput] = useState('');
@@ -70,20 +144,32 @@ export function CopilotDrawer({
         }),
       });
 
-      if (!res.ok) throw new Error('Copilot response error');
+      if (!res.ok) {
+        let errJson;
+        try { errJson = await res.json(); } catch {}
+        throw new Error(errJson?.detail || errJson?.error || 'Copilot response error');
+      }
       const data: CopilotResponse = await res.json();
+
+      const safeReply = typeof data?.reply === 'string'
+        ? data.reply
+        : (typeof data?.reply === 'object' && data?.reply !== null
+            ? JSON.stringify(data.reply)
+            : 'Analysis complete.');
+
+      const safeSteps = Array.isArray(data?.actionableSteps) ? data.actionableSteps : [];
 
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: data.reply,
-          steps: data.actionableSteps,
+          content: safeReply,
+          steps: safeSteps,
         },
       ]);
 
-      if (data.suggestedFollowUps && data.suggestedFollowUps.length > 0) {
-        setSuggestedPrompts(data.suggestedFollowUps);
+      if (Array.isArray(data?.suggestedFollowUps) && data.suggestedFollowUps.length > 0) {
+        setSuggestedPrompts(data.suggestedFollowUps.map(String).filter(Boolean));
       }
     } catch (err) {
       console.warn('Copilot failed:', err);
@@ -100,28 +186,34 @@ export function CopilotDrawer({
   };
 
   const convertStepsToDSLText = (steps: NonNullable<CopilotResponse['actionableSteps']>): string => {
+    if (!Array.isArray(steps)) return '';
     return steps
       .map((s) => {
-        if (s.action.type === 'navigate') return `go to ${s.action.path || '/'}`;
-        if (s.action.type === 'click') return `click "${s.action.targetName || 'button'}"`;
-        if (s.action.type === 'fill') return `fill "${s.action.targetName || 'input'}" with "${s.action.value || ''}"`;
-        if (s.action.type === 'clickAll') return `click all buttons`;
-        if (s.action.type === 'explore') return `explore the site`;
+        if (!s) return '';
+        const action = (s.action || s) as any;
+        const type = action?.type || 'navigate';
+        if (type === 'navigate') return `go to ${action.path || action.url || '/'}`;
+        if (type === 'click') return `click "${action.targetName || action.target || 'button'}"`;
+        if (type === 'fill') return `fill "${action.targetName || action.target || 'input'}" with "${action.value || ''}"`;
+        if (type === 'clickAll') return `click all buttons`;
+        if (type === 'explore') return `explore the site`;
         return `take a screenshot`;
       })
+      .filter(Boolean)
       .join('\n');
   };
 
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 24,
-        right: 24,
-        width: 440,
-        height: 640,
+    <CopilotErrorBoundary onReset={onClose}>
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          width: 440,
+          height: 640,
         maxWidth: 'calc(100vw - 48px)',
         maxHeight: 'calc(100vh - 48px)',
         background: 'var(--bg-surface, #ffffff)',
@@ -169,8 +261,8 @@ export function CopilotDrawer({
                   fontSize: 10,
                   padding: '2px 7px',
                   borderRadius: 12,
-                  background: aiConfig.provider === 'local' ? 'var(--pass-bg)' : 'var(--warn-bg)',
-                  color: aiConfig.provider === 'local' ? 'var(--pass)' : 'var(--warn)',
+                  background: aiConfig?.provider === 'local' ? 'var(--pass-bg)' : 'var(--warn-bg)',
+                  color: aiConfig?.provider === 'local' ? 'var(--pass)' : 'var(--warn)',
                   fontWeight: 700,
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -178,7 +270,7 @@ export function CopilotDrawer({
                 }}
               >
                 <Cpu size={10} />
-                {aiConfig.provider === 'local' ? `Local: ${aiConfig.model || 'llama3.2'}` : 'Gemini'}
+                {aiConfig?.provider === 'local' ? `Local: ${aiConfig?.model || 'llama3.2'}` : 'Gemini'}
               </span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -232,11 +324,11 @@ export function CopilotDrawer({
                 wordBreak: 'break-word',
               }}
             >
-              {m.content}
+              {typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}
             </div>
 
             {/* If the assistant emitted executable steps */}
-            {m.steps && m.steps.length > 0 && (
+            {Array.isArray(m.steps) && m.steps.length > 0 && (
               <div
                 style={{
                   marginTop: 8,
@@ -252,11 +344,16 @@ export function CopilotDrawer({
                   Generated Test Actions ({m.steps.length})
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
-                  {m.steps.map((step, sIdx) => (
-                    <div key={sIdx} style={{ color: 'var(--text-secondary)', display: 'flex', gap: 6 }}>
-                      <span style={{ fontWeight: 600 }}>{sIdx + 1}.</span> {step.intent}
-                    </div>
-                  ))}
+                  {m.steps.map((step, sIdx) => {
+                    const intentText = typeof step === 'string'
+                      ? step
+                      : (step?.intent || (step as any)?.action?.type || `Action ${sIdx + 1}`);
+                    return (
+                      <div key={sIdx} style={{ color: 'var(--text-secondary)', display: 'flex', gap: 6 }}>
+                        <span style={{ fontWeight: 600 }}>{sIdx + 1}.</span> {String(intentText)}
+                      </div>
+                    );
+                  })}
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <button
@@ -310,7 +407,7 @@ export function CopilotDrawer({
         {loading && (
           <div style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12 }}>
             <span className="spinner" style={{ width: 12, height: 12 }} />
-            {aiConfig.provider === 'local' ? 'Local LLM thinking...' : 'Gemini thinking...'}
+            {aiConfig?.provider === 'local' ? 'Local LLM thinking...' : 'Gemini thinking...'}
           </div>
         )}
         <div ref={chatEndRef} />
@@ -398,5 +495,6 @@ export function CopilotDrawer({
         </button>
       </div>
     </div>
+    </CopilotErrorBoundary>
   );
 }

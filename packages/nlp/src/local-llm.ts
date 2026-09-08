@@ -73,7 +73,7 @@ export async function getAIModel(config?: AIProviderConfig): Promise<{
   }
 
   // Fallback to Gemini
-  const geminiModel = config?.model?.includes('gemini') ? config.model : 'gemini-2.5-flash';
+  const geminiModel = config?.model?.includes('gemini') ? config.model : 'gemini-3.6-flash';
   return {
     model: google(geminiModel),
     provider: 'gemini',

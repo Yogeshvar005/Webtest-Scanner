@@ -100,11 +100,15 @@ export async function launchBrowser(opts: LaunchOpts = {}): Promise<LaunchResult
 
   if (opts.browserType === 'webkit') {
     console.log('[browser] tier=webkit - launching Safari engine (WebKit)');
-    const browser = await playwrightCoreWebkit.launch({
-      headless: opts.headless ?? false,
-      proxy: proxyOptions,
-    });
-    return { browser, usingCDP: false, tier: 'webkit' };
+    try {
+      const browser = await playwrightCoreWebkit.launch({
+        headless: opts.headless ?? false,
+        proxy: proxyOptions,
+      });
+      return { browser, usingCDP: false, tier: 'webkit' };
+    } catch (err) {
+      console.warn('[browser] Safari (WebKit) launch failed, falling back to Chromium:', err);
+    }
   }
 
   // -------------------------------------------------------------------------
