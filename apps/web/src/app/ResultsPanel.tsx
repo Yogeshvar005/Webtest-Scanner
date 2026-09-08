@@ -1,17 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Glyph } from './glyphs';
-import type { RunResponse, CategoryResult, DevicePreset } from './types';
+import type { RunResponse, CategoryResult, DevicePreset, StepResult } from './types';
+import { exportToPlaywrightTS, exportToPlaywrightPython, exportToCypress, exportToSeleniumPython } from '@wts/dsl';
+import { Sparkles, AlertTriangle, ShieldCheck, CheckCircle2, Copy, Download, RefreshCw, Wand2, Terminal, Code2 } from 'lucide-react';
 
 interface ResultsPanelProps {
   result: RunResponse;
   onDownload: () => void;
   pdfing: boolean;
   device?: DevicePreset;
+  onApplyFix?: (instructions: string) => void;
 }
 
-type TabId = 'overview' | 'categories' | 'findings' | 'steps' | 'diff' | 'scraper' | 'raw';
+type TabId = 'overview' | 'categories' | 'findings' | 'steps' | 'diff' | 'scraper' | 'export' | 'raw';
 
 function statusClass(status: string): string {
   return ['passed', 'failed', 'blocked', 'warning', 'skipped'].includes(status) ? status : 'skipped';
@@ -249,12 +252,308 @@ function ExportDock({ result }: { result: RunResponse }) {
   );
 }
 
+/* ── AI Root Cause Diagnostic Card ── */
+interface AIDiagnosticCardProps {
+  failedStep: StepResult;
+  targetUrl: string;
+  onApplyFix?: (instruction: string) => void;
+}
+
+function AIDiagnosticCard({ failedStep, targetUrl, onApplyFix }: AIDiagnosticCardProps) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<{
+    category: string;
+    summary: string;
+    plainEnglishExplanation: string;
+    suggestedFix: string;
+    autoFixStep?: {
+      intent: string;
+      dslInstruction: string;
+      actionType: 'prepend' | 'replace' | 'append';
+    };
+  } | null>(null);
+  const [applied, setApplied] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchRCA() {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/rca', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            failedStepIntent: failedStep.intent,
+            errorMessage: failedStep.error || 'Assertion failed',
+            targetUrl,
+            consoleErrors: failedStep.consoleErrors,
+          }),
+        });
+        if (res.ok && !cancelled) {
+          const json = await res.json();
+          setData(json);
+        }
+      } catch (e) {
+        console.warn('RCA fetch failed:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchRCA();
+    return () => { cancelled = true; };
+  }, [failedStep.id, failedStep.error, targetUrl]);
+
+  if (loading) {
+    return (
+      <div style={{ marginTop: 10, padding: '12px 14px', borderRadius: 8, background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)' }}>
+        <span className="spinner" style={{ width: 14, height: 14 }} />
+        <span>KaneAI Smart Root Cause Engine diagnosing step failure...</span>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  return (
+    <div style={{
+      marginTop: 10,
+      padding: '14px 16px',
+      borderRadius: 'var(--radius-sm)',
+      background: 'rgba(239, 68, 68, 0.06)',
+      border: '1px solid rgba(239, 68, 68, 0.25)',
+      fontSize: 13,
+      lineHeight: 1.45,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#dc2626' }}>
+          <AlertTriangle size={15} />
+          <span>AI Root Cause Analysis: {data.category}</span>
+        </div>
+        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'rgba(239, 68, 68, 0.12)', color: '#b91c1c', fontWeight: 600 }}>
+          KaneAI Diagnostic
+        </span>
+      </div>
+      <p style={{ margin: '0 0 6px', fontWeight: 600, color: 'var(--text)' }}>
+        {data.summary}
+      </p>
+      <p style={{ margin: '0 0 10px', color: 'var(--text-secondary)', fontSize: 12.5 }}>
+        {data.plainEnglishExplanation}
+      </p>
+      <div style={{ padding: '8px 12px', background: 'var(--bg-surface)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 12 }}>
+        <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>💡 Recommended Fix:</div>
+        <div style={{ color: 'var(--text-secondary)' }}>{data.suggestedFix}</div>
+      </div>
+      {data.autoFixStep && onApplyFix && (
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (data.autoFixStep) {
+                onApplyFix(data.autoFixStep.dslInstruction);
+                setApplied(true);
+              }
+            }}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 6,
+              background: applied ? '#059669' : '#dc2626',
+              color: '#fff',
+              border: 'none',
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Wand2 size={13} />
+            {applied ? '✓ Fix Applied to Editor' : `Apply Fix: "${data.autoFixStep.dslInstruction}"`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Code Export Tab ── */
+function CodeExportTab({ result }: { result: RunResponse }) {
+  const [framework, setFramework] = useState<'playwright-ts' | 'playwright-python' | 'cypress' | 'selenium'>('playwright-ts');
+  const [copied, setCopied] = useState(false);
+
+  const activeScenario = useMemo(() => {
+    if (result.scenario && result.scenario.steps) return result.scenario;
+    return {
+      schemaVersion: '1.0',
+      id: result.runId,
+      version: 1,
+      title: `Automated Test - ${result.targetUrl}`,
+      description: `Exported from Webtest Scanner autonomous run ${result.runId}`,
+      testTypes: ['functional', 'ui'],
+      priority: 'P2',
+      targetId: result.targetUrl,
+      environment: 'PRODUCTION',
+      requirementIds: [],
+      openQuestions: [],
+      preconditions: [],
+      fixtures: [],
+      setup: [],
+      steps: result.steps.map((s, idx) => ({
+        id: s.id || `s${idx}`,
+        index: s.index ?? idx,
+        intent: s.intent,
+        action: {
+          type: 'click',
+          target: { role: 'button', name: s.intent.replace(/^click\s*["']?/i, '').replace(/["']?$/i, '') },
+        },
+        preWaits: [],
+        postWaits: [],
+        assertions: s.assertions.map((a) => ({
+          type: 'textPresent',
+          text: { kind: 'literal', value: a.description },
+          match: 'contains',
+          negate: false,
+          origin: { author: 'ai', confidence: 0.9, timestamp: new Date().toISOString() },
+          severity: 'medium',
+        })),
+        onFailure: 'abort',
+        timeoutMs: 30000,
+        riskTags: ['read-only'],
+        provenance: { author: 'ai', confidence: 0.9, timestamp: new Date().toISOString() },
+      })),
+      cleanup: { strategy: 'best-effort', runOnFailure: true, steps: [], lineageReaper: [] },
+      dependsOn: [],
+      lifecycle: 'automated',
+      policyClass: 'passive',
+      provenance: { author: 'ai', confidence: 0.9, timestamp: new Date().toISOString() },
+    };
+  }, [result]);
+
+  const generatedCode = useMemo(() => {
+    try {
+      switch (framework) {
+        case 'playwright-ts':
+          return exportToPlaywrightTS(activeScenario, result.targetUrl);
+        case 'playwright-python':
+          return exportToPlaywrightPython(activeScenario, result.targetUrl);
+        case 'cypress':
+          return exportToCypress(activeScenario, result.targetUrl);
+        case 'selenium':
+          return exportToSeleniumPython(activeScenario, result.targetUrl);
+      }
+    } catch (e) {
+      return `// Failed to generate code: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  }, [framework, activeScenario, result.targetUrl]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    const extMap: Record<string, string> = {
+      'playwright-ts': 'spec.ts',
+      'playwright-python': 'test.py',
+      'cypress': 'cy.js',
+      'selenium': 'test.py',
+    };
+    const filename = `webtest-${result.runId.slice(0, 8)}.${extMap[framework] || 'txt'}`;
+    downloadFile(filename, generatedCode, 'text/plain');
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Code2 size={18} color="var(--accent)" />
+            Multi-Framework Code Export (KaneAI Engine)
+          </h3>
+          <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+            Export this test into clean, zero-dependency production code for your team's CI/CD pipeline.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            type="button"
+            className="secondary"
+            onClick={handleCopy}
+            style={{ fontSize: 12.5, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Copy size={14} /> {copied ? 'Copied to Clipboard!' : 'Copy Code'}
+          </button>
+          <button
+            type="button"
+            className="primary"
+            onClick={handleDownload}
+            style={{ fontSize: 12.5, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Download size={14} /> Download Script
+          </button>
+        </div>
+      </div>
+
+      {/* Framework Switcher Chips */}
+      <div style={{ display: 'flex', gap: 8, background: 'var(--bg-hover)', padding: 4, borderRadius: 'var(--radius-sm)', width: 'fit-content' }}>
+        {[
+          { id: 'playwright-ts', label: 'Playwright (TypeScript)', badge: 'Recommended' },
+          { id: 'playwright-python', label: 'Playwright (Python)' },
+          { id: 'cypress', label: 'Cypress (JS)' },
+          { id: 'selenium', label: 'Selenium (Python)' },
+        ].map((fw) => (
+          <button
+            key={fw.id}
+            type="button"
+            onClick={() => setFramework(fw.id as any)}
+            className={`subtab-chip ${framework === fw.id ? 'active' : ''}`}
+            style={{
+              fontSize: 12.5,
+              padding: '6px 14px',
+              borderRadius: 6,
+              border: 'none',
+              fontWeight: framework === fw.id ? 700 : 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            {fw.label}
+            {fw.badge && (
+              <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(217,119,87,0.2)', color: 'var(--accent)' }}>
+                {fw.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Code Display Area */}
+      <div style={{ position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)', background: '#1e1e2e' }}>
+        <div style={{ padding: '8px 16px', background: '#181825', borderBottom: '1px solid #313244', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#a6adc8', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+          <span>{framework === 'playwright-ts' ? 'tests/e2e.spec.ts' : framework === 'cypress' ? 'cypress/e2e/spec.cy.js' : 'test_e2e.py'}</span>
+          <span>UTF-8 · {generatedCode.split('\n').length} lines</span>
+        </div>
+        <pre style={{ margin: 0, padding: '16px', fontSize: 12.5, lineHeight: 1.5, fontFamily: 'var(--font-mono)', color: '#cdd6f4', overflowX: 'auto', maxHeight: 480 }}>
+          <code>{generatedCode}</code>
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 /* ── Overview Tab ── */
-function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: TabId) => void }) {
+function OverviewTab({ result, onGoTo, onApplyFix }: { result: RunResponse; onGoTo: (tab: TabId) => void; onApplyFix?: (instructions: string) => void }) {
   const notPassing = result.categories.filter((c) => c.status === 'failed' || c.status === 'warning');
   const topFindings = [...result.findings]
     .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9))
     .slice(0, 6);
+
+  const selfHealedCount = result.steps.filter((s) => s.selfHealed).length;
+  const firstFailedStep = result.steps.find((s) => s.status === 'failed' || (s.assertions && s.assertions.some((a) => !a.passed)));
 
   return (
     <div>
@@ -268,6 +567,13 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
               <img src={result.siteScreenshot} alt="Site Snapshot" style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── AI Root Cause Failure Diagnostic in Overview ── */}
+      {firstFailedStep && (
+        <div style={{ marginBottom: 20 }}>
+          <AIDiagnosticCard failedStep={firstFailedStep} targetUrl={result.targetUrl} onApplyFix={onApplyFix} />
         </div>
       )}
 
@@ -286,6 +592,12 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
           </div>
           <div className="label">Failed</div>
         </div>
+        {selfHealedCount > 0 && (
+          <div className="stat-box" style={{ background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
+            <div className="num" style={{ color: '#059669' }}>{selfHealedCount}</div>
+            <div className="label" style={{ color: '#065f46' }}>✨ Self-Healed</div>
+          </div>
+        )}
         <div className="stat-box">
           <div className="num" style={{ color: result.totals.blocked > 0 ? 'var(--block)' : 'var(--text-secondary)' }}>
             {result.totals.blocked}
@@ -298,6 +610,22 @@ function OverviewTab({ result, onGoTo }: { result: RunResponse; onGoTo: (tab: Ta
           </div>
           <div className="label">Inference Confidence</div>
         </div>
+      </div>
+
+      {/* ── Quick Export Banner ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-hover)', borderRadius: 8, border: '1px solid var(--border)', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <Code2 size={16} color="var(--accent)" />
+          <span>Export this autonomous test into your team's CI/CD pipeline</span>
+        </div>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => onGoTo('export')}
+          style={{ fontSize: 12, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5 }}
+        >
+          ⚡ Code Export
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, padding: '12px 16px', background: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
@@ -568,7 +896,7 @@ function FindingsTab({ result }: { result: RunResponse }) {
 }
 
 /* ── Steps Tab ── */
-function StepsTab({ result }: { result: RunResponse }) {
+function StepsTab({ result, onApplyFix }: { result: RunResponse; onApplyFix?: (instructions: string) => void }) {
   if (result.steps.length === 0) {
     return <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No steps were executed in this scenario.</p>;
   }
@@ -604,6 +932,25 @@ function StepsTab({ result }: { result: RunResponse }) {
               <strong style={{ fontSize: 13.5 }}>{step.intent}</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {step.selfHealed && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    color: '#059669',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                  }}
+                  title={step.selfHealed.reason}
+                >
+                  <Sparkles size={11} /> Self-Healed
+                </span>
+              )}
               <span className={`pill ${step.status === 'passed' ? 'passed' : step.status === 'failed' ? 'failed' : statusClass(step.status)}`}>
                 {step.status === 'passed' ? 'Executed' : step.status === 'failed' ? 'Failed' : step.status}
               </span>
@@ -612,11 +959,36 @@ function StepsTab({ result }: { result: RunResponse }) {
           </div>
 
           <div style={{ padding: '14px 16px' }}>
+            {step.selfHealed && (
+              <div style={{
+                padding: '8px 12px',
+                borderRadius: 6,
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                fontSize: 12.5,
+                marginBottom: 10,
+                color: '#065f46',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                <Sparkles size={14} color="#059669" />
+                <div>
+                  <strong>KaneAI Self-Healing:</strong> Target <code>"{step.selfHealed.originalTarget}"</code> drifted. Repaired via <em>{step.selfHealed.strategy}</em>.
+                </div>
+              </div>
+            )}
+
             {step.error && (
               <div style={{ color: 'var(--fail)', fontSize: 12.5, marginBottom: 8 }}>
                 ❌ {step.error}
               </div>
             )}
+
+            {(step.status === 'failed' || step.error) && (
+              <AIDiagnosticCard failedStep={step} targetUrl={result.targetUrl} onApplyFix={onApplyFix} />
+            )}
+
             {step.policyReason && (
               <div style={{ color: 'var(--text-muted)', fontSize: 12.5, marginBottom: 8 }}>
                 🛡️ Blocked by policy: {step.policyReason}
@@ -1003,6 +1375,16 @@ function VisualDiffTab({ result, device }: { result: RunResponse; device?: Devic
   const [sliderPos, setSliderPos] = useState(50);
   const [viewMode, setViewMode] = useState<'slider' | 'side-by-side' | 'overlay'>('slider');
   const [copiedBaseline, setCopiedBaseline] = useState(false);
+  const [aiDiffLoading, setAiDiffLoading] = useState(false);
+  const [aiDiffResult, setAiDiffResult] = useState<{
+    verdict: string;
+    isTrueRegression: boolean;
+    confidence: number;
+    summary: string;
+    noiseDetected: string[];
+    defectsDetected: string[];
+    recommendation: string;
+  } | null>(null);
 
   useEffect(() => {
     try {
@@ -1027,6 +1409,31 @@ function VisualDiffTab({ result, device }: { result: RunResponse; device?: Devic
       setCopiedBaseline(true);
       setTimeout(() => setCopiedBaseline(false), 2500);
     } catch {}
+  }
+
+  async function handleRunAiDiff() {
+    if (!currentScreenshot) return;
+    setAiDiffLoading(true);
+    try {
+      const res = await fetch('/api/diff/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentScreenshot,
+          baselineScreenshot: effectiveBaseline,
+          targetUrl: result.targetUrl,
+          device: device || 'desktop',
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setAiDiffResult(json);
+      }
+    } catch (e) {
+      console.warn('AI Visual Diff analysis failed:', e);
+    } finally {
+      setAiDiffLoading(false);
+    }
   }
 
   if (!currentScreenshot && !baselineUrl) {
@@ -1089,6 +1496,63 @@ function VisualDiffTab({ result, device }: { result: RunResponse; device?: Devic
             {copiedBaseline ? '✅ Saved as Baseline!' : '📌 Set as Baseline'}
           </button>
         </div>
+      </div>
+
+      {/* ── AI Smart Noise Filter Card (KaneAI Vision) ── */}
+      <div style={{ padding: '14px 16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-hover)', border: '1px solid var(--border)', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sparkles size={16} color="var(--accent)" />
+            <strong style={{ fontSize: 13.5 }}>AI Smart Noise Filter (KaneAI Vision)</strong>
+            <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>Filters out rotating carousels & timestamp false positives</span>
+          </div>
+          <button
+            type="button"
+            className="secondary"
+            onClick={handleRunAiDiff}
+            disabled={aiDiffLoading}
+            style={{ fontSize: 12, padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)' }}
+          >
+            {aiDiffLoading ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <Wand2 size={13} color="var(--accent)" />}
+            {aiDiffLoading ? 'Analyzing Visual Shifts...' : 'Run AI Smart Filter'}
+          </button>
+        </div>
+
+        {aiDiffResult && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontSize: 11,
+                fontWeight: 700,
+                background: aiDiffResult.isTrueRegression ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                color: aiDiffResult.isTrueRegression ? 'var(--fail)' : 'var(--pass)',
+                textTransform: 'uppercase',
+              }}>
+                {aiDiffResult.verdict.replace(/_/g, ' ')}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Confidence: {Math.round(aiDiffResult.confidence * 100)}%</span>
+            </div>
+            <p style={{ fontSize: 12.5, color: 'var(--text)', margin: '0 0 8px' }}>{aiDiffResult.summary}</p>
+
+            {aiDiffResult.noiseDetected && aiDiffResult.noiseDetected.length > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                <strong>Dynamic Noise Ignored:</strong> {aiDiffResult.noiseDetected.join(' · ')}
+              </div>
+            )}
+            {aiDiffResult.defectsDetected && aiDiffResult.defectsDetected.length > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--fail)', fontWeight: 600 }}>
+                <strong>Defects Flagged:</strong> {aiDiffResult.defectsDetected.join(' · ')}
+              </div>
+            )}
+            {aiDiffResult.recommendation && (
+              <div style={{ fontSize: 12, color: 'var(--accent)', marginTop: 6 }}>
+                💡 <strong>Advice:</strong> {aiDiffResult.recommendation}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Match Metric Bar */}
@@ -1264,7 +1728,7 @@ function PixelDiffOverlay({ baselineUrl, currentUrl }: { baselineUrl: string; cu
 }
 
 /* ── Main ResultsPanel Export ── */
-export function ResultsPanel({ result, onDownload, pdfing, device }: ResultsPanelProps) {
+export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }: ResultsPanelProps) {
   const [tab, setTab] = useState<TabId>('overview');
   const hasScraperData = result.categories.some((c) => c.category === 'scraper');
   const hasScreenshots = (result.steps ?? []).some((s) => Boolean(s.screenshot));
@@ -1276,7 +1740,7 @@ export function ResultsPanel({ result, onDownload, pdfing, device }: ResultsPane
     { id: 'steps', label: 'Steps & Timeline', count: result.steps.length },
     ...(hasScreenshots ? [{ id: 'diff' as TabId, label: '🔍 Visual & Diff' }] : []),
     ...(hasScraperData ? [{ id: 'scraper' as TabId, label: '🕷 Extracted Content' }] : []),
-
+    { id: 'export' as TabId, label: '⚡ Code Export' },
     { id: 'raw', label: 'Raw JSON' },
   ];
 
@@ -1342,12 +1806,13 @@ export function ResultsPanel({ result, onDownload, pdfing, device }: ResultsPane
 
       {/* ── Tab View Panels ── */}
       <div style={{ marginTop: 12 }}>
-        {tab === 'overview' && <OverviewTab result={result} onGoTo={setTab} />}
+        {tab === 'overview' && <OverviewTab result={result} onGoTo={setTab} onApplyFix={onApplyFix} />}
         {tab === 'categories' && <CategoriesTab result={result} />}
         {tab === 'findings' && <FindingsTab result={result} />}
-        {tab === 'steps' && <StepsTab result={result} />}
+        {tab === 'steps' && <StepsTab result={result} onApplyFix={onApplyFix} />}
         {tab === 'diff' && <VisualDiffTab result={result} device={device} />}
         {tab === 'scraper' && <ScraperTab result={result} />}
+        {tab === 'export' && <CodeExportTab result={result} />}
         {tab === 'raw' && (
           <pre style={{ fontSize: 12, fontFamily: 'var(--font-mono)', padding: 16, background: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', overflowX: 'auto' }}>
             {JSON.stringify(result, null, 2)}

@@ -690,6 +690,9 @@ async function runStep(
         if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'click'));
         result.resolvedBy = resolved.resolution.strategy;
         result.resolutionConfidence = resolved.resolution.confidence;
+        if (resolved.resolution.selfHealed) {
+          result.selfHealed = resolved.resolution.selfHealed;
+        }
 
         await animateMouseTo(activePage, resolved.resolution.locator);
 
@@ -772,6 +775,9 @@ async function runStep(
         if (!resolved.ok) throw new Error(explainFailure(action.target, resolved.failure, 'fill'));
         result.resolvedBy = resolved.resolution.strategy;
         result.resolutionConfidence = resolved.resolution.confidence;
+        if (resolved.resolution.selfHealed) {
+          result.selfHealed = resolved.resolution.selfHealed;
+        }
 
         await animateMouseTo(activePage, resolved.resolution.locator);
 

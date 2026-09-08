@@ -62,29 +62,35 @@ export async function generateSiteSpecificSuites(
 ): Promise<GeneratedTestSuiteResult> {
   const { model, provider, modelName } = await getAIModel(options?.aiConfig);
 
+  // Defensive extraction to prevent crashes if fields are missing in partial recon
+  const headings = Array.isArray(recon.headings) ? recon.headings : [];
+  const navLinks = Array.isArray(recon.navLinks) ? recon.navLinks : [];
+  const forms = Array.isArray(recon.forms) ? recon.forms : [];
+  const interactiveElements = Array.isArray(recon.interactiveElements) ? recon.interactiveElements : [];
+
   // Compact representation to minimize token count while maximizing context
   const contextSummary = {
-    url: recon.url,
-    title: recon.title,
+    url: recon.url || '',
+    title: recon.title || '',
     description: recon.description || '',
-    topHeadings: recon.headings.slice(0, 10),
-    keyNavLinks: recon.navLinks.slice(0, 15).map((l) => l.text).filter(Boolean),
-    formsDetected: recon.forms.map((f) => ({
-      name: f.name || 'Form',
-      fields: f.fields.map((field) => field.label || field.placeholder || field.name),
-      submitButton: f.submitText || 'Submit',
+    topHeadings: headings.slice(0, 10),
+    keyNavLinks: navLinks.slice(0, 15).map((l) => l?.text).filter(Boolean),
+    formsDetected: forms.map((f) => ({
+      name: f?.name || 'Form',
+      fields: (f?.fields || []).map((field) => field?.label || field?.placeholder || field?.name),
+      submitButton: f?.submitText || 'Submit',
     })),
     prominentButtons: Array.from(
       new Set(
-        recon.interactiveElements
-          .filter((e) => e.role === 'button')
-          .map((e) => e.text)
+        interactiveElements
+          .filter((e) => e?.role === 'button')
+          .map((e) => e?.text)
           .filter((t) => t && t.length < 30)
       )
     ).slice(0, 20),
-    prominentInputs: recon.interactiveElements
-      .filter((e) => e.role === 'textbox' || e.role === 'searchbox')
-      .map((e) => e.placeholder || e.name || e.text)
+    prominentInputs: interactiveElements
+      .filter((e) => e?.role === 'textbox' || e?.role === 'searchbox')
+      .map((e) => e?.placeholder || e?.name || e?.text)
       .filter(Boolean)
       .slice(0, 10),
   };
@@ -124,8 +130,10 @@ REQUIREMENTS:
  * Heuristic fallback if local LLM is temporarily unreachable or times out
  */
 function createHeuristicSuites(recon: SiteReconData): GeneratedTestSuiteResult {
-  const isTravel = /flight|book|hotel|airline|travel|etihad|emirates/i.test(recon.title + ' ' + recon.headings.join(' '));
-  const isEcommerce = /shop|store|cart|product|checkout|price|buy/i.test(recon.title + ' ' + recon.headings.join(' '));
+  const headings = Array.isArray(recon.headings) ? recon.headings : [];
+  const combinedText = ((recon.title || '') + ' ' + headings.join(' ')).toLowerCase();
+  const isTravel = /flight|book|hotel|airline|travel|etihad|emirates/i.test(combinedText);
+  const isEcommerce = /shop|store|cart|product|checkout|price|buy/i.test(combinedText);
 
   if (isTravel) {
     return {

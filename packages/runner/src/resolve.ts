@@ -24,6 +24,13 @@ export interface Resolution {
   locator: Locator;
   strategy: string;
   confidence: number;
+  selfHealed?: {
+    healed: boolean;
+    originalTarget: string;
+    strategy: string;
+    healedSelector?: string;
+    reason?: string;
+  };
 }
 
 export interface ResolutionFailure {
@@ -247,7 +254,17 @@ export async function resolveTarget(
     }
 
     const problem = await canAccept(locator, interaction);
-    if (problem === undefined) return { ok: true, resolution: { locator, strategy, confidence } };
+    if (problem === undefined) {
+      const isHealed = ['stem-role+name', 'stem-alternate-role+name', 'stem-text', 'keyword-role+name', 'keyword-alternate-role+name', 'keyword-text', 'role-only+text-filter', 'alternate-role+text-filter', 'css-role-fallback', 'approved-css-fallback'].includes(strategy);
+      const selfHealed = isHealed ? {
+        healed: true,
+        originalTarget: target.name || target.role,
+        strategy,
+        healedSelector: targetDescription(target),
+        reason: `Self-healed via ${strategy} pattern matching`,
+      } : undefined;
+      return { ok: true, resolution: { locator, strategy, confidence, selfHealed } };
+    }
     if (problem !== 'no element matched') rejected.push({ strategy, reason: problem });
   }
 
@@ -289,7 +306,14 @@ export async function resolveTarget(
         if (locator) {
           const problem = await canAccept(locator, interaction);
           if (problem === undefined) {
-            return { ok: true, resolution: { locator, strategy: 'ai-fallback', confidence: 0.8 } };
+            const selfHealed = {
+              healed: true,
+              originalTarget: target.name || target.role,
+              strategy: 'ai-fallback',
+              healedSelector: targetDescription(target),
+              reason: 'Self-healed via AI vision/semantic DOM mapping',
+            };
+            return { ok: true, resolution: { locator, strategy: 'ai-fallback', confidence: 0.8, selfHealed } };
           } else {
             rejected.push({ strategy: 'ai-fallback', reason: problem });
           }

@@ -14,6 +14,7 @@ interface CopilotDrawerProps {
   targetUrl: string;
   aiConfig: AIProviderConfig;
   onRunSteps: (instructions: string) => void;
+  onInsertSteps?: (instructions: string) => void;
 }
 
 export function CopilotDrawer({
@@ -23,6 +24,7 @@ export function CopilotDrawer({
   targetUrl,
   aiConfig,
   onRunSteps,
+  onInsertSteps,
 }: CopilotDrawerProps) {
   const [messages, setMessages] = useState<Array<CopilotMessage & { steps?: CopilotResponse['actionableSteps'] }>>([
     {
@@ -256,27 +258,51 @@ export function CopilotDrawer({
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => onRunSteps(convertStepsToDSLText(m.steps!))}
-                  style={{
-                    width: '100%',
-                    padding: '7px 12px',
-                    borderRadius: 6,
-                    background: 'var(--accent, #D97757)',
-                    color: '#fff',
-                    border: 'none',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <Play size={13} fill="#fff" />
-                  Run These Actions in Browser
-                </button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button
+                    onClick={() => onRunSteps(convertStepsToDSLText(m.steps!))}
+                    style={{
+                      flex: 1,
+                      padding: '7px 10px',
+                      borderRadius: 6,
+                      background: 'var(--accent, #D97757)',
+                      color: '#fff',
+                      border: 'none',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Play size={13} fill="#fff" />
+                    Run in Browser
+                  </button>
+                  {onInsertSteps && (
+                    <button
+                      onClick={() => onInsertSteps(convertStepsToDSLText(m.steps!))}
+                      style={{
+                        padding: '7px 10px',
+                        borderRadius: 6,
+                        background: 'var(--bg-hover, #f1f5f9)',
+                        color: 'var(--text)',
+                        border: '1px solid var(--border)',
+                        fontWeight: 600,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 5,
+                      }}
+                      title="Insert these steps into your scenario editor"
+                    >
+                      📝 Insert
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>

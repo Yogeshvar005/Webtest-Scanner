@@ -5,6 +5,7 @@ export interface StepResult {
   screenshot?: string; resolvedBy?: string; resolutionConfidence?: number;
   assertions: AssertionResult[]; error?: string; policyReason?: string;
   consoleErrors: string[]; provenanceSource: string; provenanceConfidence: number;
+  selfHealed?: { healed: boolean; originalTarget: string; strategy: string; healedSelector?: string; reason?: string };
 }
 
 export interface CheckResult { id: string; name: string; status: string; severity: string; detail: string; evidence?: string[] }
@@ -29,6 +30,7 @@ export interface RunResponse {
   siteScreenshot?: string;
   siteNavLinks?: Array<{ text: string; href: string; screenshot?: string }>;
   siteButtons?: string[];
+  scenario?: any;
 }
 
 export type DevicePreset = 'desktop' | 'laptop' | 'mobile' | 'tablet';

@@ -127,6 +127,11 @@ import { parseScenarioLLM } from './parse-llm';
 import { getOllamaStatus } from './local-llm';
 
 export async function parseScenario(request: ParseRequest): Promise<ParseResult> {
+  // During unit testing, use deterministic rule parser
+  if (process.env.VITEST || request.aiConfig?.provider === 'rules') {
+    return parseScenarioRules(request);
+  }
+
   const ollama = await getOllamaStatus();
   const hasLocal = ollama.online && ollama.models.length > 0;
   const hasCloud = Boolean(process.env.OPENAI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY);

@@ -1,7 +1,8 @@
 import { executeScenario } from './packages/runner/src/execute';
 
 async function run() {
-  console.log('Starting crawler test...');
+  const targetUrl = process.argv[2] || 'https://www.etihad.com/en-in/';
+  console.log(`Starting crawler test on ${targetUrl}...`);
   const result = await executeScenario({
     scenario: {
       id: 'test-scenario',
@@ -34,9 +35,9 @@ async function run() {
         }
       ]
     },
-    targetUrl: 'https://www.etihad.com/en-in/',
+    targetUrl: targetUrl,
     policyRequest: {
-      target: { targetId: 'test', ownershipTier: 1, url: 'https://www.etihad.com/en-in/' },
+      target: { targetId: 'test', ownershipTier: 1, url: targetUrl },
       subject: { id: 'test-user', roles: ['tester'] },
       policyClass: 'passive',
       environment: 'DEV',
@@ -49,9 +50,16 @@ async function run() {
     headless: false,
   });
 
-  console.log('Finished crawler test:');
-  console.log('Steps:', JSON.stringify(result.steps, null, 2));
-  console.log('Findings:', JSON.stringify(result.findings, null, 2));
+  if (result) {
+    console.log('Finished crawler test:');
+    console.log('Steps:', JSON.stringify(result.steps, null, 2));
+    console.log('Findings:', JSON.stringify(result.findings, null, 2));
+  } else {
+    console.log('Crawler test failed: No result returned.');
+  }
 }
 
-run().catch(console.error);
+run().catch(error => {
+  console.error('Crawler execution encountered a fatal error:', error);
+  process.exit(1);
+});

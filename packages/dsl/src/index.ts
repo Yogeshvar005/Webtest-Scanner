@@ -7,3 +7,4 @@ export * from './assertion';
 export * from './scenario';
 export * from './lint';
 export * from './json-schema';
+export * from './export';

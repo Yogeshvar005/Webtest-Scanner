@@ -83,6 +83,15 @@ const AI_PRESETS = [
   },
 ];
 
+interface RecommendedJourney {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  instructions: string;
+  stepCount: number;
+}
+
 export default function Home() {
   const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
@@ -119,6 +128,7 @@ export default function Home() {
   const [siteRecon, setSiteRecon] = useState<SiteReconData | null>(null);
   const [reconLoading, setReconLoading] = useState(false);
   const [autoGenLoading, setAutoGenLoading] = useState(false);
+  const [recommendedJourneys, setRecommendedJourneys] = useState<RecommendedJourney[]>([]);
 
   const aiConfig: AIProviderConfig = { provider: aiProvider };
 
@@ -251,30 +261,43 @@ export default function Home() {
 
       if (res.ok) {
         const data = await res.json();
-        // Convert generated suites into human-readable DSL instructions
-        const allSteps: string[] = [];
-        for (const suite of (data.suites || [])) {
-          allSteps.push(`# ${suite.title}`);
+        const rawSuites = data.suites || [];
+        const parsedJourneys: RecommendedJourney[] = rawSuites.map((suite: any, index: number) => {
+          const steps: string[] = [];
           for (const step of (suite.steps || [])) {
             if (step.action?.type === 'navigate') {
-              allSteps.push(`go to ${step.action.path || '/'}`);
+              steps.push(`go to ${step.action.path || '/'}`);
             } else if (step.action?.type === 'click') {
-              allSteps.push(`click "${step.action.targetName || 'button'}"`);
+              steps.push(`click "${step.action.targetName || 'button'}"`);
             } else if (step.action?.type === 'fill') {
-              allSteps.push(`fill "${step.action.targetName || 'input'}" with "${step.action.value || 'test'}"`);
+              steps.push(`fill "${step.action.targetName || 'input'}" with "${step.action.value || 'test'}"`);
             } else if (step.action?.type === 'explore') {
-              allSteps.push('explore the site');
+              steps.push('explore the site');
             } else if (step.action?.type === 'screenshot') {
-              allSteps.push('take a screenshot');
+              steps.push('take a screenshot');
             } else if (step.action?.type === 'waitFor') {
-              allSteps.push('wait for page to load');
+              steps.push('wait for page to load');
             } else {
-              allSteps.push(step.intent || 'take a screenshot');
+              steps.push(step.intent || 'take a screenshot');
             }
           }
-          allSteps.push('');
+          return {
+            id: suite.id || `journey-${index}`,
+            title: suite.title || `Journey ${index + 1}`,
+            category: suite.category || 'General',
+            description: suite.description || '',
+            instructions: steps.join('\n'),
+            stepCount: steps.length,
+          };
+        });
+
+        setRecommendedJourneys(parsedJourneys);
+
+        if (parsedJourneys.length > 0) {
+          setInstructions(parsedJourneys[0].instructions);
+        } else {
+          setInstructions(`go to /\nverify page title is not empty\nassert text present\ntake a screenshot`);
         }
-        setInstructions(allSteps.join('\n').trim());
       } else {
         setInstructions(`go to /\nverify main content is visible\ntake a screenshot`);
       }
@@ -385,8 +408,14 @@ export default function Home() {
     setShowHistoryModal(false);
   }
 
-  async function run() {
+  async function run(overrideInstructions?: unknown) {
     if (!urlValid || running) return;
+
+    const isCustomStr = typeof overrideInstructions === 'string';
+    const effectiveInstructions = isCustomStr ? overrideInstructions : instructions;
+    if (isCustomStr) {
+      setInstructions(overrideInstructions);
+    }
 
     setRunning(true);
     setRunStartedAt(Date.now());
@@ -402,7 +431,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url,
-          instructions,
+          instructions: effectiveInstructions,
           environment,
           ownershipTier: Number(tier),
           categories: selected,
@@ -567,7 +596,7 @@ export default function Home() {
               </div>
               <button
                 className="pill-action-btn"
-                onClick={run}
+                onClick={() => run()}
                 disabled={!urlValid || running}
               >
                 {running ? 'Inspecting...' : 'Inspect'}
@@ -610,6 +639,99 @@ export default function Home() {
               )}
             </button>
           </div>
+
+          {/* ── Autonomous User Journeys (KaneAI Engine) ── */}
+          {recommendedJourneys.length > 0 && (
+            <div style={{
+              marginTop: 16,
+              padding: '16px 18px',
+              background: 'var(--bg-card)',
+              borderRadius: 12,
+              border: '1px solid rgba(59,130,246,0.25)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent)' }}>
+                    <Sparkles size={14} /> Autonomous User Journeys (KaneAI Engine)
+                  </span>
+                  <span className="pill info" style={{ fontSize: 10, padding: '2px 8px' }}>
+                    {recommendedJourneys.length} Auto-Discovered Flows
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="settings-pill"
+                  style={{ fontSize: 11, padding: '2px 8px' }}
+                  onClick={() => setRecommendedJourneys([])}
+                >
+                  Dismiss
+                </button>
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: 12,
+              }}>
+                {recommendedJourneys.map((journey) => (
+                  <div
+                    key={journey.id}
+                    style={{
+                      padding: '12px 14px',
+                      background: 'var(--bg-hover)',
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                          {journey.title}
+                        </span>
+                        <span className="pill verdict" style={{ fontSize: 10, padding: '2px 6px', textTransform: 'uppercase' }}>
+                          {journey.category}
+                        </span>
+                      </div>
+                      {journey.description && (
+                        <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                          {journey.description}
+                        </p>
+                      )}
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span>⚡ {journey.stepCount} steps</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        className="primary"
+                        style={{ flex: 1, padding: '6px 10px', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                        onClick={() => run(journey.instructions)}
+                        disabled={running}
+                      >
+                        <Zap size={12} /> ⚡ Run Journey
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        style={{ padding: '6px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                        onClick={() => setInstructions(journey.instructions)}
+                        title="Load steps into editor"
+                      >
+                        📝 Load
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
             
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: running && runStartedAt ? 48 : 0, marginTop: 16 }}>
             {running && runStartedAt && (
@@ -796,6 +918,10 @@ export default function Home() {
             <ResultsPanel
               result={result}
               device={device}
+              onApplyFix={(fix) => {
+                setInstructions((prev) => (prev ? `${fix}\n${prev}` : fix));
+                setResult(null);
+              }}
               onDownload={async () => {
                 setPdfing(true);
                 try {
@@ -1084,6 +1210,10 @@ export default function Home() {
           if (urlValid) {
             setTimeout(() => run(), 300);
           }
+        }}
+        onInsertSteps={(generatedInstructions) => {
+          setInstructions((prev) => prev ? `${prev.trim()}\n\n${generatedInstructions}` : generatedInstructions);
+          setCopilotOpen(false);
         }}
       />
     </div>

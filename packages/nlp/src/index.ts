@@ -6,3 +6,5 @@ export * from './site-generator';
 export * from './copilot';
 export * from './resolve-llm';
 export * from './decide-route';
+export * from './rca';
+export * from './visual-diff-ai';
