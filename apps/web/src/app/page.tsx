@@ -1272,7 +1272,7 @@ export default function Home() {
 
         {/* ── RIGHT COLUMN: Live Execution Sandbox (rendered only when prompt is given / execution is active) ── */}
         {isExecutionActive && (
-          <div className="workspace-right-pane">
+          <div className={`workspace-right-pane ${previewTab === 'terminal' ? 'terminal-mode' : 'visual-mode'}`}>
           {/* Browser Mockup Chrome Header */}
           <div className="browser-chrome">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
@@ -1288,12 +1288,12 @@ export default function Home() {
             </div>
 
             {/* URL Bar */}
-            <div className="browser-url-pill">
+            <div className="browser-url-pill" title={url || 'about:blank'}>
               <span style={{ color: urlValid ? '#10b981' : 'var(--text-muted)' }}>🔒</span>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text)' }}>
-                {url || 'about:blank'}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text)', flex: 1, minWidth: 0 }}>
+                {url ? url.replace(/^https?:\/\//, '') : 'about:blank'}
               </span>
-              <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'var(--bg-surface)', color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }}>
+              <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'var(--bg-surface)', color: 'var(--text-muted)', flexShrink: 0 }}>
                 {device}
               </span>
             </div>
@@ -1418,83 +1418,46 @@ export default function Home() {
 
                   if (lastStepWithScreenshot?.screenshot) {
                     return (
-                      <>
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, boxSizing: 'border-box' }}>
+                      <div className={`browser-viewport-container device-${device}`}>
+                        <div className="browser-viewport-frame">
+                          {device === 'mobile' && <div className="mobile-dynamic-island" />}
                           <img
                             src={lastStepWithScreenshot.screenshot}
                             alt="Live browser preview"
+                            className="browser-viewport-img"
                           />
+                          {device === 'mobile' && <div className="mobile-home-indicator" />}
+                          {(running && currentStep) && (
+                            <div className="browser-viewport-hud">
+                              <span className="hud-indicator-dot" />
+                              <span className="hud-text">
+                                {currentStep.intent ||
+                                  (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` :
+                                   currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
+                                   currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
+                                   currentStep.action?.type === 'waitFor' ? 'Waiting for page load' :
+                                   `Executing ${currentStep.action?.type || 'step'}...`)}
+                              </span>
+                            </div>
+                          )}
+                          {(!running && result) && (
+                            <div className="browser-viewport-hud hud-completed">
+                              <CheckCircle size={14} color="#10b981" />
+                              <span>Final Viewport • {(result.durationMs / 1000).toFixed(1)}s elapsed</span>
+                            </div>
+                          )}
                         </div>
-                        {(running && currentStep) && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: 20,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(15, 23, 42, 0.9)',
-                            backdropFilter: 'blur(8px)',
-                            color: '#fff',
-                            padding: '8px 18px',
-                            borderRadius: 999,
-                            fontSize: 13,
-                            fontWeight: 500,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
-                            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                            border: '1px solid rgba(255,255,255,0.15)',
-                            maxWidth: '90%',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            zIndex: 10,
-                          }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
-                            <span>
-                              {currentStep.intent ||
-                                (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` :
-                                 currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
-                                 currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
-                                 currentStep.action?.type === 'waitFor' ? 'Waiting for page load' :
-                                 `Executing ${currentStep.action?.type || 'step'}...`)}
-                            </span>
-                          </div>
-                        )}
-                        {(!running && result) && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: 20,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(15, 23, 42, 0.9)',
-                            backdropFilter: 'blur(8px)',
-                            color: '#fff',
-                            padding: '6px 16px',
-                            borderRadius: 999,
-                            fontSize: 12,
-                            fontWeight: 500,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            zIndex: 10,
-                          }}>
-                            <CheckCircle size={14} color="#10b981" />
-                            <span>Final Viewport • {(result.durationMs / 1000).toFixed(1)}s elapsed</span>
-                          </div>
-                        )}
-                      </>
+                      </div>
                     );
                   }
 
                   if (running) {
                     return (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: 16 }}>
-                        <div className="spinner" style={{ width: 36, height: 36, borderWidth: 3 }} />
+                      <div className="browser-launching-box">
+                        <div className="spinner" style={{ width: 34, height: 34, borderWidth: 3 }} />
                         <div style={{ textAlign: 'center' }}>
-                          <p style={{ fontSize: 15, fontWeight: 600, color: '#f1f5f9', margin: 0 }}>Launching browser environment...</p>
-                          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Spawning headless {browserType} & loading {url || 'target'}...</p>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Launching browser environment...</p>
+                          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Spawning headless {browserType} & loading {url || 'target'}...</p>
                         </div>
                       </div>
                     );
@@ -1504,37 +1467,37 @@ export default function Home() {
                   return (
                     <div className="browser-standby-box">
                       <div style={{
-                        width: 64,
-                        height: 64,
+                        width: 60,
+                        height: 60,
                         borderRadius: '50%',
                         background: 'rgba(217, 119, 87, 0.12)',
                         border: '1px solid rgba(217, 119, 87, 0.25)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: 18,
-                        boxShadow: '0 0 30px rgba(217, 119, 87, 0.15)',
+                        marginBottom: 16,
+                        boxShadow: '0 0 24px rgba(217, 119, 87, 0.12)',
                       }}>
                         <Radar />
                       </div>
-                      <h3 style={{ fontSize: 17, fontWeight: 600, color: '#f1f5f9', marginBottom: 8 }}>
+                      <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
                         Live Execution Sandbox
                       </h3>
-                      <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, marginBottom: 20 }}>
+                      <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 20, maxWidth: 380 }}>
                         {urlValid ? (
-                          <>Ready to run against <strong style={{ color: '#e2e8f0' }}>{url}</strong>. Live screenshots, interactions, and console logs stream here.</>
+                          <>Ready to run against <strong style={{ color: 'var(--text)' }}>{url}</strong>. Live screenshots, interactions, and console logs stream here.</>
                         ) : (
                           <>Enter a website URL on the left and click <strong>Inspect</strong> to stream live browser actions and real-time visual output.</>
                         )}
                       </p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.06)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, background: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                           ⚡ Headless {browserType === 'chromium' ? 'Chromium' : 'WebKit'}
                         </span>
-                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.06)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, background: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                           📸 Real-time Screenshots
                         </span>
-                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.06)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <span style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, background: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                           💻 Live Stdio Stream
                         </span>
                       </div>

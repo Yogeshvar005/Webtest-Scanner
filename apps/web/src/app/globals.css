@@ -236,18 +236,26 @@ a:hover {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
   position: sticky;
   top: 24px;
-  height: calc(100vh - 48px);
-  min-height: 580px;
-  max-height: 960px;
+  height: auto;
+  max-height: calc(100vh - 48px);
   box-sizing: border-box;
   animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.workspace-right-pane.terminal-mode {
+  height: calc(100vh - 48px);
+  min-height: 540px;
+  max-height: 860px;
 }
 
 @media (max-width: 1023px) {
   .workspace-right-pane {
     position: static;
-    height: 600px;
-    max-height: 80vh;
+    height: auto;
+    max-height: none;
+  }
+  .workspace-right-pane.terminal-mode {
+    height: 520px;
   }
 }
 
@@ -298,34 +306,234 @@ a:hover {
 }
 
 .browser-canvas-body {
-  flex: 1;
-  min-height: 0;
-  background: #06080e;
+  width: 100%;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Device Viewport Containers & Aspect Ratios */
+.browser-viewport-container {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Desktop (1280×800) and Laptop (1440×900) - 16:10 aspect ratio */
+.browser-viewport-container.device-desktop,
+.browser-viewport-container.device-laptop {
+  width: 100%;
+  background: var(--bg-surface);
+}
+
+.browser-viewport-container.device-desktop .browser-viewport-frame,
+.browser-viewport-container.device-laptop .browser-viewport-frame {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+  display: block;
+}
+
+.browser-viewport-container.device-desktop .browser-viewport-img,
+.browser-viewport-container.device-laptop .browser-viewport-img {
+  width: 100%;
+  min-height: 100%;
+  height: auto;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+}
+
+/* Custom subtle scrollbar inside browser viewports */
+.browser-viewport-frame::-webkit-scrollbar {
+  width: 5px;
+}
+
+.browser-viewport-frame::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.browser-viewport-frame::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+}
+
+[data-theme="dark"] .browser-viewport-frame::-webkit-scrollbar-thumb,
+.dark .browser-viewport-frame::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile iPhone 14 (390×844) */
+.browser-viewport-container.device-mobile {
+  width: 100%;
+  padding: 20px 16px;
+  background: var(--bg-hover);
+}
+
+.browser-viewport-container.device-mobile .browser-viewport-frame {
+  width: 100%;
+  max-width: 260px;
+  aspect-ratio: 390 / 844;
+  border-radius: 32px;
+  border: 5px solid #1e293b;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.browser-viewport-container.device-mobile .browser-viewport-img {
+  width: 100%;
+  min-height: 100%;
+  height: auto;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+}
+
+.mobile-dynamic-island {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 68px;
+  height: 15px;
+  background: #0f172a;
+  border-radius: 999px;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.mobile-home-indicator {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 999px;
+  z-index: 15;
+  pointer-events: none;
+}
+
+/* Tablet iPad (820×1180) */
+.browser-viewport-container.device-tablet {
+  width: 100%;
+  padding: 20px 16px;
+  background: var(--bg-hover);
+}
+
+.browser-viewport-container.device-tablet .browser-viewport-frame {
+  width: 100%;
+  max-width: 380px;
+  aspect-ratio: 820 / 1180;
+  border-radius: 20px;
+  border: 5px solid #1e293b;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.browser-viewport-container.device-tablet .browser-viewport-img {
+  width: 100%;
+  min-height: 100%;
+  height: auto;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+}
+
+/* Action HUD overlay */
+.browser-viewport-hud {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #ffffff;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  max-width: 90%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 10;
+  pointer-events: none;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.browser-viewport-hud.hud-completed {
+  padding: 5px 14px;
+  font-size: 11.5px;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.hud-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  flex-shrink: 0;
+}
+
+.hud-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Standby and Launching states */
+.browser-launching-box {
+  width: 100%;
+  min-height: 340px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.browser-canvas-body img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border-radius: 6px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 14px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
 }
 
 .browser-standby-box {
+  width: 100%;
+  min-height: 380px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 32px 24px;
   text-align: center;
-  max-width: 440px;
+  box-sizing: border-box;
+  background: var(--bg-surface);
 }
 
 .config-card {
