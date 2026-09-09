@@ -1,13 +1,23 @@
 import { NextResponse } from 'next/server';
-import { updateUserRole, revokeUserSession, reinstateUserSession, addAdminEmail, getAdminEmails } from '../../../../lib/admin-store';
+import { updateUserRole, revokeUserSession, reinstateUserSession, addAdminEmail, getAdminEmails, getUserRole } from '../../../../lib/admin-store';
 import type { Role } from '@wts/policy';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
+    const adminUid = req.headers.get('x-admin-uid');
+    if (!adminUid) {
+      return NextResponse.json({ error: 'Unauthorized: Missing admin UID' }, { status: 401 });
+    }
+
+    const requesterRole = await getUserRole(adminUid);
+    if (requesterRole !== 'platform_admin') {
+      return NextResponse.json({ error: 'Forbidden: Requires platform_admin privileges' }, { status: 403 });
+    }
+
     const body = await req.json();
-    const { action, targetUid, newRole, adminUid, email } = body;
+    const { action, targetUid, newRole, email } = body;
 
     if (!action) {
       return NextResponse.json({ error: 'Missing action' }, { status: 400 });

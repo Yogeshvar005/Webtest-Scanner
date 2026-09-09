@@ -244,6 +244,11 @@ export async function getAdminTelemetry(): Promise<{
   };
 }
 
+export async function getUserRole(uid: string): Promise<Role | null> {
+  const store = await loadStore();
+  return store.users[uid]?.role || null;
+}
+
 export async function updateUserRole(uid: string, newRole: Role, adminUid: string): Promise<boolean> {
   const store = await loadStore();
   const target = store.users[uid];

@@ -129,6 +129,8 @@ export default function Home() {
   const [captureAssets, setCaptureAssets] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
+  const isSplitView = Boolean((running && runStartedAt) || result || error);
+
   // PRD v2 Modals
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -750,200 +752,209 @@ export default function Home() {
       <div
         style={{
           width: '100%',
-          maxWidth: running && runStartedAt ? '100%' : 900,
-          margin: running && runStartedAt ? '0 auto' : '50px auto 0',
-          padding: running && runStartedAt ? '24px 32px' : '0',
+          maxWidth: isSplitView ? '100%' : 900,
+          margin: isSplitView ? '0 auto' : '50px auto 0',
+          padding: isSplitView ? '24px 32px' : '0',
           display: 'flex',
-          gap: 28,
+          gap: isSplitView ? 28 : 0,
           alignItems: 'flex-start',
-          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
           boxSizing: 'border-box',
         }}
       >
         {/* ── LEFT COLUMN: All controls ── */}
         <div
           style={{
-            flex: running && runStartedAt ? '0 0 420px' : '1',
+            flex: isSplitView ? '0 0 420px' : '1',
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 0,
-            transition: 'flex 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
-          {!result && !error && (
-            <div style={{ width: '100%' }}>
+          <div style={{ 
+            display: (!result && !error) ? 'block' : 'none',
+            opacity: (!result && !error) ? 1 : 0,
+            transition: 'opacity 0.4s ease'
+          }}>
+            <h1 className="font-serif" style={{ fontSize: 32, textAlign: 'center', marginBottom: 28 }}>
+              Intelligent Browser Audits in Plain English.
+            </h1>
 
-          <h1 className="font-serif" style={{ fontSize: 32, textAlign: 'center', marginBottom: 28 }}>
-            Intelligent Browser Audits in Plain English.
-          </h1>
-
-          <div className="input-pill">
-            <div>
-              <textarea
-                value={instructions}
-                onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
-                placeholder="What shall we test today? Write plain English steps or pick an AI preset below..."
-                style={{ height: 60, width: '100%', resize: 'none', border: 'none', background: 'transparent', boxShadow: 'none', padding: '0 8px', fontSize: 16 }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'var(--bg)', borderRadius: 'var(--radius)', padding: '4px' }}>
-              <div style={{ flex: 1, position: 'relative' }}>
-                <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="Enter website URL..."
-                  autoComplete="off"
-                  spellCheck={false}
-                  style={{ paddingLeft: 42, fontSize: 15, height: 44, border: 'none', background: 'transparent', boxShadow: 'none' }}
+            <div className="input-pill">
+              <div>
+                <textarea
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
+                  placeholder="What shall we test today? Write plain English steps or pick an AI preset below..."
+                  style={{ height: 60, width: '100%', resize: 'none', border: 'none', background: 'transparent', boxShadow: 'none', padding: '0 8px', fontSize: 16 }}
                 />
               </div>
-              <button
-                className="pill-action-btn"
-                onClick={() => run()}
-                disabled={!urlValid || running}
-              >
-                {running ? 'Inspecting...' : 'Inspect'}
-              </button>
-            </div>
-          </div>
 
-          {/* ── AI Smart Presets & Test Suggestions ── */}
-          <div className="ai-presets-container">
-            <span className="ai-presets-label">
-              <Sparkles size={14} /> AI Presets:
-            </span>
-            {AI_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                className="ai-preset-chip"
-                onClick={() => applyPreset(preset)}
-                title={`Load "${preset.label}" template`}
-              >
-                <span>{preset.icon}</span> {preset.label}
-              </button>
-            ))}
-            <button
-              className="ai-preset-chip"
-              onClick={generateAiTestForUrl}
-              disabled={!urlValid || autoGenLoading}
-              style={{
-                background: 'linear-gradient(135deg, rgba(217,119,87,0.15), rgba(59,130,246,0.12))',
-                color: 'var(--accent)',
-                borderColor: 'var(--accent)',
-                opacity: (!urlValid || autoGenLoading) ? 0.5 : 1,
-                cursor: (!urlValid || autoGenLoading) ? 'not-allowed' : 'pointer',
-              }}
-              title="AI scans the real website structure and auto-generates precise test scenarios"
-            >
-              {autoGenLoading ? (
-                <><Loader2 size={12} className="spinner" /> Analyzing Site...</>
-              ) : (
-                <><Zap size={12} /> ✨ Auto-Generate Site Tests</>
-              )}
-            </button>
-          </div>
-
-          {/* ── Autonomous User Journeys (AI Engine) ── */}
-          {recommendedJourneys.length > 0 && (
-            <div style={{
-              marginTop: 16,
-              padding: '16px 18px',
-              background: 'var(--bg-card)',
-              borderRadius: 12,
-              border: '1px solid rgba(59,130,246,0.25)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent)' }}>
-                    <Sparkles size={14} /> Autonomous User Journeys (AI Engine)
-                  </span>
-                  <span className="pill info" style={{ fontSize: 10, padding: '2px 8px' }}>
-                    {recommendedJourneys.length} Auto-Discovered Flows
-                  </span>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', background: 'var(--bg)', borderRadius: 'var(--radius)', padding: '4px' }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="Enter website URL..."
+                    autoComplete="off"
+                    spellCheck={false}
+                    style={{ paddingLeft: 42, fontSize: 15, height: 44, border: 'none', background: 'transparent', boxShadow: 'none' }}
+                  />
                 </div>
                 <button
-                  type="button"
-                  className="settings-pill"
-                  style={{ fontSize: 11, padding: '2px 8px' }}
-                  onClick={() => setRecommendedJourneys([])}
+                  className="pill-action-btn"
+                  onClick={() => run()}
+                  disabled={!urlValid || running}
                 >
-                  Dismiss
+                  {running ? 'Inspecting...' : 'Inspect'}
                 </button>
               </div>
+            </div>
 
+            {/* ── AI Smart Presets & Test Suggestions ── */}
+            <div className="ai-presets-container">
+              <span className="ai-presets-label">
+                <Sparkles size={14} /> AI Presets:
+              </span>
+              {AI_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  className="ai-preset-chip"
+                  onClick={() => applyPreset(preset)}
+                  title={`Load "${preset.label}" template`}
+                >
+                  <span>{preset.icon}</span> {preset.label}
+                </button>
+              ))}
+              <button
+                className="ai-preset-chip"
+                onClick={generateAiTestForUrl}
+                disabled={!urlValid || autoGenLoading}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(217,119,87,0.15), rgba(59,130,246,0.12))',
+                  color: 'var(--accent)',
+                  borderColor: 'var(--accent)',
+                  opacity: (!urlValid || autoGenLoading) ? 0.5 : 1,
+                  cursor: (!urlValid || autoGenLoading) ? 'not-allowed' : 'pointer',
+                }}
+                title="AI scans the real website structure and auto-generates precise test scenarios"
+              >
+                {autoGenLoading ? (
+                  <><Loader2 size={12} className="spinner" /> Analyzing Site...</>
+                ) : (
+                  <><Zap size={12} /> ✨ Auto-Generate Site Tests</>
+                )}
+              </button>
+            </div>
+
+            {/* ── Autonomous User Journeys (AI Engine) ── */}
+            {recommendedJourneys.length > 0 && (
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                gap: 12,
+                marginTop: 16,
+                padding: '16px 18px',
+                background: 'var(--bg-card)',
+                borderRadius: 12,
+                border: '1px solid rgba(59,130,246,0.25)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
               }}>
-                {recommendedJourneys.map((journey) => (
-                  <div
-                    key={journey.id}
-                    style={{
-                      padding: '12px 14px',
-                      background: 'var(--bg-hover)',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: 10,
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-                          {journey.title}
-                        </span>
-                        <span className="pill verdict" style={{ fontSize: 10, padding: '2px 6px', textTransform: 'uppercase' }}>
-                          {journey.category}
-                        </span>
-                      </div>
-                      {journey.description && (
-                        <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                          {journey.description}
-                        </p>
-                      )}
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span>⚡ {journey.stepCount} steps</span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <button
-                        type="button"
-                        className="primary"
-                        style={{ flex: 1, padding: '6px 10px', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                        onClick={() => run(journey.instructions)}
-                        disabled={running}
-                      >
-                        <Zap size={12} /> ⚡ Run Journey
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary"
-                        style={{ padding: '6px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
-                        onClick={() => setInstructions(journey.instructions)}
-                        title="Load steps into editor"
-                      >
-                        📝 Load
-                      </button>
-                    </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent)' }}>
+                      <Sparkles size={14} /> Autonomous User Journeys (AI Engine)
+                    </span>
+                    <span className="pill info" style={{ fontSize: 10, padding: '2px 8px' }}>
+                      {recommendedJourneys.length} Auto-Discovered Flows
+                    </span>
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    className="settings-pill"
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    onClick={() => setRecommendedJourneys([])}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: 12,
+                }}>
+                  {recommendedJourneys.map((journey) => (
+                    <div
+                      key={journey.id}
+                      style={{
+                        padding: '12px 14px',
+                        background: 'var(--bg-hover)',
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                            {journey.title}
+                          </span>
+                          <span className="pill verdict" style={{ fontSize: 10, padding: '2px 6px', textTransform: 'uppercase' }}>
+                            {journey.category}
+                          </span>
+                        </div>
+                        {journey.description && (
+                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                            {journey.description}
+                          </p>
+                        )}
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span>⚡ {journey.stepCount} steps</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <button
+                          type="button"
+                          className="primary"
+                          style={{ flex: 1, padding: '6px 10px', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                          onClick={() => run(journey.instructions)}
+                          disabled={running}
+                        >
+                          <Zap size={12} /> ⚡ Run Journey
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary"
+                          style={{ padding: '6px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
+                          onClick={() => setInstructions(journey.instructions)}
+                          title="Load steps into editor"
+                        >
+                          📝 Load
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-            </div>
-          )}
+            )}
+          </div>
 
           {/* ── Configuration Bar with Device Emulation & AI Engine ── */}
-          <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+          <div style={{ 
+            marginTop: 20, 
+            display: (!result && !error) ? 'flex' : 'none',
+            opacity: (!result && !error) ? 1 : 0,
+            transition: 'opacity 0.4s ease',
+            flexWrap: 'wrap', 
+            gap: 12, 
+            justifyContent: 'center' 
+          }}>
             {/* AI Engine Selector */}
             <div style={{
               display: 'flex',
@@ -1097,215 +1108,233 @@ export default function Home() {
           {/* END config bar */}
 
           {/* ── Error Panel ── */}
-          {error && (
-            <div className="card" style={{ borderLeft: '4px solid var(--fail)', marginTop: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fail)', fontWeight: 600 }}>
-                ⚠️ Execution Failed
+          <div style={{ 
+            display: error ? 'block' : 'none',
+            opacity: error ? 1 : 0,
+            transition: 'opacity 0.4s ease',
+          }}>
+            {error && (
+              <div className="card" style={{ borderLeft: '4px solid var(--fail)', marginTop: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fail)', fontWeight: 600 }}>
+                  ⚠️ Execution Failed
+                </div>
+                <div style={{ marginTop: 8, fontSize: 14 }}>
+                  {error.findings?.[0]?.detail || (error as any).detail || (error as any).error || 'The run could not complete. Check URL connectivity.'}
+                </div>
+                <button className="secondary" onClick={() => setError(null)} style={{ marginTop: 16 }}>Back to Start</button>
               </div>
-              <div style={{ marginTop: 8, fontSize: 14 }}>
-                {error.findings?.[0]?.detail || (error as any).detail || (error as any).error || 'The run could not complete. Check URL connectivity.'}
-              </div>
-              <button className="secondary" onClick={() => setError(null)} style={{ marginTop: 16 }}>Back to Start</button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* ── Results Panel ── */}
-          {result && (
-            <div style={{ marginTop: 24 }}>
-              <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <button className="secondary" onClick={() => setResult(null)}>
-                  ← New Inspection
-                </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span className="results-sub-meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {device === 'mobile' ? <Smartphone size={14} /> : device === 'tablet' ? <Tablet size={14} /> : device === 'laptop' ? <Laptop size={14} /> : <Monitor size={14} />}
-                    Emulated: {device.toUpperCase()}
-                  </span>
+          <div style={{ 
+            display: result ? 'block' : 'none',
+            opacity: result ? 1 : 0,
+            transition: 'opacity 0.4s ease',
+          }}>
+            {result && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <button className="secondary" onClick={() => setResult(null)}>
+                    ← New Inspection
+                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span className="results-sub-meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {device === 'mobile' ? <Smartphone size={14} /> : device === 'tablet' ? <Tablet size={14} /> : device === 'laptop' ? <Laptop size={14} /> : <Monitor size={14} />}
+                      Emulated: {device.toUpperCase()}
+                    </span>
+                  </div>
                 </div>
+                <ResultsPanel
+                  result={result}
+                  device={device}
+                  onApplyFix={(fix) => {
+                    setInstructions((prev) => (prev ? `${fix}\n${prev}` : fix));
+                    setResult(null);
+                  }}
+                  onDownload={async () => {
+                    setPdfing(true);
+                    try {
+                      await printReport(result);
+                    } catch (e) {
+                      console.error('PDF generation error:', e);
+                    } finally {
+                      setPdfing(false);
+                    }
+                  }}
+                  pdfing={pdfing}
+                />
               </div>
-              <ResultsPanel
-                result={result}
-                device={device}
-                onApplyFix={(fix) => {
-                  setInstructions((prev) => (prev ? `${fix}\n${prev}` : fix));
-                  setResult(null);
-                }}
-                onDownload={async () => {
-                  setPdfing(true);
-                  try {
-                    await printReport(result);
-                  } catch (e) {
-                    console.error('PDF generation error:', e);
-                  } finally {
-                    setPdfing(false);
-                  }
-                }}
-                pdfing={pdfing}
-              />
-            </div>
-          )}
+            )}
+          </div>
         </div>
         {/* END left column */}
 
         {/* ── RIGHT COLUMN: Live Browser Panel ── */}
-        {running && runStartedAt && (
-          <div
-            style={{
-              flex: '1 1 0',
-              minWidth: 0,
-              position: 'sticky',
-              top: 80,
-              height: 'calc(100vh - 110px)',
-              display: 'flex',
-              flexDirection: 'column',
-              background: 'var(--bg-card)',
-              borderRadius: 14,
-              border: '1px solid var(--border)',
-              overflow: 'hidden',
-              boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
-              animation: 'slideInRight 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
-          >
-            {/* Browser Panel Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div
+          style={{
+            flex: isSplitView ? '1 1 0' : '0 0 0px',
+            opacity: isSplitView ? 1 : 0,
+            pointerEvents: isSplitView ? 'auto' : 'none',
+            minWidth: 0,
+            position: 'sticky',
+            top: 80,
+            height: 'calc(100vh - 110px)',
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'var(--bg-card)',
+            borderRadius: 14,
+            border: '1px solid var(--border)',
+            overflow: 'hidden',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+            transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            transform: isSplitView ? 'translateX(0)' : 'translateX(20px)',
+          }}
+        >
+          {isSplitView && (
+            <>
+              {/* Browser Panel Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {running && <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />}
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>{running ? 'Live Execution' : 'Browser Output'}</span>
+                  </div>
+                  <span style={{ color: 'var(--text-muted)' }}>|</span>
+                  {runStartedAt ? <ElapsedTimer startedAt={runStartedAt} /> : 
+                   result ? <span style={{fontSize: 13, color: 'var(--text-secondary)'}}>Finished in {(result.durationMs / 1000).toFixed(1)}s</span> : null}
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>Live Execution</span>
-                </div>
-                <span style={{ color: 'var(--text-muted)' }}>|</span>
-                <ElapsedTimer startedAt={runStartedAt} />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ display: 'flex', background: 'rgba(0,0,0,0.15)', padding: 2, borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', background: 'rgba(0,0,0,0.15)', padding: 2, borderRadius: 8, border: '1px solid var(--border)' }}>
+                    <button
+                      type="button"
+                      className={`settings-pill ${previewTab === 'visual' ? 'active' : ''}`}
+                      onClick={() => setPreviewTab('visual')}
+                      style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6 }}
+                    >
+                      🖥️ Visual
+                    </button>
+                    <button
+                      type="button"
+                      className={`settings-pill ${previewTab === 'terminal' ? 'active' : ''}`}
+                      onClick={() => setPreviewTab('terminal')}
+                      style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      💻 Terminal
+                      {terminalLogs.filter(l => l.level === 'error').length > 0 && (
+                        <span style={{ background: '#e11d48', color: '#fff', padding: '0 5px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>
+                          {terminalLogs.filter(l => l.level === 'error').length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
                   <button
-                    type="button"
-                    className={`settings-pill ${previewTab === 'visual' ? 'active' : ''}`}
-                    onClick={() => setPreviewTab('visual')}
-                    style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6 }}
+                    className="settings-pill"
+                    onClick={handleCancel}
+                    style={{ color: '#e11d48', borderColor: 'rgba(225,29,72,0.4)', fontSize: 11 }}
                   >
-                    🖥️ Visual
-                  </button>
-                  <button
-                    type="button"
-                    className={`settings-pill ${previewTab === 'terminal' ? 'active' : ''}`}
-                    onClick={() => setPreviewTab('terminal')}
-                    style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 }}
-                  >
-                    💻 Terminal
-                    {terminalLogs.filter(l => l.level === 'error').length > 0 && (
-                      <span style={{ background: '#e11d48', color: '#fff', padding: '0 5px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>
-                        {terminalLogs.filter(l => l.level === 'error').length}
-                      </span>
-                    )}
+                    Cancel
                   </button>
                 </div>
-                <button
-                  className="settings-pill"
-                  onClick={handleCancel}
-                  style={{ color: '#e11d48', borderColor: 'rgba(225,29,72,0.4)', fontSize: 11 }}
-                >
-                  Cancel
-                </button>
               </div>
-            </div>
 
-            {/* Browser Panel Body */}
-            <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-              {previewTab === 'terminal' ? (
-                <div
-                  ref={terminalEndRef}
-                  style={{
-                    background: '#090d16',
-                    padding: '16px 20px',
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                    fontSize: 12,
-                    lineHeight: 1.6,
-                    flex: 1,
-                    overflowY: 'auto',
-                    color: '#e2e8f0',
-                    textAlign: 'left',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 12, borderBottom: '1px solid #1e293b' }}>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
-                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
-                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+              {/* Browser Panel Body */}
+              <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                {previewTab === 'terminal' ? (
+                  <div
+                    ref={terminalEndRef}
+                    style={{
+                      background: '#090d16',
+                      padding: '16px 20px',
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                      fontSize: 12,
+                      lineHeight: 1.6,
+                      flex: 1,
+                      overflowY: 'auto',
+                      color: '#e2e8f0',
+                      textAlign: 'left',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 12, borderBottom: '1px solid #1e293b' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: '#64748b', letterSpacing: 0.5 }}>zsh — live browser stdio</span>
+                      <span style={{ fontSize: 10, color: '#475569' }}>{terminalLogs.length} events</span>
                     </div>
-                    <span style={{ fontSize: 11, color: '#64748b', letterSpacing: 0.5 }}>zsh — live browser stdio</span>
-                    <span style={{ fontSize: 10, color: '#475569' }}>{terminalLogs.length} events</span>
+                    {terminalLogs.length === 0 ? (
+                      <div style={{ color: '#64748b', fontStyle: 'italic', padding: '30px 0', textAlign: 'center' }}>
+                        {running ? '$ initializing browser runner & awaiting page console stream...' : 'No logs recorded.'}
+                      </div>
+                    ) : (
+                      terminalLogs.map((log, idx) => {
+                        let color = '#94a3b8';
+                        let prefix = '💬';
+                        let bg = 'transparent';
+                        if (log.type === 'console') {
+                          if (log.level === 'error') { color = '#f43f5e'; prefix = '🚨'; bg = 'rgba(244,63,94,0.12)'; }
+                          else if (log.level === 'warn') { color = '#f59e0b'; prefix = '⚠️'; }
+                          else { color = '#38bdf8'; prefix = '💬'; }
+                        } else if (log.type === 'error') { color = '#ff6b81'; prefix = '💥'; bg = 'rgba(225,29,72,0.2)'; }
+                        else if (log.type === 'network') { color = '#fbbf24'; prefix = '📡'; }
+                        else if (log.type === 'step') { color = log.message.startsWith('✓') ? '#34d399' : '#ffffff'; prefix = log.message.startsWith('▶') ? '▶' : '✔'; }
+                        return (
+                          <div key={idx} style={{ padding: '2px 8px', borderRadius: 4, background: bg, marginBottom: 3, display: 'flex', gap: 8, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                            <span style={{ color: '#475569', userSelect: 'none', minWidth: 65 }}>[{log.timestamp}]</span>
+                            <span style={{ minWidth: 18 }}>{prefix}</span>
+                            <span style={{ color, fontWeight: log.level === 'error' ? 600 : 400 }}>{log.message}</span>
+                          </div>
+                        );
+                      })
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#10b981', marginTop: 10 }}>
+                      <span>$</span>
+                      {running && <span className="spinner" style={{ width: 8, height: 8, borderWidth: 1 }} />}
+                      <span style={{ color: '#64748b', fontSize: 11 }}>{running ? 'streaming from active browser session...' : 'session ended.'}</span>
+                    </div>
                   </div>
-                  {terminalLogs.length === 0 ? (
-                    <div style={{ color: '#64748b', fontStyle: 'italic', padding: '30px 0', textAlign: 'center' }}>
-                      $ initializing browser runner & awaiting page console stream...
-                    </div>
-                  ) : (
-                    terminalLogs.map((log, idx) => {
-                      let color = '#94a3b8';
-                      let prefix = '💬';
-                      let bg = 'transparent';
-                      if (log.type === 'console') {
-                        if (log.level === 'error') { color = '#f43f5e'; prefix = '🚨'; bg = 'rgba(244,63,94,0.12)'; }
-                        else if (log.level === 'warn') { color = '#f59e0b'; prefix = '⚠️'; }
-                        else { color = '#38bdf8'; prefix = '💬'; }
-                      } else if (log.type === 'error') { color = '#ff6b81'; prefix = '💥'; bg = 'rgba(225,29,72,0.2)'; }
-                      else if (log.type === 'network') { color = '#fbbf24'; prefix = '📡'; }
-                      else if (log.type === 'step') { color = log.message.startsWith('✓') ? '#34d399' : '#ffffff'; prefix = log.message.startsWith('▶') ? '▶' : '✔'; }
+                ) : (
+                  <div style={{ background: '#000', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                    {(() => {
+                      const lastStepWithScreenshot = liveSteps.slice().reverse().find((s) => Boolean(s.screenshot));
+                      const currentStep = liveSteps[liveSteps.length - 1];
                       return (
-                        <div key={idx} style={{ padding: '2px 8px', borderRadius: 4, background: bg, marginBottom: 3, display: 'flex', gap: 8, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                          <span style={{ color: '#475569', userSelect: 'none', minWidth: 65 }}>[{log.timestamp}]</span>
-                          <span style={{ minWidth: 18 }}>{prefix}</span>
-                          <span style={{ color, fontWeight: log.level === 'error' ? 600 : 400 }}>{log.message}</span>
-                        </div>
+                        <>
+                          {lastStepWithScreenshot?.screenshot ? (
+                            <img
+                              src={lastStepWithScreenshot.screenshot}
+                              alt="Live browser preview"
+                              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 4, boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', height: 300 }}>
+                              <Globe size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
+                              <p>{running ? 'Launching browser environment...' : 'No visual output available'}</p>
+                            </div>
+                          )}
+                          {(running && currentStep) && (
+                            <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', color: '#fff', padding: '8px 16px', borderRadius: 20, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', maxWidth: '90%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <span style={{ color: '#10b981' }}>▶</span>
+                              {currentStep.intent ||
+                                (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` :
+                                 currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
+                                 currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
+                                 currentStep.action?.type === 'waitFor' ? 'Waiting for page load' :
+                                 `Executing ${currentStep.action?.type || 'step'}...`)}
+                            </div>
+                          )}
+                        </>
                       );
-                    })
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#10b981', marginTop: 10 }}>
-                    <span>$</span>
-                    <span className="spinner" style={{ width: 8, height: 8, borderWidth: 1 }} />
-                    <span style={{ color: '#64748b', fontSize: 11 }}>streaming from active browser session...</span>
+                    })()}
                   </div>
-                </div>
-              ) : (
-                <div style={{ background: '#000', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-                  {(() => {
-                    const lastStepWithScreenshot = liveSteps.slice().reverse().find((s) => Boolean(s.screenshot));
-                    const currentStep = liveSteps[liveSteps.length - 1];
-                    return (
-                      <>
-                        {lastStepWithScreenshot?.screenshot ? (
-                          <img
-                            src={lastStepWithScreenshot.screenshot}
-                            alt="Live browser preview"
-                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 4, boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}
-                          />
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', height: 300 }}>
-                            <Globe size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
-                            <p>Launching browser environment...</p>
-                          </div>
-                        )}
-                        {currentStep && (
-                          <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', color: '#fff', padding: '8px 16px', borderRadius: 20, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', maxWidth: '90%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            <span style={{ color: '#10b981' }}>▶</span>
-                            {currentStep.intent ||
-                              (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` :
-                               currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
-                               currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
-                               currentStep.action?.type === 'waitFor' ? 'Waiting for page load' :
-                               `Executing ${currentStep.action?.type || 'step'}...`)}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+                )}
+              </div>
+            </>
+          )}
+        </div>
         {/* END right column */}
       </div>
       {/* END split layout outer div */}

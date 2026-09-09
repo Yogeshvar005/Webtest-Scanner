@@ -116,7 +116,11 @@ export default function AdminPage() {
   const fetchTelemetry = useCallback(async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     try {
-      const res = await fetch('/api/admin/telemetry');
+      const res = await fetch('/api/admin/telemetry', {
+        headers: {
+          'x-admin-uid': activeUser?.uid || '',
+        }
+      });
       if (!res.ok) {
         throw new Error(`Failed to load telemetry: ${res.statusText}`);
       }
@@ -130,7 +134,7 @@ export default function AdminPage() {
     } finally {
       if (!isBackground) setLoading(false);
     }
-  }, []);
+  }, [activeUser?.uid]);
 
   // Initial load
   useEffect(() => {
@@ -160,7 +164,10 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-uid': activeUser?.uid || '',
+        },
         body: JSON.stringify({
           action: 'update_role',
           targetUid,
@@ -194,7 +201,10 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-uid': activeUser?.uid || '',
+        },
         body: JSON.stringify({
           action,
           targetUid,
@@ -310,7 +320,10 @@ export default function AdminPage() {
     if (!isAdmin) return;
     fetch('/api/admin/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-admin-uid': activeUser?.uid || '',
+      },
       body: JSON.stringify({ action: 'get_admin_emails' }),
     })
       .then((r) => r.json())
@@ -1550,10 +1563,12 @@ export default function AdminPage() {
                         onClick={async () => {
                           setUpdatingUid(u.uid);
                           try {
-                            // 1. Update role in the in-memory store
-                            await fetch('/api/admin/users', {
+                            const r = await fetch('/api/admin/users', {
                               method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
+                              headers: { 
+                                'Content-Type': 'application/json',
+                                'x-admin-uid': activeUser?.uid || '',
+                              },
                               body: JSON.stringify({
                                 action: 'update_role',
                                 targetUid: u.uid,
@@ -1561,10 +1576,12 @@ export default function AdminPage() {
                                 adminUid: user?.uid,
                               }),
                             });
-                            // 2. Add to permanent adminEmails so survives re-login
                             const r2 = await fetch('/api/admin/users', {
                               method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
+                              headers: { 
+                                'Content-Type': 'application/json',
+                                'x-admin-uid': activeUser?.uid || '',
+                              },
                               body: JSON.stringify({ action: 'add_admin_email', email: u.email }),
                             });
                             const d2 = await r2.json();
@@ -1625,7 +1642,10 @@ export default function AdminPage() {
                   try {
                     const res = await fetch('/api/admin/users', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: { 
+                        'Content-Type': 'application/json',
+                        'x-admin-uid': activeUser?.uid || '',
+                      },
                       body: JSON.stringify({ action: 'add_admin_email', email: trimmed }),
                     });
                     const data = await res.json();
