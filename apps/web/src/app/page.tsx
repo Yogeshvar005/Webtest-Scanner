@@ -129,7 +129,7 @@ export default function Home() {
   const [captureAssets, setCaptureAssets] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
-  const isSplitView = Boolean((running && runStartedAt) || result || error);
+  const isSplitView = Boolean(running && runStartedAt);
 
   // PRD v2 Modals
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -1183,7 +1183,7 @@ export default function Home() {
             display: 'flex',
             flexDirection: 'column',
             background: 'var(--bg-card)',
-            borderRadius: 14,
+            borderRadius: 8,
             border: '1px solid var(--border)',
             overflow: 'hidden',
             boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
