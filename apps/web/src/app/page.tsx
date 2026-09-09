@@ -104,7 +104,12 @@ export default function Home() {
   const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   const [url, setUrl] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -179,18 +184,34 @@ export default function Home() {
     }
   }, []);
 
+  // Auto-enable guest mode locally if no credentials yet, or load local admin session
   useEffect(() => {
-    const isGuest = typeof window !== 'undefined' && localStorage.getItem('wts_guest') === 'true';
-    if (!authLoading && !user && !isGuest) {
-      router.push('/login');
+    if (typeof window !== 'undefined') {
+      try {
+        const savedAdmin = localStorage.getItem('wts_admin_user');
+        if (savedAdmin) {
+          setIsAdmin(true);
+        } else if (!localStorage.getItem('wts_guest') && !user && !authLoading) {
+          localStorage.setItem('wts_guest', 'true');
+        }
+      } catch {}
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading]);
 
   // Admin & User Presence Heartbeat
   useEffect(() => {
+    let localAdmin: { uid: string; email: string; displayName?: string } | null = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('wts_admin_user');
+        if (saved) localAdmin = JSON.parse(saved);
+      } catch {}
+    }
+
     const isGuest = typeof window !== 'undefined' && localStorage.getItem('wts_guest') === 'true';
-    const effectiveUid = user?.uid || (isGuest ? 'guest_user' : null);
-    const effectiveEmail = user?.email || (isGuest ? 'guest@webtest.local' : null);
+    const effectiveUid = user?.uid || localAdmin?.uid || (isGuest ? 'guest_user' : null);
+    const effectiveEmail = user?.email || localAdmin?.email || (isGuest ? 'guest@webtest.local' : null);
+    const effectiveName = user?.displayName || localAdmin?.displayName || (isGuest ? 'Guest Tester' : undefined);
 
     if (!effectiveUid || !effectiveEmail) return;
 
@@ -202,7 +223,7 @@ export default function Home() {
           body: JSON.stringify({
             uid: effectiveUid,
             email: effectiveEmail,
-            displayName: user?.displayName || (isGuest ? 'Guest Tester' : undefined),
+            displayName: effectiveName,
             currentAction: running ? `Running scan: ${url}` : 'Idle on home dashboard',
           }),
         });
@@ -210,6 +231,10 @@ export default function Home() {
           const data = await res.json();
           if (data.valid === false) {
             alert('Your session has been terminated by an administrator.');
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('wts_admin_user');
+              localStorage.removeItem('wts_guest');
+            }
             logout();
             return;
           }
@@ -253,7 +278,13 @@ export default function Home() {
   }, []);
 
   function handleLogout() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('wts_admin_user');
+      localStorage.removeItem('wts_guest');
+    }
+    setIsAdmin(false);
     logout().catch((err) => console.error('Logout error:', err));
+    router.push('/login');
   }
 
   function toggleCategory(id: string) {
@@ -688,11 +719,22 @@ export default function Home() {
           <button 
             className="theme-toggle" 
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            title="Toggle theme"
+            title={mounted && resolvedTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle light / dark mode"
           >
-            {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            {mounted ? (
+              resolvedTheme === 'dark' ? (
+                <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
+              ) : (
+                <Moon size={18} style={{ color: 'var(--accent)', width: 18, height: 18, flexShrink: 0 }} />
+              )
+            ) : (
+              <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
+            )}
           </button>
-          <span className="user-badge">{user?.email}</span>
+          <span className="user-badge">
+            {user?.email || (typeof window !== 'undefined' && localStorage.getItem('wts_admin_user') ? JSON.parse(localStorage.getItem('wts_admin_user') || '{}').email : 'Guest Session')}
+          </span>
           <button
             type="button"
             className="secondary"

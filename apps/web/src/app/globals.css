@@ -22,6 +22,8 @@
   --bg: #FAF8F5; /* Claude warm off-white */
   --bg-image: url('/bg-light.jpg');
   --bg-surface: #FFFFFF;
+  --bg-surface-rgb: 255, 255, 255;
+  --bg-surface-glass: rgba(255, 255, 255, 0.85);
   --bg-hover: #F0EFEA;
   
   --text: #1E1D19;
@@ -53,11 +55,14 @@
   --warn-bg: #FFF3E0;
 }
 
-[data-theme="dark"] {
+[data-theme="dark"],
+.dark {
   /* Dark Mode Palette */
   --bg: #21201D; /* Claude deep warm gray */
   --bg-image: url('/bg-dark.jpg');
   --bg-surface: #2E2D2A;
+  --bg-surface-rgb: 46, 45, 42;
+  --bg-surface-glass: rgba(33, 32, 29, 0.92);
   --bg-hover: #3B3935;
   
   --text: #E5E4E2;
@@ -176,6 +181,12 @@ a:hover {
 .theme-toggle:hover {
   background: var(--bg-hover);
   color: var(--text);
+}
+.theme-toggle svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .user-badge {

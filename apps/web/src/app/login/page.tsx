@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTheme } from 'next-themes';
+import { Sun, Moon } from 'lucide-react';
 import { Radar, Wordmark } from '../glyphs';
 import { useAuth } from '../../lib/auth-context';
 
@@ -32,6 +34,12 @@ function GoogleIcon() {
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading: authLoading, signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -103,7 +111,24 @@ export default function LoginPage() {
             v2.0
           </span>
         </div>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            title={mounted && resolvedTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle light / dark mode"
+          >
+            {mounted ? (
+              resolvedTheme === 'dark' ? (
+                <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
+              ) : (
+                <Moon size={18} style={{ color: 'var(--accent)', width: 18, height: 18, flexShrink: 0 }} />
+              )
+            ) : (
+              <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
+            )}
+          </button>
           <Link href="/" className="secondary" style={{ textDecoration: 'none' }}>
             Go Back
           </Link>
