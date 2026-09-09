@@ -78,15 +78,15 @@ export function installEgressGuard(context: BrowserContext, options: EgressOptio
       return;
     }
 
-    // (1) SSRF containment — absolute, in every mode.
-    if (isPrivateAddress(parsed.hostname)) {
+    const isSameOriginOrSite =
+      allowed.has(normaliseOrigin(parsed.origin)) || allowedSites.has(registrableDomain(parsed.hostname));
+
+    // (1) SSRF containment — block private/cloud-metadata addresses unless explicitly allowed for local testing
+    if (isPrivateAddress(parsed.hostname) && !isSameOriginOrSite) {
       onBlocked({ url, reason: 'Private, loopback or cloud-metadata address', at: new Date().toISOString() });
       await route.abort('blockedbyclient');
       return;
     }
-
-    const isSameOriginOrSite =
-      allowed.has(normaliseOrigin(parsed.origin)) || allowedSites.has(registrableDomain(parsed.hostname));
 
     // Well-known bot-challenge / CAPTCHA intermediaries that always redirect
     // back to the original site (DataDome, Cloudflare challenge, Akamai, etc.).

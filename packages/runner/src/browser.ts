@@ -174,41 +174,50 @@ export async function launchBrowser(opts: LaunchOpts = {}): Promise<LaunchResult
   }
 
   // -------------------------------------------------------------------------
-  // TIER 2 - rebrowser-playwright (C++-level stealth, local only)
+  // TIER 2 - playwright-extra + stealth (local with full console streaming)
   //
   // DEFAULT: headless=false (headed / visible window).
-  // A headed Chrome on a Mac with a residential IP is nearly impossible for
-  // bot-detection to distinguish from a real user. Headless mode is only used
-  // if the caller explicitly passes headless:true (e.g. a CI environment).
+  // Runs real Mac Chrome with puppeteer-extra-plugin-stealth, passing
+  // anti-detection flags while preserving 100% of CDP console & page error events.
   // -------------------------------------------------------------------------
   const localHeadless = opts.headless ?? false;
-  console.log(`[browser] tier=rebrowser-local - headed=${!localHeadless} (AGGRESSIVE LOCAL STEALTH MODE)`);
+  console.log(`[browser] tier=stealth-local - headed=${!localHeadless} (playwright-extra + stealth)`);
 
   try {
-    const { chromium: rebrowser } = await import('rebrowser-playwright');
     let browser: Browser;
     try {
-      browser = await rebrowser.launch({
+      browser = await playwrightExtra.launch({
         channel: 'chrome',
         headless: localHeadless,
         proxy: proxyOptions,
         args: STEALTH_ARGS,
       }) as unknown as Browser;
     } catch {
-      browser = await rebrowser.launch({
+      browser = await playwrightExtra.launch({
         headless: localHeadless,
         proxy: proxyOptions,
         args: STEALTH_ARGS,
       }) as unknown as Browser;
     }
-    return { browser, usingCDP: false, tier: 'rebrowser-local' };
-  } catch {
-    console.log('[browser] tier=stealth-local - rebrowser unavailable, using playwright-extra');
-    const browser = await playwrightExtra.launch({
-      headless: localHeadless,
-      proxy: proxyOptions,
-      args: STEALTH_ARGS,
-    });
     return { browser, usingCDP: false, tier: 'stealth-local' };
+  } catch (err) {
+    console.warn('[browser] playwright-extra launch failed, falling back to rebrowser:', err);
+    try {
+      const { chromium: rebrowser } = await import('rebrowser-playwright');
+      const browser = await rebrowser.launch({
+        channel: 'chrome',
+        headless: localHeadless,
+        proxy: proxyOptions,
+        args: STEALTH_ARGS,
+      }) as unknown as Browser;
+      return { browser, usingCDP: false, tier: 'rebrowser-local' };
+    } catch {
+      const browser = await playwrightCoreChromium.launch({
+        headless: localHeadless,
+        proxy: proxyOptions,
+        args: STEALTH_ARGS,
+      });
+      return { browser, usingCDP: false, tier: 'stealth-local' };
+    }
   }
 }

@@ -9,11 +9,14 @@ import {
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+import { recordActivity } from '../../../lib/admin-store';
+
 export async function POST(request: Request) {
   let body: {
     messages?: CopilotMessage[];
     siteContext?: SiteReconData;
     aiConfig?: AIProviderConfig;
+    user?: { uid?: string; email?: string; displayName?: string };
   };
 
   try {
@@ -32,6 +35,20 @@ export async function POST(request: Request) {
       siteContext: body.siteContext,
       aiConfig: body.aiConfig,
     });
+
+    const lastMsg = body.messages[body.messages.length - 1];
+    void recordActivity({
+      uid: body.user?.uid || 'guest-session',
+      email: body.user?.email || 'guest@local.dev',
+      type: 'copilot',
+      title: `Consulted AI QA Copilot: "${(lastMsg?.content || '').slice(0, 40)}..."`,
+      detail: response.reply ? response.reply.slice(0, 100) : undefined,
+      status: 'info',
+      metadata: {
+        provider: body.aiConfig?.provider || 'auto',
+        actionsCount: response.actionableSteps?.length || 0,
+      },
+    }).catch(() => {});
 
     return NextResponse.json(response);
   } catch (error) {

@@ -5,6 +5,7 @@ import {
   Bot, Send, Sparkles, X, Play,
   Cpu, Globe
 } from 'lucide-react';
+import { useAuth } from '../lib/auth-context';
 import type { SiteReconData, AIProviderConfig, CopilotMessage, CopilotResponse } from '@wts/nlp';
 
 interface CopilotErrorBoundaryProps {
@@ -100,6 +101,7 @@ export function CopilotDrawer({
   onRunSteps,
   onInsertSteps,
 }: CopilotDrawerProps) {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Array<CopilotMessage & { steps?: CopilotResponse['actionableSteps'] }>>([
     {
       role: 'assistant',
@@ -141,6 +143,11 @@ export function CopilotDrawer({
           messages: newMessages,
           siteContext: siteRecon || (targetUrl ? { url: targetUrl, domain: targetUrl, title: targetUrl, headings: [], interactiveElements: [], forms: [] } : undefined),
           aiConfig,
+          user: user
+            ? { uid: user.uid, email: user.email, displayName: user.displayName }
+            : typeof window !== 'undefined' && localStorage.getItem('wts_guest') === 'true'
+            ? { uid: 'guest_user', email: 'guest@webtest.local', displayName: 'Guest Tester' }
+            : undefined,
         }),
       });
 

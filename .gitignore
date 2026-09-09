@@ -65,3 +65,7 @@ Thumbs.db
 # Scratch test files
 scratch/
 
+# Runtime admin telemetry state
+.admin-telemetry.json
+*.admin-telemetry.json
+

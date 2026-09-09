@@ -12,7 +12,7 @@ import {
 } from '@wts/analyzers';
 import { installEgressGuard, type BlockedRequest, type EgressMode, type ThirdPartyContact } from './egress-guard';
 import { explainFailure, resolveTarget, resolveTargetAll, targetDescription } from './resolve';
-import type { AssertionResult, Finding, RunResult, StepResult } from './types';
+import type { AssertionResult, Finding, RunResult, StepResult, LogEvent } from './types';
 import { runAgenticCrawler } from './intelligent-crawler';
 
 export interface ExecuteOptions {
@@ -36,6 +36,7 @@ export interface ExecuteOptions {
   /** Download the site's actual asset files, not just catalogue them. */
   captureAssets?: boolean;
   onStep?: (result: StepResult) => void;
+  onLog?: (event: LogEvent) => void;
   viewport?: { width: number; height: number };
   isMobile?: boolean;
   hasTouch?: boolean;
@@ -197,9 +198,20 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
   let siteNavLinks: Array<{ text: string; href: string; screenshot?: string }> = [];
   let siteButtons: string[] = [];
 
+  const emitLog = (type: LogEvent['type'], message: string, level?: LogEvent['level']) => {
+    options.onLog?.({
+      type,
+      level: level || (type === 'error' ? 'error' : 'info'),
+      message,
+      timestamp: new Date().toISOString().slice(11, 19),
+    });
+  };
+
   const categories = options.categories ?? ['functional'];
   const strict = options.strict ?? false;
   const runsFunctional = categories.includes('functional');
+
+  emitLog('info', `Initializing scan against ${targetUrl} [${options.browserType === 'webkit' ? 'Safari (WebKit)' : 'Chromium'}]`, 'info');
 
   if (policyDecision.effect === 'deny') {
     findings.push({
@@ -391,21 +403,46 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
             contentType: response.headers()['content-type'] ?? '',
           });
         }
+        if (response.status() >= 400) {
+          emitLog('network', `[HTTP ${response.status()}] ${request.method()} ${response.url()}`, response.status() >= 500 ? 'error' : 'warn');
+        }
       });
 
       const consoleErrors: string[] = [];
-      page.on('console', (message) => {
-        if (message.type() === 'error') consoleErrors.push(sanitizeText(message.text(), 300));
-      });
+
+      const attachConsoleListeners = (p: Page) => {
+        p.on('console', (message) => {
+          const text = sanitizeText(message.text(), 300);
+          const msgType = message.type();
+          if (msgType === 'error') {
+            consoleErrors.push(text);
+            emitLog('console', `[BROWSER CONSOLE ERROR] ${text}`, 'error');
+          } else if (msgType === 'warning') {
+            emitLog('console', `[BROWSER CONSOLE WARN] ${text}`, 'warn');
+          } else {
+            emitLog('console', `[BROWSER CONSOLE LOG] ${text}`, 'info');
+          }
+        });
+
+        p.on('pageerror', (err) => {
+          const text = sanitizeText(err.message, 300);
+          consoleErrors.push(`[UNCAUGHT] ${text}`);
+          emitLog('error', `[UNCAUGHT EXCEPTION] ${text}`, 'error');
+        });
+      };
+
+      attachConsoleListeners(page);
 
       let activePage = page;
       for (const step of scenario.steps) {
+        emitLog('step', `▶ Step ${step.index + 1}/${scenario.steps.length}: ${step.intent || (step.action as any).type}`, 'info');
         const before = consoleErrors.length;
         const started = Date.now();
         const { result, subResults, page: nextPage } = await runStep(activePage, step, targetUrl, artifactDir, artifactUrlPrefix, runId);
         // If the step opened a new tab (e.g. Sign Up), switch to it for all subsequent steps
         if (nextPage !== activePage) {
           activePage = nextPage;
+          attachConsoleListeners(activePage);
           // Re-attach response listener to the new page
           activePage.on('response', (response) => {
             const request = response.request();
@@ -420,10 +457,21 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
                 contentType: response.headers()['content-type'] ?? '',
               });
             }
+            if (response.status() >= 400) {
+              emitLog('network', `[HTTP ${response.status()}] ${request.method()} ${response.url()}`, response.status() >= 500 ? 'error' : 'warn');
+            }
           });
         }
         result.durationMs = Date.now() - started;
         result.consoleErrors = consoleErrors.slice(before);
+
+        if (result.status === 'passed') {
+          emitLog('step', `✓ Step ${step.index + 1} passed (${result.durationMs}ms)`, 'info');
+        } else if (result.status === 'failed') {
+          emitLog('error', `✗ Step ${step.index + 1} failed: ${result.error || 'Assertion failed'}`, 'error');
+        } else if (result.status === 'blocked') {
+          emitLog('error', `⊘ Step ${step.index + 1} blocked by policy: ${result.policyReason || 'Blocked'}`, 'error');
+        }
 
         // Page text is scanned as untrusted observation data, never merged into
         // instructions. A hit is reported rather than acted on.

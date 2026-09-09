@@ -13,6 +13,8 @@ import type { AIProviderConfig, SiteReconData } from '@wts/nlp';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
+import { recordActivity } from '../../../lib/admin-store';
+
 interface RunBody {
   url?: string;
   instructions?: string;
@@ -32,6 +34,7 @@ interface RunBody {
   viewport?: { width: number; height: number };
   aiConfig?: AIProviderConfig;
   siteContext?: SiteReconData;
+  user?: { uid?: string; email?: string; displayName?: string };
 }
 
 const VALID_CATEGORIES = new Set(CATEGORIES.map((c) => c.id));
@@ -66,8 +69,9 @@ export async function POST(request: Request) {
   }
 
   // The denylist is checked before anything else and outranks verification.
+  const isLocalTarget = target.hostname === 'localhost' || target.hostname === '127.0.0.1';
   const denied = checkDenylist(target.hostname);
-  if (denied && !(body.environment === 'LOCAL' && denied.category === 'private-network')) {
+  if (denied && !((isLocalTarget || body.environment === 'LOCAL') && denied.category === 'private-network')) {
     return NextResponse.json(
       {
         error: 'This target cannot be tested through this platform.',
@@ -176,7 +180,11 @@ export async function POST(request: Request) {
             onStep: (stepResult) => {
               const event = JSON.stringify({ type: 'step', data: stepResult });
               controller.enqueue(new TextEncoder().encode(event + '\n'));
-            }
+            },
+            onLog: (logEvent) => {
+              const event = JSON.stringify({ type: 'log', data: logEvent });
+              controller.enqueue(new TextEncoder().encode(event + '\n'));
+            },
           });
 
           const finalEvent = JSON.stringify({
@@ -191,6 +199,23 @@ export async function POST(request: Request) {
               ownership: { recordedTier, effectiveTier: tier },
             }
           });
+          void recordActivity({
+            uid: body.user?.uid || 'guest-session',
+            email: body.user?.email || 'guest@local.dev',
+            type: 'scan',
+            title: `Ran ${result.steps.length} test steps on ${target.hostname}`,
+            detail: `${result.steps.filter((s) => s.status === 'passed').length}/${result.steps.length} passed (${((result.durationMs || 0) / 1000).toFixed(1)}s)`,
+            targetUrl: target.href,
+            status: result.status === 'passed' ? 'passed' : 'failed',
+            metadata: {
+              targetUrl: target.href,
+              stepsCount: result.steps.length,
+              passedCount: result.steps.filter((s) => s.status === 'passed').length,
+              findingsCount: result.findings.length,
+              durationMs: result.durationMs,
+            },
+          }).catch(() => {});
+
           controller.enqueue(new TextEncoder().encode(finalEvent + '\n'));
           controller.close();
         } catch (error) {

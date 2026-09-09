@@ -13,6 +13,13 @@ export interface AssertionResult {
   detail?: string;
 }
 
+export interface LogEvent {
+  type: 'step' | 'console' | 'network' | 'error' | 'info';
+  level?: 'log' | 'warn' | 'error' | 'info';
+  message: string;
+  timestamp: string;
+}
+
 export interface StepResult {
   id: string;
   index: number;

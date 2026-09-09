@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { 
@@ -52,6 +53,13 @@ function ElapsedTimer({ startedAt }: { startedAt: number }) {
 
 const AI_PRESETS = [
   {
+    id: 'demo-errors',
+    label: '🚨 Console Errors Demo',
+    icon: '🚨',
+    targetUrl: 'http://localhost:3000/api/demo-errors',
+    instructions: 'go to http://localhost:3000/api/demo-errors\ntake a screenshot\nclick "Checkout Button"\ntake a screenshot\nclick "Search Button"\ntake a screenshot',
+  },
+  {
     id: 'health',
     label: '⚡ Full Health Scan',
     icon: '⚡',
@@ -96,6 +104,7 @@ export default function Home() {
   const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const [url, setUrl] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -131,6 +140,15 @@ export default function Home() {
   const [reconLoading, setReconLoading] = useState(false);
   const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [recommendedJourneys, setRecommendedJourneys] = useState<RecommendedJourney[]>([]);
+  const [terminalLogs, setTerminalLogs] = useState<Array<{ type: string; level: string; message: string; timestamp: string }>>([]);
+  const [previewTab, setPreviewTab] = useState<'visual' | 'terminal'>('visual');
+  const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (previewTab === 'terminal' && terminalEndRef.current) {
+      terminalEndRef.current.scrollTop = terminalEndRef.current.scrollHeight;
+    }
+  }, [terminalLogs, previewTab]);
 
   const aiConfig: AIProviderConfig = { provider: aiProvider };
 
@@ -167,6 +185,47 @@ export default function Home() {
       router.push('/login');
     }
   }, [user, authLoading, router]);
+
+  // Admin & User Presence Heartbeat
+  useEffect(() => {
+    const isGuest = typeof window !== 'undefined' && localStorage.getItem('wts_guest') === 'true';
+    const effectiveUid = user?.uid || (isGuest ? 'guest_user' : null);
+    const effectiveEmail = user?.email || (isGuest ? 'guest@webtest.local' : null);
+
+    if (!effectiveUid || !effectiveEmail) return;
+
+    const pingHeartbeat = async () => {
+      try {
+        const res = await fetch('/api/admin/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uid: effectiveUid,
+            email: effectiveEmail,
+            displayName: user?.displayName || (isGuest ? 'Guest Tester' : undefined),
+            currentAction: running ? `Running scan: ${url}` : 'Idle on home dashboard',
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.valid === false) {
+            alert('Your session has been terminated by an administrator.');
+            logout();
+            return;
+          }
+          if (data.role === 'platform_admin') {
+            setIsAdmin(true);
+          }
+        }
+      } catch {
+        // silent fail on network hiccups
+      }
+    };
+
+    pingHeartbeat();
+    const interval = setInterval(pingHeartbeat, 30000);
+    return () => clearInterval(interval);
+  }, [user, running, url, logout]);
 
   useEffect(() => {
     fetch('/api/categories')
@@ -214,6 +273,10 @@ export default function Home() {
     setInstructions(preset.instructions);
     if (preset.id === 'mobile-nav') {
       setDevice('mobile');
+    }
+    if ((preset as any).targetUrl) {
+      setUrl((preset as any).targetUrl);
+      setPreviewTab('terminal');
     }
   }
 
@@ -425,6 +488,7 @@ export default function Home() {
     setResult(null);
     setError(null);
     setLiveSteps([]);
+    setTerminalLogs([]);
 
     const controller = new AbortController();
     setAbortController(controller);
@@ -445,6 +509,11 @@ export default function Home() {
           browserType,
           aiConfig: { provider: aiProvider },
           siteContext: siteRecon || undefined,
+          user: user
+            ? { uid: user.uid, email: user.email, displayName: user.displayName }
+            : typeof window !== 'undefined' && localStorage.getItem('wts_guest') === 'true'
+            ? { uid: 'guest_user', email: 'guest@webtest.local', displayName: 'Guest Tester' }
+            : undefined,
         }),
         signal: controller.signal,
       });
@@ -479,7 +548,9 @@ export default function Home() {
           if (!line.trim()) continue;
           try {
             const event = JSON.parse(line);
-            if (event.type === 'step') {
+            if (event.type === 'log') {
+              setTerminalLogs((prev) => [...prev, event.data]);
+            } else if (event.type === 'step') {
               setLiveSteps((prev) => [...prev, event.data]);
             } else if (event.type === 'done') {
               const fullResult = event.data as RunResponse;
@@ -567,6 +638,31 @@ export default function Home() {
         </div>
 
         <div className="header-actions">
+          {/* Admin Console Link (visible when admin) */}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="secondary"
+              title="Admin Presence & Operations Console"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 13,
+                padding: '6px 12px',
+                border: '1px solid var(--accent)',
+                color: 'var(--accent)',
+                backgroundColor: 'rgba(217, 119, 87, 0.08)',
+                fontWeight: 600,
+                textDecoration: 'none',
+                borderRadius: 'var(--radius-sm)',
+              }}
+            >
+              <ShieldCheck size={15} />
+              Admin Console
+            </Link>
+          )}
+
           {/* Schedule Monitor Button */}
           <button
             className="secondary"
@@ -780,83 +876,200 @@ export default function Home() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: running && runStartedAt ? 48 : 0, marginTop: 16, width: '100%' }}>
             {running && runStartedAt && (
               <div style={{ width: '100%', maxWidth: 800, background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>Live Execution Preview</span>
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>Live Execution</span>
                     </div>
                     <span style={{ color: 'var(--text-muted)' }}>|</span>
                     <ElapsedTimer startedAt={runStartedAt} />
                   </div>
-                  <button className="settings-pill" onClick={handleCancel}>Cancel Run</button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', background: 'rgba(0,0,0,0.15)', padding: 2, borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <button
+                        type="button"
+                        className={`settings-pill ${previewTab === 'visual' ? 'active' : ''}`}
+                        onClick={() => setPreviewTab('visual')}
+                        style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6 }}
+                      >
+                        🖥️ Visual View
+                      </button>
+                      <button
+                        type="button"
+                        className={`settings-pill ${previewTab === 'terminal' ? 'active' : ''}`}
+                        onClick={() => setPreviewTab('terminal')}
+                        style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 }}
+                      >
+                        💻 Terminal Console
+                        {terminalLogs.filter(l => l.level === 'error').length > 0 && (
+                          <span style={{ background: '#e11d48', color: '#fff', padding: '0 5px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>
+                            {terminalLogs.filter(l => l.level === 'error').length}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                    <button className="settings-pill" onClick={handleCancel}>Cancel</button>
+                  </div>
                 </div>
                 
-                {/* Live Preview Screen */}
-                <div style={{ background: '#000', padding: '16px', display: 'flex', justifyContent: 'center', minHeight: 300, position: 'relative' }}>
-                  {(() => {
-                    // Find the most recent screenshot in the streamed steps
-                    const stepsList = liveSteps;
-                    const lastStepWithScreenshot = stepsList.slice().reverse().find((s) => Boolean(s.screenshot));
-                    const currentStep = stepsList[stepsList.length - 1];
-                    
-                    return (
-                      <>
-                        {lastStepWithScreenshot?.screenshot ? (
-                          <img 
-                            src={lastStepWithScreenshot.screenshot} 
-                            alt="Live browser preview" 
-                            style={{ 
-                              maxWidth: '100%', 
-                              maxHeight: 500, 
-                              objectFit: 'contain', 
+                {/* Live Preview Screen / Terminal View */}
+                {previewTab === 'terminal' ? (
+                  <div
+                    ref={terminalEndRef}
+                    style={{
+                      background: '#090d16',
+                      padding: '16px 20px',
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                      fontSize: 12,
+                      lineHeight: 1.6,
+                      maxHeight: 460,
+                      minHeight: 320,
+                      overflowY: 'auto',
+                      color: '#e2e8f0',
+                      textAlign: 'left',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    {/* Terminal Window Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 12, borderBottom: '1px solid #1e293b' }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: '#64748b', letterSpacing: 0.5 }}>zsh — webtest-scanner: live browser stdio & console telemetry</span>
+                      <span style={{ fontSize: 10, color: '#475569' }}>{terminalLogs.length} events</span>
+                    </div>
+
+                    {terminalLogs.length === 0 ? (
+                      <div style={{ color: '#64748b', fontStyle: 'italic', padding: '30px 0', textAlign: 'center' }}>
+                        $ initializing browser runner & awaiting page console stream...
+                      </div>
+                    ) : (
+                      terminalLogs.map((log, idx) => {
+                        let color = '#94a3b8';
+                        let prefix = '💬';
+                        let bg = 'transparent';
+
+                        if (log.type === 'console') {
+                          if (log.level === 'error') {
+                            color = '#f43f5e';
+                            prefix = '🚨';
+                            bg = 'rgba(244, 63, 94, 0.12)';
+                          } else if (log.level === 'warn') {
+                            color = '#f59e0b';
+                            prefix = '⚠️';
+                          } else {
+                            color = '#38bdf8';
+                            prefix = '💬';
+                          }
+                        } else if (log.type === 'error') {
+                          color = '#ff6b81';
+                          prefix = '💥';
+                          bg = 'rgba(225, 29, 72, 0.2)';
+                        } else if (log.type === 'network') {
+                          color = '#fbbf24';
+                          prefix = '📡';
+                        } else if (log.type === 'step') {
+                          color = log.message.startsWith('✓') ? '#34d399' : '#ffffff';
+                          prefix = log.message.startsWith('▶') ? '▶' : '✔';
+                        }
+
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              padding: '2px 8px',
                               borderRadius: 4,
-                              boxShadow: '0 0 20px rgba(0,0,0,0.5)'
-                            }} 
-                          />
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', height: 300 }}>
-                            <Globe size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
-                            <p>Launching browser environment...</p>
+                              background: bg,
+                              marginBottom: 3,
+                              display: 'flex',
+                              gap: 8,
+                              wordBreak: 'break-word',
+                              whiteSpace: 'pre-wrap',
+                            }}
+                          >
+                            <span style={{ color: '#475569', userSelect: 'none', minWidth: 65 }}>[{log.timestamp}]</span>
+                            <span style={{ minWidth: 18 }}>{prefix}</span>
+                            <span style={{ color, fontWeight: log.level === 'error' ? 600 : 400 }}>{log.message}</span>
                           </div>
-                        )}
-                        
-                        {/* Current step overlay overlaying the bottom of the image container */}
-                        {currentStep && (
-                          <div style={{ 
-                            position: 'absolute', 
-                            bottom: 16, 
-                            left: '50%', 
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(0,0,0,0.8)',
-                            backdropFilter: 'blur(4px)',
-                            color: '#fff',
-                            padding: '8px 16px',
-                            borderRadius: 20,
-                            fontSize: 13,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            maxWidth: '90%',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}>
-                            <span style={{ color: '#10b981' }}>▶</span> 
-                            {currentStep.intent ||
-                             (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` : 
-                              currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
-                              currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
-                              currentStep.action?.type === 'waitFor' ? `Waiting for page load` :
-                              `Executing ${currentStep.action?.type || 'step'}...`)}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
+                        );
+                      })
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#10b981', marginTop: 10 }}>
+                      <span>$</span>
+                      <span className="spinner" style={{ width: 8, height: 8, borderWidth: 1 }} />
+                      <span style={{ color: '#64748b', fontSize: 11 }}>streaming from active browser session...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ background: '#000', padding: '16px', display: 'flex', justifyContent: 'center', minHeight: 300, position: 'relative' }}>
+                    {(() => {
+                      // Find the most recent screenshot in the streamed steps
+                      const stepsList = liveSteps;
+                      const lastStepWithScreenshot = stepsList.slice().reverse().find((s) => Boolean(s.screenshot));
+                      const currentStep = stepsList[stepsList.length - 1];
+                      
+                      return (
+                        <>
+                          {lastStepWithScreenshot?.screenshot ? (
+                            <img 
+                              src={lastStepWithScreenshot.screenshot} 
+                              alt="Live browser preview" 
+                              style={{ 
+                                maxWidth: '100%', 
+                                maxHeight: 500, 
+                                objectFit: 'contain', 
+                                borderRadius: 4,
+                                boxShadow: '0 0 20px rgba(0,0,0,0.5)'
+                              }} 
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', height: 300 }}>
+                              <Globe size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
+                              <p>Launching browser environment...</p>
+                            </div>
+                          )}
+                          
+                          {/* Current step overlay overlaying the bottom of the image container */}
+                          {currentStep && (
+                            <div style={{ 
+                              position: 'absolute', 
+                              bottom: 16, 
+                              left: '50%', 
+                              transform: 'translateX(-50%)',
+                              background: 'rgba(0,0,0,0.8)',
+                              backdropFilter: 'blur(4px)',
+                              color: '#fff',
+                              padding: '8px 16px',
+                              borderRadius: 20,
+                              fontSize: 13,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              maxWidth: '90%',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              <span style={{ color: '#10b981' }}>▶</span> 
+                              {currentStep.intent ||
+                               (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` : 
+                                currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
+                                currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
+                                currentStep.action?.type === 'waitFor' ? `Waiting for page load` :
+                                `Executing ${currentStep.action?.type || 'step'}...`)}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             )}
           </div>
