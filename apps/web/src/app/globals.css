@@ -170,8 +170,38 @@ a:hover {
 }
 
 /* ============================================================
-   Permanent 50/50 Horizontal Split Workspace
+   Workspace Layout: Original Full-Page (Idle) vs 50/50 Split (Active)
    ============================================================ */
+.workspace-container {
+  width: 100%;
+  box-sizing: border-box;
+  transition: max-width 0.35s cubic-bezier(0.16, 1, 0.3, 1), margin 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.workspace-container.is-idle {
+  max-width: 900px;
+  margin: 40px auto 0;
+  padding: 0 16px 60px;
+}
+
+.workspace-container.is-split {
+  max-width: 1720px;
+  margin: 0 auto;
+  padding: 16px 24px 40px;
+}
+
+.workspace-idle-pane,
+.workspace-idle-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.workspace-container.is-idle .ai-presets-container {
+  justify-content: center;
+}
+
 .workspace-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -210,6 +240,7 @@ a:hover {
   min-height: 580px;
   max-height: 960px;
   box-sizing: border-box;
+  animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @media (max-width: 1023px) {

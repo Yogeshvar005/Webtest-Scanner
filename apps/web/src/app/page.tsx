@@ -130,6 +130,9 @@ export default function Home() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [activeLeftTab, setActiveLeftTab] = useState<'config' | 'results'>('config');
 
+  // Live execution sandbox is displayed ONLY when a prompt is given / execution is active
+  const isExecutionActive = Boolean(running || runStartedAt || result || error);
+
   // PRD v2 Modals
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -292,13 +295,27 @@ export default function Home() {
     setSelected((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
   }
 
+  function resetToOriginal() {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+    }
+    setResult(null);
+    setError(null);
+    setRunning(false);
+    setRunStartedAt(null);
+    setLiveSteps([]);
+    setTerminalLogs([]);
+    setActiveLeftTab('config');
+  }
+
   function handleCancel() {
     if (abortController) {
       abortController.abort();
       setAbortController(null);
     }
     setRunning(false);
-    setRunStartedAt(null);
+    setError({ error: 'Inspection Canceled', detail: 'The browser execution was canceled by the user.' } as any);
   }
 
   function applyPreset(preset: typeof AI_PRESETS[0]) {
@@ -648,7 +665,11 @@ export default function Home() {
     <div className="wrap">
       {/* ── Header ── */}
       <header className="masthead">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}
+          onClick={resetToOriginal}
+          title="Webtest Scanner - Click to return to original home"
+        >
           <Radar />
           <Wordmark />
           <span className="pill-badge" style={{ 
@@ -749,150 +770,178 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── Main content — permanent 50/50 horizontal split workspace ── */}
-      <div className="workspace-grid">
-        {/* ── LEFT COLUMN: Search Box, Configuration & Audit Findings ── */}
-        <div className="workspace-left-pane">
-          {/* Navigation Bar when Results exist */}
-          {result && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', marginBottom: 8 }}>
-              <div style={{ display: 'flex', gap: 6, background: 'var(--bg-hover)', padding: 3, borderRadius: 10, border: '1px solid var(--border)' }}>
-                <button
-                  type="button"
-                  className={`settings-pill ${activeLeftTab === 'config' ? 'active' : ''}`}
-                  onClick={() => setActiveLeftTab('config')}
-                  style={{
-                    height: 28,
-                    fontSize: 12,
-                    padding: '0 12px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: activeLeftTab === 'config' ? 'var(--bg-surface)' : 'transparent',
-                    color: activeLeftTab === 'config' ? 'var(--text)' : 'var(--text-secondary)',
-                    fontWeight: 600,
-                    boxShadow: activeLeftTab === 'config' ? 'var(--shadow-sm)' : 'none',
-                  }}
-                >
-                  📝 Scan Setup & Prompt
-                </button>
-                <button
-                  type="button"
-                  className={`settings-pill ${activeLeftTab === 'results' ? 'active' : ''}`}
-                  onClick={() => setActiveLeftTab('results')}
-                  style={{
-                    height: 28,
-                    fontSize: 12,
-                    padding: '0 12px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: activeLeftTab === 'results' ? 'var(--bg-surface)' : 'transparent',
-                    color: activeLeftTab === 'results' ? 'var(--accent)' : 'var(--text-secondary)',
-                    fontWeight: 600,
-                    boxShadow: activeLeftTab === 'results' ? 'var(--shadow-sm)' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  📊 Audit Report
-                  <span className={`pill ${result.status === 'passed' ? 'passed' : 'failed'}`} style={{ fontSize: 10, padding: '1px 6px', lineHeight: 1.2 }}>
-                    {result.totals.passed}/{result.totals.total} Passed
-                  </span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => {
-                  setResult(null);
-                  setActiveLeftTab('config');
-                }}
-                style={{ fontSize: 12, padding: '4px 10px', height: 28 }}
-              >
-                + New Inspection
-              </button>
-            </div>
-          )}
-
-          {/* ── Error Banner ── */}
-          {error && (
-            <div className="card" style={{ borderLeft: '4px solid var(--fail)', padding: '14px 18px', marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--fail)', fontWeight: 600, fontSize: 14 }}>
-                  <AlertTriangle size={16} /> Execution Failed
+      {/* ── Main content — Original Full-Page when Idle, 50/50 Split Workspace when Executing ── */}
+      <main className={`workspace-container ${isExecutionActive ? 'workspace-grid is-split' : 'workspace-idle-pane is-idle'}`}>
+        {/* ── LEFT COLUMN (or Centered Content when Idle) ── */}
+        <div className={isExecutionActive ? 'workspace-left-pane' : 'workspace-idle-content'}>
+            {/* Navigation Bar when Results exist */}
+            {result && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 6, background: 'var(--bg-hover)', padding: 3, borderRadius: 10, border: '1px solid var(--border)' }}>
+                  <button
+                    type="button"
+                    className={`settings-pill ${activeLeftTab === 'config' ? 'active' : ''}`}
+                    onClick={() => setActiveLeftTab('config')}
+                    style={{
+                      height: 28,
+                      fontSize: 12,
+                      padding: '0 12px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: activeLeftTab === 'config' ? 'var(--bg-surface)' : 'transparent',
+                      color: activeLeftTab === 'config' ? 'var(--text)' : 'var(--text-secondary)',
+                      fontWeight: 600,
+                      boxShadow: activeLeftTab === 'config' ? 'var(--shadow-sm)' : 'none',
+                    }}
+                  >
+                    📝 Scan Setup & Prompt
+                  </button>
+                  <button
+                    type="button"
+                    className={`settings-pill ${activeLeftTab === 'results' ? 'active' : ''}`}
+                    onClick={() => setActiveLeftTab('results')}
+                    style={{
+                      height: 28,
+                      fontSize: 12,
+                      padding: '0 12px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: activeLeftTab === 'results' ? 'var(--bg-surface)' : 'transparent',
+                      color: activeLeftTab === 'results' ? 'var(--accent)' : 'var(--text-secondary)',
+                      fontWeight: 600,
+                      boxShadow: activeLeftTab === 'results' ? 'var(--shadow-sm)' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    📊 Audit Report
+                    <span className={`pill ${result.status === 'passed' ? 'passed' : 'failed'}`} style={{ fontSize: 10, padding: '1px 6px', lineHeight: 1.2 }}>
+                      {result.totals.passed}/{result.totals.total} Passed
+                    </span>
+                  </button>
                 </div>
-                <button className="secondary" onClick={() => setError(null)} style={{ fontSize: 11, padding: '2px 8px' }}>
-                  Dismiss
+
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={resetToOriginal}
+                  style={{ fontSize: 12, padding: '4px 10px', height: 28 }}
+                  title="Clear run and return to full-page view"
+                >
+                  + New Inspection
                 </button>
               </div>
-              <div style={{ marginTop: 6, fontSize: 13, color: 'var(--text-secondary)' }}>
-                {error.findings?.[0]?.detail || (error as any).detail || (error as any).error || 'The run could not complete. Check URL connectivity.'}
+            )}
+
+            {/* ── Error Banner ── */}
+            {error && (
+              <div className="card" style={{ borderLeft: '4px solid var(--fail)', padding: '14px 18px', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--fail)', fontWeight: 600, fontSize: 14 }}>
+                    <AlertTriangle size={16} /> Execution Failed
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="secondary" onClick={resetToOriginal} style={{ fontSize: 11, padding: '2px 8px' }}>
+                      + New Inspection
+                    </button>
+                    <button className="secondary" onClick={() => { setError(null); setRunStartedAt(null); }} style={{ fontSize: 11, padding: '2px 8px' }}>
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--text-secondary)' }}>
+                  {error.findings?.[0]?.detail || (error as any).detail || (error as any).error || 'The run could not complete. Check URL connectivity.'}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ── VIEW 1: Input, Presets & Configuration ── */}
-          <div style={{
-            display: (activeLeftTab === 'config' || !result) ? 'flex' : 'none',
-            flexDirection: 'column',
-            gap: 16,
-            width: '100%',
-          }}>
-            {/* Title & Subtitle */}
-            <div>
-              <h1 className="font-serif" style={{ fontSize: 28, fontWeight: 700, textAlign: 'left', marginBottom: 6, textWrap: 'balance', lineHeight: 1.25, color: 'var(--text)' }}>
-                Intelligent Browser Audits in Plain English.
-              </h1>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, textAlign: 'left' }}>
-                Execute automated tests, visual diffs, and deep compliance audits using natural language commands.
-              </p>
-            </div>
-
-            {/* Input Pill */}
-            <div className="input-pill" style={{ padding: '14px 16px', gap: 10 }}>
-              <div>
-                <textarea
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
-                  placeholder="What shall we test today? Write plain English steps or pick an AI preset below..."
-                  style={{ height: 60, width: '100%', resize: 'none', border: 'none', background: 'transparent', boxShadow: 'none', padding: '0 4px', fontSize: 15, lineHeight: 1.5 }}
-                />
+            {/* ── VIEW 1: Input, Presets & Configuration ── */}
+            <div style={{
+              display: (activeLeftTab === 'config' || !result) ? 'flex' : 'none',
+              flexDirection: 'column',
+              gap: 16,
+              width: '100%',
+            }}>
+              {/* Title & Subtitle */}
+              <div style={{ textAlign: isExecutionActive ? 'left' : 'center', marginBottom: isExecutionActive ? 0 : 8 }}>
+                <h1 className="font-serif" style={{
+                  fontSize: isExecutionActive ? 26 : 38,
+                  fontWeight: 700,
+                  textAlign: isExecutionActive ? 'left' : 'center',
+                  marginBottom: isExecutionActive ? 6 : 12,
+                  textWrap: 'balance',
+                  lineHeight: isExecutionActive ? 1.25 : 1.2,
+                  color: 'var(--text)'
+                }}>
+                  Intelligent Browser Audits in Plain English.
+                </h1>
+                <p style={{
+                  fontSize: isExecutionActive ? 13 : 16,
+                  color: 'var(--text-secondary)',
+                  margin: 0,
+                  textAlign: isExecutionActive ? 'left' : 'center'
+                }}>
+                  Execute automated tests, visual diffs, and deep compliance audits using natural language commands.
+                </p>
               </div>
 
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: '4px' }}>
-                <div style={{ flex: 1, position: 'relative' }}>
-                  <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="Enter website URL (e.g. https://books.toscrape.com)..."
-                    autoComplete="off"
-                    spellCheck={false}
-                    style={{ paddingLeft: 42, fontSize: 14, height: 42, border: 'none', background: 'transparent', boxShadow: 'none' }}
+              {/* Input Pill */}
+              <div className="input-pill" style={{ padding: '14px 16px', gap: 10 }}>
+                <div>
+                  <textarea
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && urlValid && !running) {
+                        e.preventDefault();
+                        run();
+                      }
+                    }}
+                    placeholder="What shall we test today? Write plain English steps or pick an AI preset below..."
+                    style={{ height: 60, width: '100%', resize: 'none', border: 'none', background: 'transparent', boxShadow: 'none', padding: '0 4px', fontSize: 15, lineHeight: 1.5 }}
                   />
                 </div>
-                <button
-                  className="pill-action-btn"
-                  onClick={() => run()}
-                  disabled={!urlValid || running}
-                  style={{ height: 42, padding: '0 20px', gap: 6, fontWeight: 600 }}
-                >
-                  {running ? (
-                    <>
-                      <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                      Inspecting...
-                    </>
-                  ) : (
-                    <>
-                      <Zap size={14} />
-                      Inspect
-                    </>
-                  )}
-                </button>
+
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: '4px' }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && urlValid && !running) {
+                          e.preventDefault();
+                          run();
+                        }
+                      }}
+                      placeholder="Enter website URL (e.g. https://books.toscrape.com)..."
+                      autoComplete="off"
+                      spellCheck={false}
+                      style={{ paddingLeft: 42, fontSize: 14, height: 42, border: 'none', background: 'transparent', boxShadow: 'none' }}
+                    />
+                  </div>
+                  <button
+                    className="pill-action-btn"
+                    onClick={() => run()}
+                    disabled={!urlValid || running}
+                    style={{ height: 42, padding: '0 20px', gap: 6, fontWeight: 600 }}
+                  >
+                    {running ? (
+                      <>
+                        <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                        Inspecting...
+                      </>
+                    ) : (
+                      <>
+                        <Zap size={14} />
+                        Inspect
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
 
             {/* AI Smart Presets & Test Suggestions */}
             <div className="ai-presets-container" style={{ marginTop: 2 }}>
@@ -1221,8 +1270,9 @@ export default function Home() {
         </div>
         {/* END left column */}
 
-        {/* ── RIGHT COLUMN: Permanent Live Execution Sandbox ── */}
-        <div className="workspace-right-pane">
+        {/* ── RIGHT COLUMN: Live Execution Sandbox (rendered only when prompt is given / execution is active) ── */}
+        {isExecutionActive && (
+          <div className="workspace-right-pane">
           {/* Browser Mockup Chrome Header */}
           <div className="browser-chrome">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
@@ -1495,9 +1545,10 @@ export default function Home() {
             )}
           </div>
         </div>
+      )}
         {/* END right column */}
-      </div>
-      {/* END split layout outer div */}
+      </main>
+      {/* END workspace container */}
 
       {/* ── PRD v2: History & Trends Modal ── */}
       {showHistoryModal && (
