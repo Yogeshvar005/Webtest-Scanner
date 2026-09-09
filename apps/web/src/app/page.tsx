@@ -746,9 +746,34 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── Main Centered Content ── */}
-      {!result && !error && (
-        <div style={{ maxWidth: 900, margin: '50px auto 0', width: '100%' }}>
+      {/* ── Main content — split layout when running ── */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: running && runStartedAt ? '100%' : 900,
+          margin: running && runStartedAt ? '0 auto' : '50px auto 0',
+          padding: running && runStartedAt ? '24px 32px' : '0',
+          display: 'flex',
+          gap: 28,
+          alignItems: 'flex-start',
+          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxSizing: 'border-box',
+        }}
+      >
+        {/* ── LEFT COLUMN: All controls ── */}
+        <div
+          style={{
+            flex: running && runStartedAt ? '0 0 420px' : '1',
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0,
+            transition: 'flex 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          {!result && !error && (
+            <div style={{ width: '100%' }}>
+
           <h1 className="font-serif" style={{ fontSize: 32, textAlign: 'center', marginBottom: 28 }}>
             Intelligent Browser Audits in Plain English.
           </h1>
@@ -914,207 +939,8 @@ export default function Home() {
               </div>
             </div>
           )}
-            
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: running && runStartedAt ? 48 : 0, marginTop: 16, width: '100%' }}>
-            {running && runStartedAt && (
-              <div style={{ width: '100%', maxWidth: 800, background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                      <span style={{ fontSize: 14, fontWeight: 600 }}>Live Execution</span>
-                    </div>
-                    <span style={{ color: 'var(--text-muted)' }}>|</span>
-                    <ElapsedTimer startedAt={runStartedAt} />
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ display: 'flex', background: 'rgba(0,0,0,0.15)', padding: 2, borderRadius: 8, border: '1px solid var(--border)' }}>
-                      <button
-                        type="button"
-                        className={`settings-pill ${previewTab === 'visual' ? 'active' : ''}`}
-                        onClick={() => setPreviewTab('visual')}
-                        style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6 }}
-                      >
-                        🖥️ Visual View
-                      </button>
-                      <button
-                        type="button"
-                        className={`settings-pill ${previewTab === 'terminal' ? 'active' : ''}`}
-                        onClick={() => setPreviewTab('terminal')}
-                        style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 }}
-                      >
-                        💻 Terminal Console
-                        {terminalLogs.filter(l => l.level === 'error').length > 0 && (
-                          <span style={{ background: '#e11d48', color: '#fff', padding: '0 5px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>
-                            {terminalLogs.filter(l => l.level === 'error').length}
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                    <button className="settings-pill" onClick={handleCancel}>Cancel</button>
-                  </div>
-                </div>
-                
-                {/* Live Preview Screen / Terminal View */}
-                {previewTab === 'terminal' ? (
-                  <div
-                    ref={terminalEndRef}
-                    style={{
-                      background: '#090d16',
-                      padding: '16px 20px',
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                      fontSize: 12,
-                      lineHeight: 1.6,
-                      maxHeight: 460,
-                      minHeight: 320,
-                      overflowY: 'auto',
-                      color: '#e2e8f0',
-                      textAlign: 'left',
-                      boxSizing: 'border-box',
-                    }}
-                  >
-                    {/* Terminal Window Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 12, borderBottom: '1px solid #1e293b' }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
-                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
-                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                      </div>
-                      <span style={{ fontSize: 11, color: '#64748b', letterSpacing: 0.5 }}>zsh — webtest-scanner: live browser stdio & console telemetry</span>
-                      <span style={{ fontSize: 10, color: '#475569' }}>{terminalLogs.length} events</span>
-                    </div>
-
-                    {terminalLogs.length === 0 ? (
-                      <div style={{ color: '#64748b', fontStyle: 'italic', padding: '30px 0', textAlign: 'center' }}>
-                        $ initializing browser runner & awaiting page console stream...
-                      </div>
-                    ) : (
-                      terminalLogs.map((log, idx) => {
-                        let color = '#94a3b8';
-                        let prefix = '💬';
-                        let bg = 'transparent';
-
-                        if (log.type === 'console') {
-                          if (log.level === 'error') {
-                            color = '#f43f5e';
-                            prefix = '🚨';
-                            bg = 'rgba(244, 63, 94, 0.12)';
-                          } else if (log.level === 'warn') {
-                            color = '#f59e0b';
-                            prefix = '⚠️';
-                          } else {
-                            color = '#38bdf8';
-                            prefix = '💬';
-                          }
-                        } else if (log.type === 'error') {
-                          color = '#ff6b81';
-                          prefix = '💥';
-                          bg = 'rgba(225, 29, 72, 0.2)';
-                        } else if (log.type === 'network') {
-                          color = '#fbbf24';
-                          prefix = '📡';
-                        } else if (log.type === 'step') {
-                          color = log.message.startsWith('✓') ? '#34d399' : '#ffffff';
-                          prefix = log.message.startsWith('▶') ? '▶' : '✔';
-                        }
-
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              padding: '2px 8px',
-                              borderRadius: 4,
-                              background: bg,
-                              marginBottom: 3,
-                              display: 'flex',
-                              gap: 8,
-                              wordBreak: 'break-word',
-                              whiteSpace: 'pre-wrap',
-                            }}
-                          >
-                            <span style={{ color: '#475569', userSelect: 'none', minWidth: 65 }}>[{log.timestamp}]</span>
-                            <span style={{ minWidth: 18 }}>{prefix}</span>
-                            <span style={{ color, fontWeight: log.level === 'error' ? 600 : 400 }}>{log.message}</span>
-                          </div>
-                        );
-                      })
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#10b981', marginTop: 10 }}>
-                      <span>$</span>
-                      <span className="spinner" style={{ width: 8, height: 8, borderWidth: 1 }} />
-                      <span style={{ color: '#64748b', fontSize: 11 }}>streaming from active browser session...</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ background: '#000', padding: '16px', display: 'flex', justifyContent: 'center', minHeight: 300, position: 'relative' }}>
-                    {(() => {
-                      // Find the most recent screenshot in the streamed steps
-                      const stepsList = liveSteps;
-                      const lastStepWithScreenshot = stepsList.slice().reverse().find((s) => Boolean(s.screenshot));
-                      const currentStep = stepsList[stepsList.length - 1];
-                      
-                      return (
-                        <>
-                          {lastStepWithScreenshot?.screenshot ? (
-                            <img 
-                              src={lastStepWithScreenshot.screenshot} 
-                              alt="Live browser preview" 
-                              style={{ 
-                                maxWidth: '100%', 
-                                maxHeight: 500, 
-                                objectFit: 'contain', 
-                                borderRadius: 4,
-                                boxShadow: '0 0 20px rgba(0,0,0,0.5)'
-                              }} 
-                            />
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', height: 300 }}>
-                              <Globe size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
-                              <p>Launching browser environment...</p>
-                            </div>
-                          )}
-                          
-                          {/* Current step overlay overlaying the bottom of the image container */}
-                          {currentStep && (
-                            <div style={{ 
-                              position: 'absolute', 
-                              bottom: 16, 
-                              left: '50%', 
-                              transform: 'translateX(-50%)',
-                              background: 'rgba(0,0,0,0.8)',
-                              backdropFilter: 'blur(4px)',
-                              color: '#fff',
-                              padding: '8px 16px',
-                              borderRadius: 20,
-                              fontSize: 13,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                              border: '1px solid rgba(255,255,255,0.1)',
-                              maxWidth: '90%',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
-                            }}>
-                              <span style={{ color: '#10b981' }}>▶</span> 
-                              {currentStep.intent ||
-                               (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` : 
-                                currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
-                                currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
-                                currentStep.action?.type === 'waitFor' ? `Waiting for page load` :
-                                `Executing ${currentStep.action?.type || 'step'}...`)}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* ── Configuration Bar with Device Emulation & AI Engine ── */}
           <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
@@ -1268,60 +1094,221 @@ export default function Home() {
               </label>
             </div>
           </div>
+          {/* END config bar */}
+
+          {/* ── Error Panel ── */}
+          {error && (
+            <div className="card" style={{ borderLeft: '4px solid var(--fail)', marginTop: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fail)', fontWeight: 600 }}>
+                ⚠️ Execution Failed
+              </div>
+              <div style={{ marginTop: 8, fontSize: 14 }}>
+                {error.findings?.[0]?.detail || (error as any).detail || (error as any).error || 'The run could not complete. Check URL connectivity.'}
+              </div>
+              <button className="secondary" onClick={() => setError(null)} style={{ marginTop: 16 }}>Back to Start</button>
+            </div>
+          )}
+
+          {/* ── Results Panel ── */}
+          {result && (
+            <div style={{ marginTop: 24 }}>
+              <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <button className="secondary" onClick={() => setResult(null)}>
+                  ← New Inspection
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span className="results-sub-meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {device === 'mobile' ? <Smartphone size={14} /> : device === 'tablet' ? <Tablet size={14} /> : device === 'laptop' ? <Laptop size={14} /> : <Monitor size={14} />}
+                    Emulated: {device.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              <ResultsPanel
+                result={result}
+                device={device}
+                onApplyFix={(fix) => {
+                  setInstructions((prev) => (prev ? `${fix}\n${prev}` : fix));
+                  setResult(null);
+                }}
+                onDownload={async () => {
+                  setPdfing(true);
+                  try {
+                    await printReport(result);
+                  } catch (e) {
+                    console.error('PDF generation error:', e);
+                  } finally {
+                    setPdfing(false);
+                  }
+                }}
+                pdfing={pdfing}
+              />
+            </div>
+          )}
         </div>
-      )}
+        {/* END left column */}
 
-      {/* ── Results Panel ── */}
-      <div style={{ marginTop: 24 }}>
-        {error && (
-          <div className="card" style={{ borderLeft: '4px solid var(--fail)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--fail)', fontWeight: 600 }}>
-              ⚠️ Execution Failed
-            </div>
-            <div style={{ marginTop: 8, fontSize: 14 }}>
-              {error.findings?.[0]?.detail || (error as any).detail || (error as any).error || 'The run could not complete. Check URL connectivity.'}
-            </div>
-            <button className="secondary" onClick={() => setError(null)} style={{ marginTop: 16 }}>Back to Start</button>
-          </div>
-        )}
-
-        {result && (
-          <div>
-            <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <button className="secondary" onClick={() => setResult(null)}>
-                ← New Inspection
-              </button>
-
+        {/* ── RIGHT COLUMN: Live Browser Panel ── */}
+        {running && runStartedAt && (
+          <div
+            style={{
+              flex: '1 1 0',
+              minWidth: 0,
+              position: 'sticky',
+              top: 80,
+              height: 'calc(100vh - 110px)',
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'var(--bg-card)',
+              borderRadius: 14,
+              border: '1px solid var(--border)',
+              overflow: 'hidden',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+              animation: 'slideInRight 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            {/* Browser Panel Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span className="results-sub-meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {device === 'mobile' ? <Smartphone size={14} /> : device === 'tablet' ? <Tablet size={14} /> : device === 'laptop' ? <Laptop size={14} /> : <Monitor size={14} />}
-                  Emulated: {device.toUpperCase()}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>Live Execution</span>
+                </div>
+                <span style={{ color: 'var(--text-muted)' }}>|</span>
+                <ElapsedTimer startedAt={runStartedAt} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', background: 'rgba(0,0,0,0.15)', padding: 2, borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <button
+                    type="button"
+                    className={`settings-pill ${previewTab === 'visual' ? 'active' : ''}`}
+                    onClick={() => setPreviewTab('visual')}
+                    style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6 }}
+                  >
+                    🖥️ Visual
+                  </button>
+                  <button
+                    type="button"
+                    className={`settings-pill ${previewTab === 'terminal' ? 'active' : ''}`}
+                    onClick={() => setPreviewTab('terminal')}
+                    style={{ height: 26, fontSize: 11, padding: '0 10px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    💻 Terminal
+                    {terminalLogs.filter(l => l.level === 'error').length > 0 && (
+                      <span style={{ background: '#e11d48', color: '#fff', padding: '0 5px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>
+                        {terminalLogs.filter(l => l.level === 'error').length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+                <button
+                  className="settings-pill"
+                  onClick={handleCancel}
+                  style={{ color: '#e11d48', borderColor: 'rgba(225,29,72,0.4)', fontSize: 11 }}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
 
-            <ResultsPanel
-              result={result}
-              device={device}
-              onApplyFix={(fix) => {
-                setInstructions((prev) => (prev ? `${fix}\n${prev}` : fix));
-                setResult(null);
-              }}
-              onDownload={async () => {
-                setPdfing(true);
-                try {
-                  await printReport(result);
-                } catch (e) {
-                  console.error('PDF generation error:', e);
-                } finally {
-                  setPdfing(false);
-                }
-              }}
-              pdfing={pdfing}
-            />
+            {/* Browser Panel Body */}
+            <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              {previewTab === 'terminal' ? (
+                <div
+                  ref={terminalEndRef}
+                  style={{
+                    background: '#090d16',
+                    padding: '16px 20px',
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                    flex: 1,
+                    overflowY: 'auto',
+                    color: '#e2e8f0',
+                    textAlign: 'left',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 12, borderBottom: '1px solid #1e293b' }}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: '#64748b', letterSpacing: 0.5 }}>zsh — live browser stdio</span>
+                    <span style={{ fontSize: 10, color: '#475569' }}>{terminalLogs.length} events</span>
+                  </div>
+                  {terminalLogs.length === 0 ? (
+                    <div style={{ color: '#64748b', fontStyle: 'italic', padding: '30px 0', textAlign: 'center' }}>
+                      $ initializing browser runner & awaiting page console stream...
+                    </div>
+                  ) : (
+                    terminalLogs.map((log, idx) => {
+                      let color = '#94a3b8';
+                      let prefix = '💬';
+                      let bg = 'transparent';
+                      if (log.type === 'console') {
+                        if (log.level === 'error') { color = '#f43f5e'; prefix = '🚨'; bg = 'rgba(244,63,94,0.12)'; }
+                        else if (log.level === 'warn') { color = '#f59e0b'; prefix = '⚠️'; }
+                        else { color = '#38bdf8'; prefix = '💬'; }
+                      } else if (log.type === 'error') { color = '#ff6b81'; prefix = '💥'; bg = 'rgba(225,29,72,0.2)'; }
+                      else if (log.type === 'network') { color = '#fbbf24'; prefix = '📡'; }
+                      else if (log.type === 'step') { color = log.message.startsWith('✓') ? '#34d399' : '#ffffff'; prefix = log.message.startsWith('▶') ? '▶' : '✔'; }
+                      return (
+                        <div key={idx} style={{ padding: '2px 8px', borderRadius: 4, background: bg, marginBottom: 3, display: 'flex', gap: 8, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                          <span style={{ color: '#475569', userSelect: 'none', minWidth: 65 }}>[{log.timestamp}]</span>
+                          <span style={{ minWidth: 18 }}>{prefix}</span>
+                          <span style={{ color, fontWeight: log.level === 'error' ? 600 : 400 }}>{log.message}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#10b981', marginTop: 10 }}>
+                    <span>$</span>
+                    <span className="spinner" style={{ width: 8, height: 8, borderWidth: 1 }} />
+                    <span style={{ color: '#64748b', fontSize: 11 }}>streaming from active browser session...</span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: '#000', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                  {(() => {
+                    const lastStepWithScreenshot = liveSteps.slice().reverse().find((s) => Boolean(s.screenshot));
+                    const currentStep = liveSteps[liveSteps.length - 1];
+                    return (
+                      <>
+                        {lastStepWithScreenshot?.screenshot ? (
+                          <img
+                            src={lastStepWithScreenshot.screenshot}
+                            alt="Live browser preview"
+                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 4, boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}
+                          />
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#666', height: 300 }}>
+                            <Globe size={48} style={{ opacity: 0.2, marginBottom: 16 }} />
+                            <p>Launching browser environment...</p>
+                          </div>
+                        )}
+                        {currentStep && (
+                          <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', color: '#fff', padding: '8px 16px', borderRadius: 20, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', maxWidth: '90%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <span style={{ color: '#10b981' }}>▶</span>
+                            {currentStep.intent ||
+                              (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` :
+                               currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
+                               currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
+                               currentStep.action?.type === 'waitFor' ? 'Waiting for page load' :
+                               `Executing ${currentStep.action?.type || 'step'}...`)}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
           </div>
         )}
+        {/* END right column */}
       </div>
+      {/* END split layout outer div */}
 
       {/* ── PRD v2: History & Trends Modal ── */}
       {showHistoryModal && (
