@@ -136,11 +136,11 @@ const RULES: Rule[] = [
   },
   {
     name: 'a11y',
-    pattern: /^(?:check |run |audit |)accessibility(?:\s+audit)?$/i,
+    pattern: /^(?:check |run |audit |)accessibility(?:\s+audit)?$|^(?:verify|check|ensure|assert)\s+(.+?)\s+(?:is|are)\s+accessible$/i,
     confidence: 0.95,
-    build: () => ({
+    build: (m) => ({
       action: { type: 'a11yAudit', ruleset: 'wcag21aa' },
-      intent: 'Run accessibility audit',
+      intent: m[1] ? `Verify ${cleanName(m[1])} accessibility` : 'Run accessibility audit',
     }),
   },
   {

@@ -765,7 +765,7 @@ export default function Home() {
         {/* ── LEFT COLUMN: All controls ── */}
         <div
           style={{
-            flex: isSplitView ? '0 0 420px' : '1',
+            flex: isSplitView ? '1 1 0' : '1',
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
