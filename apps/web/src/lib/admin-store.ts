@@ -79,7 +79,9 @@ async function loadStore(): Promise<AdminStoreData> {
     inMemoryStore = {
       users: {},
       activities: [],
-      adminEmails: ['admin@webtest.com', 'yogeshvar@gmail.com'],
+      // Only these emails are permanently granted platform_admin on login.
+      // Changes here require a redeploy. Runtime promotions persist in-memory only.
+      adminEmails: ['yogeshvar2508@gmail.com'],
     };
   }
 
@@ -111,14 +113,13 @@ export async function recordHeartbeat(params: {
   const existing = store.users[params.uid];
   const isRevoked = existing?.sessionRevoked ?? false;
 
-  // Assign admin role if email matches known admins or if first registered user
+  // Assign admin role only if email is in the hardcoded adminEmails list.
+  // Runtime role changes (from admin console) are preserved via existing?.role.
   let assignedRole: Role = existing?.role || 'tester';
-  const isDesignatedAdmin =
-    store.adminEmails.includes(params.email.toLowerCase()) ||
-    params.email.toLowerCase().includes('admin') ||
-    Object.keys(store.users).length === 0;
+  const isPermanentAdmin = store.adminEmails.includes(params.email.toLowerCase());
 
-  if (isDesignatedAdmin && assignedRole !== 'platform_admin') {
+  if (isPermanentAdmin) {
+    // Always enforce platform_admin for seeded admins — cannot be downgraded
     assignedRole = 'platform_admin';
   }
 
@@ -292,3 +293,27 @@ export async function reinstateUserSession(uid: string): Promise<boolean> {
   await saveStore(store);
   return true;
 }
+
+export async function addAdminEmail(email: string): Promise<boolean> {
+  const store = await loadStore();
+  const normalised = email.toLowerCase().trim();
+  if (store.adminEmails.includes(normalised)) return true; // already present
+
+  store.adminEmails.push(normalised);
+
+  // Also immediately promote the user if they are already in the store
+  for (const u of Object.values(store.users)) {
+    if (u.email.toLowerCase() === normalised) {
+      u.role = 'platform_admin';
+    }
+  }
+
+  await saveStore(store);
+  return true;
+}
+
+export async function getAdminEmails(): Promise<string[]> {
+  const store = await loadStore();
+  return store.adminEmails;
+}
+

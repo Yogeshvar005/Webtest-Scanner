@@ -287,12 +287,36 @@ export default function AdminPage() {
     return telemetry.users.find((u) => u.uid === selectedUserUid) || null;
   }, [selectedUserUid, telemetry?.users]);
 
-  // Check if current user is admin
+  // Strict role check — only platform_admin from telemetry is allowed in.
+  // The email-contains-'admin' shortcut is intentionally removed.
   const currentUserRole = useMemo(() => {
     if (!user || !telemetry?.users) return null;
-    const match = telemetry.users.find((u) => u.uid === user.uid || u.email.toLowerCase() === user.email?.toLowerCase());
-    return match?.role || (user.email?.toLowerCase().includes('admin') ? 'platform_admin' : 'tester');
+    const match = telemetry.users.find(
+      (u) => u.uid === user.uid || u.email.toLowerCase() === user.email?.toLowerCase()
+    );
+    return match?.role ?? null;
   }, [user, telemetry?.users]);
+
+  const isAdmin = currentUserRole === 'platform_admin';
+
+  // Manage-Admins panel state
+  const [adminEmails, setAdminEmails] = useState<string[]>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [addingAdmin, setAddingAdmin] = useState(false);
+  const [adminEmailError, setAdminEmailError] = useState<string | null>(null);
+
+  // Load current admin emails list (only for platform_admin users)
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'get_admin_emails' }),
+    })
+      .then((r) => r.json())
+      .then((d) => { if (d.emails) setAdminEmails(d.emails); })
+      .catch(() => {});
+  }, [isAdmin]);
 
   if (authLoading && !localAdminUser) {
     return (
@@ -306,87 +330,52 @@ export default function AdminPage() {
     );
   }
 
-  // Admin Authentication Gateway
-  if (!activeUser) {
+  // Not logged in at all → send to login
+  if (!user && !authLoading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 24 }}>
-        <div
-          style={{
-            maxWidth: 460,
-            width: '100%',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
-            padding: '36px 32px',
-            boxShadow: 'var(--shadow-lg)',
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: 54,
-              height: 54,
-              borderRadius: '50%',
-              backgroundColor: 'rgba(217, 119, 87, 0.15)',
-              color: 'var(--accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 20px',
-            }}
-          >
+        <div style={{ maxWidth: 420, width: '100%', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '36px 32px', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }}>
+          <div style={{ width: 54, height: 54, borderRadius: '50%', backgroundColor: 'rgba(217,119,87,0.15)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
             <Shield size={28} />
           </div>
-
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px' }}>
-            Admin Console Access
-          </h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px' }}>Admin Console</h1>
           <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 24px', lineHeight: 1.5 }}>
-            This operations center monitors live presence, test execution audits, and access controls.
+            Please sign in to continue.
           </p>
+          <Link href="/login" className="primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--accent)', color: '#fff', fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>
+            <ShieldCheck size={18} /> Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
-          <button
-            type="button"
-            className="primary"
-            onClick={() => {
-              const adminProfile = {
-                uid: 'admin_user_001',
-                email: 'admin@webtest.com',
-                displayName: 'Lead Admin',
-              };
-              localStorage.setItem('wts_admin_user', JSON.stringify(adminProfile));
-              setLocalAdminUser(adminProfile);
-              fetchTelemetry();
-            }}
-            style={{
-              width: '100%',
-              padding: '12px 18px',
-              fontSize: 14,
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-md)',
-            }}
-          >
-            <ShieldCheck size={18} />
-            Enter as Lead Admin (admin@webtest.com)
-          </button>
-
-          <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center', gap: 16, fontSize: 13 }}>
-            <Link href="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'underline' }}>
-              Sign in with custom email
+  // Logged in but NOT platform_admin → Access Denied
+  if (!authLoading && user && telemetry && !isAdmin) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 24 }}>
+        <div style={{ maxWidth: 460, width: '100%', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '40px 32px', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(239,68,68,0.12)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 22px' }}>
+            <ShieldAlert size={32} />
+          </div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 10px', color: '#EF4444' }}>Access Denied</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 6px', lineHeight: 1.6 }}>
+            Your account <strong style={{ color: 'var(--text)' }}>{user.email}</strong> does not have admin privileges.
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 28px', lineHeight: 1.5 }}>
+            Contact your administrator to request access.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-muted)', color: 'var(--text)', fontWeight: 500, fontSize: 14, textDecoration: 'none', border: '1px solid var(--border)' }}>
+              <ArrowLeft size={16} /> Back to Scanner
             </Link>
-            <span style={{ color: 'var(--border)' }}>•</span>
-            <Link href="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>
-              Back to Scanner
-            </Link>
+            <button
+              type="button"
+              onClick={() => { logout?.(); router.push('/login'); }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 'var(--radius-md)', backgroundColor: 'transparent', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 14, border: '1px solid var(--border)', cursor: 'pointer' }}
+            >
+              <LogOut size={16} /> Sign Out
+            </button>
           </div>
         </div>
       </div>
@@ -1471,7 +1460,240 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+
+        {/* ── Manage Admins Panel ── */}
+        <div style={{ maxWidth: 900, margin: '40px auto 0', padding: '0 24px' }}>
+          <div
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              padding: 28,
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <ShieldCheck size={20} style={{ color: 'var(--accent)' }} />
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Manage Admins</h3>
+            </div>
+
+            {/* Current Admin Emails */}
+            <div style={{ marginBottom: 24 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>
+                Permanent Admin Accounts
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {adminEmails.map((em) => (
+                  <span
+                    key={em}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 13,
+                      padding: '4px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'rgba(217,119,87,0.12)',
+                      color: 'var(--accent)',
+                      border: '1px solid rgba(217,119,87,0.3)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    <Shield size={12} />
+                    {em}
+                  </span>
+                ))}
+                {adminEmails.length === 0 && (
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading...</span>
+                )}
+              </div>
+            </div>
+
+            {/* Promote existing user */}
+            <div style={{ marginBottom: 24 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>
+                Promote Existing User to Admin
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {(telemetry?.users ?? [])
+                  .filter((u) => u.role !== 'platform_admin')
+                  .map((u) => (
+                    <div
+                      key={u.uid}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '8px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border)',
+                        backgroundColor: 'var(--bg)',
+                        fontSize: 13,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor:
+                            u.status === 'online' ? 'var(--pass)' :
+                            u.status === 'idle' ? '#F59E0B' : 'var(--text-muted)',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span style={{ fontWeight: 500, color: 'var(--text)' }}>{u.email}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>({u.role})</span>
+                      <button
+                        type="button"
+                        disabled={updatingUid === u.uid}
+                        onClick={async () => {
+                          setUpdatingUid(u.uid);
+                          try {
+                            // 1. Update role in the in-memory store
+                            await fetch('/api/admin/users', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                action: 'update_role',
+                                targetUid: u.uid,
+                                newRole: 'platform_admin',
+                                adminUid: user?.uid,
+                              }),
+                            });
+                            // 2. Add to permanent adminEmails so survives re-login
+                            const r2 = await fetch('/api/admin/users', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'add_admin_email', email: u.email }),
+                            });
+                            const d2 = await r2.json();
+                            if (d2.success) {
+                              setAdminEmails((prev) => [...new Set([...prev, u.email.toLowerCase()])]);
+                            }
+                            setActionSuccess(`${u.email} is now an admin`);
+                            await fetchTelemetry(true);
+                          } catch {
+                            alert('Failed to promote user');
+                          } finally {
+                            setUpdatingUid(null);
+                          }
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: '3px 10px',
+                          borderRadius: 'var(--radius-sm)',
+                          backgroundColor: 'rgba(217,119,87,0.1)',
+                          color: 'var(--accent)',
+                          border: '1px solid rgba(217,119,87,0.3)',
+                          cursor: updatingUid === u.uid ? 'not-allowed' : 'pointer',
+                          opacity: updatingUid === u.uid ? 0.6 : 1,
+                        }}
+                      >
+                        <ShieldCheck size={11} />
+                        Make Admin
+                      </button>
+                    </div>
+                  ))}
+                {(telemetry?.users ?? []).filter((u) => u.role !== 'platform_admin').length === 0 && (
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+                    All registered users are already admins.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Add new admin by email */}
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>
+                Add Admin by Email (for users not yet signed in)
+              </p>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const trimmed = newAdminEmail.trim().toLowerCase();
+                  if (!trimmed || !trimmed.includes('@')) {
+                    setAdminEmailError('Please enter a valid email address');
+                    return;
+                  }
+                  setAddingAdmin(true);
+                  setAdminEmailError(null);
+                  try {
+                    const res = await fetch('/api/admin/users', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'add_admin_email', email: trimmed }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      setAdminEmails((prev) => [...new Set([...prev, trimmed])]);
+                      setNewAdminEmail('');
+                      setActionSuccess(`${trimmed} added as admin`);
+                    } else {
+                      setAdminEmailError('Failed to add admin email');
+                    }
+                  } catch {
+                    setAdminEmailError('Network error, please try again');
+                  } finally {
+                    setAddingAdmin(false);
+                  }
+                }}
+                style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}
+              >
+                <div style={{ flex: '1 1 260px' }}>
+                  <input
+                    type="email"
+                    placeholder="user@example.com"
+                    value={newAdminEmail}
+                    onChange={(e) => { setNewAdminEmail(e.target.value); setAdminEmailError(null); }}
+                    style={{
+                      width: '100%',
+                      padding: '9px 14px',
+                      fontSize: 14,
+                      borderRadius: 'var(--radius-md)',
+                      border: adminEmailError ? '1px solid #EF4444' : '1px solid var(--border)',
+                      backgroundColor: 'var(--bg)',
+                      color: 'var(--text)',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {adminEmailError && (
+                    <p style={{ fontSize: 12, color: '#EF4444', margin: '4px 0 0' }}>{adminEmailError}</p>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={addingAdmin || !newAdminEmail.trim()}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '9px 18px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--accent)',
+                    color: '#fff',
+                    border: 'none',
+                    cursor: addingAdmin || !newAdminEmail.trim() ? 'not-allowed' : 'pointer',
+                    opacity: addingAdmin || !newAdminEmail.trim() ? 0.6 : 1,
+                  }}
+                >
+                  <ShieldCheck size={14} />
+                  {addingAdmin ? 'Adding...' : 'Add Admin'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
       </main>
+
+
     </div>
   );
 }
