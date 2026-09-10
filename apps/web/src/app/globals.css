@@ -686,45 +686,295 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
   margin-bottom: 24px;
 }
 
+/* ============================================================
+   Command Console & Audit Dock (Executive-Grade UI)
+   ============================================================ */
+.command-console,
 .input-pill {
   background-color: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 16px;
-  box-shadow: var(--shadow-md);
+  border-radius: 20px;
+  padding: 14px 16px;
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 10px 30px -6px rgba(0, 0, 0, 0.07);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  gap: 10px;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
 }
 
+[data-theme="dark"] .command-console,
+.dark .command-console,
+[data-theme="dark"] .input-pill,
+.dark .input-pill {
+  background-color: rgba(46, 45, 42, 0.92);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.07) inset,
+    0 16px 40px -8px rgba(0, 0, 0, 0.45);
+}
+
+.command-console:focus-within,
 .input-pill:focus-within {
-  border-color: var(--border-focus);
-  box-shadow: var(--shadow-lg);
+  border-color: var(--accent);
+  box-shadow: 
+    0 0 0 1px var(--accent),
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 16px 36px -6px rgba(217, 119, 87, 0.15);
 }
 
-.pill-action-btn {
-  background-color: var(--text);
-  color: var(--bg);
+.command-console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  user-select: none;
+}
+
+.command-console-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.command-console-icon {
+  color: var(--accent);
+}
+
+.command-console-shortcuts {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.char-counter {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.shortcut-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.shortcut-hint kbd {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: inherit;
+  color: var(--text-secondary);
+}
+
+.command-prompt-area {
+  position: relative;
+  width: 100%;
+}
+
+.command-prompt-textarea {
+  width: 100%;
+  min-height: 58px;
+  resize: none;
   border: none;
-  border-radius: var(--radius-md);
-  padding: 8px 16px;
+  background: transparent;
+  box-shadow: none;
+  padding: 2px 4px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text);
+  outline: none;
+  font-family: inherit;
+}
+
+.command-prompt-textarea::placeholder {
+  color: var(--text-muted);
+  font-size: 14.5px;
+}
+
+/* Docked Target URL & Action Bar */
+.command-target-dock {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 5px 6px;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+[data-theme="dark"] .command-target-dock,
+.dark .command-target-dock {
+  background: rgba(26, 25, 23, 0.75);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.command-target-dock:focus-within {
+  border-color: var(--border-focus);
+}
+
+.command-url-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 0 10px;
+  min-width: 0;
+}
+
+.command-url-icon {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.command-url-input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  box-shadow: none;
+}
+
+.command-url-input::placeholder {
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.command-url-clear-btn {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.command-url-clear-btn:hover {
+  background: var(--border-focus);
+  color: var(--text);
+}
+
+.command-url-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
   font-weight: 500;
+  color: var(--pass, #10b981);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.command-action-btn,
+.pill-action-btn {
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-hover) 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 9px;
+  height: 38px;
+  padding: 0 16px;
+  font-weight: 600;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s ease;
+  gap: 7px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(217, 119, 87, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
+.command-action-btn:hover:not(:disabled),
 .pill-action-btn:hover:not(:disabled) {
-  opacity: 0.8;
+  box-shadow: 0 4px 14px rgba(217, 119, 87, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
 }
 
+.command-action-btn:active:not(:disabled),
+.pill-action-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 1px 4px rgba(217, 119, 87, 0.3);
+}
+
+.command-action-btn:disabled,
 .pill-action-btn:disabled {
-  opacity: 0.3;
-  background-color: var(--border);
-  color: var(--text-secondary);
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  box-shadow: none;
   cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.action-kbd {
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.command-action-btn:disabled .action-kbd {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .command-target-dock {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .command-action-btn {
+    width: 100%;
+    height: 42px;
+  }
+  .command-console-shortcuts .shortcut-hint {
+    display: none;
+  }
 }
 
 .settings-pill {
@@ -1015,42 +1265,71 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
 }
 
 .ai-presets-label {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--accent);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  letter-spacing: 0.02em;
+  gap: 5px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .ai-preset-chip {
-  background: var(--bg-hover);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   color: var(--text-secondary);
-  padding: 4px 10px;
+  padding: 4px 11px;
   border-radius: 999px;
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 6px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .ai-preset-chip:hover {
-  background: var(--bg-active, rgba(255, 255, 255, 0.08));
+  background: var(--bg-hover);
   border-color: var(--accent);
   color: var(--text);
   transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+.ai-preset-chip:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .ai-preset-chip.active {
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(217, 119, 87, 0.12);
   border-color: var(--accent);
   color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
+}
+
+.ai-autogen-chip {
+  background: linear-gradient(135deg, rgba(217, 119, 87, 0.12), rgba(59, 130, 246, 0.08));
+  color: var(--accent);
+  border-color: rgba(217, 119, 87, 0.3);
+  font-weight: 600;
+}
+
+.ai-autogen-chip:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(217, 119, 87, 0.2), rgba(59, 130, 246, 0.15));
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 3px 12px rgba(217, 119, 87, 0.2);
+}
+
+.ai-autogen-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ── Modal & Drawer ── */

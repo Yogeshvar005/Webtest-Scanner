@@ -8,7 +8,7 @@ import {
   Sun, Moon, Search, Smartphone, Monitor, Tablet, Laptop, 
   Sparkles, Clock, History, Calendar, Bell, CheckCircle, 
   X, RefreshCw, ArrowRight, ShieldCheck, AlertTriangle,
-  Bot, Cpu, Globe, Zap, Loader2
+  Bot, Cpu, Globe, Zap, Loader2, Lock, Check
 } from 'lucide-react';
 import { Glyph, Radar, Wordmark } from './glyphs';
 import { printReport } from './report';
@@ -894,9 +894,28 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Input Pill */}
-              <div className="input-pill" style={{ padding: '14px 16px', gap: 10 }}>
-                <div>
+              {/* Executive Command Console */}
+              <div className="command-console">
+                {/* Header Meta Strip */}
+                <div className="command-console-header">
+                  <div className="command-console-label">
+                    <Bot size={13} className="command-console-icon" />
+                    <span>Audit Prompt & Intent</span>
+                  </div>
+                  <div className="command-console-shortcuts">
+                    {instructions.length > 0 && (
+                      <span className="char-counter">
+                        {instructions.length}/{MAX_INSTRUCTIONS}
+                      </span>
+                    )}
+                    <span className="shortcut-hint">
+                      <kbd>⌘</kbd> + <kbd>Enter</kbd> to inspect
+                    </span>
+                  </div>
+                </div>
+
+                {/* Instructions Textarea */}
+                <div className="command-prompt-area">
                   <textarea
                     value={instructions}
                     onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
@@ -906,14 +925,21 @@ export default function Home() {
                         run();
                       }
                     }}
-                    placeholder="What shall we test today? Write plain English steps or pick an AI preset below..."
-                    style={{ height: 60, width: '100%', resize: 'none', border: 'none', background: 'transparent', boxShadow: 'none', padding: '0 4px', fontSize: 15, lineHeight: 1.5 }}
+                    placeholder="Describe what to test in plain English (e.g. 'Audit checkout flow, test responsive layout, check form validations')..."
+                    className="command-prompt-textarea"
                   />
                 </div>
 
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: 'var(--bg)', borderRadius: 'var(--radius-md)', padding: '4px' }}>
-                  <div style={{ flex: 1, position: 'relative' }}>
-                    <Search size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                {/* Docked Target URL & Action Bar */}
+                <div className="command-target-dock">
+                  <div className="command-url-input-wrap">
+                    <span className="command-url-icon" title={urlValid ? 'Valid target URL' : 'Target URL'}>
+                      {urlValid && (url.startsWith('https://') || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) ? (
+                        <Lock size={15} style={{ color: 'var(--pass, #10b981)' }} />
+                      ) : (
+                        <Globe size={15} />
+                      )}
+                    </span>
                     <input
                       type="text"
                       value={url}
@@ -924,27 +950,44 @@ export default function Home() {
                           run();
                         }
                       }}
-                      placeholder="Enter website URL (e.g. https://books.toscrape.com)..."
+                      placeholder="https://your-domain.com or web app URL..."
                       autoComplete="off"
                       spellCheck={false}
-                      style={{ paddingLeft: 42, fontSize: 14, height: 42, border: 'none', background: 'transparent', boxShadow: 'none' }}
+                      className="command-url-input"
                     />
+                    {url.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setUrl('')}
+                        className="command-url-clear-btn"
+                        title="Clear target URL"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                    {urlValid && (
+                      <span className="command-url-badge">
+                        <Check size={11} strokeWidth={2.5} />
+                        Target Ready
+                      </span>
+                    )}
                   </div>
                   <button
-                    className="pill-action-btn"
+                    className="command-action-btn"
                     onClick={() => run()}
                     disabled={!urlValid || running}
-                    style={{ height: 42, padding: '0 20px', gap: 6, fontWeight: 600 }}
+                    title={urlValid ? 'Execute Browser Audit (⌘+Enter)' : 'Enter a valid URL to run inspection'}
                   >
                     {running ? (
                       <>
                         <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                        Inspecting...
+                        <span>Inspecting...</span>
                       </>
                     ) : (
                       <>
                         <Zap size={14} />
-                        Inspect
+                        <span>Inspect</span>
+                        <kbd className="action-kbd">⌘↵</kbd>
                       </>
                     )}
                   </button>
@@ -954,7 +997,7 @@ export default function Home() {
             {/* AI Smart Presets & Test Suggestions */}
             <div className="ai-presets-container" style={{ marginTop: 2 }}>
               <span className="ai-presets-label">
-                <Sparkles size={14} /> AI Presets:
+                <Sparkles size={13} /> Quick Presets:
               </span>
               {AI_PRESETS.map((preset) => (
                 <button
@@ -963,26 +1006,20 @@ export default function Home() {
                   onClick={() => applyPreset(preset)}
                   title={`Load "${preset.label}" template`}
                 >
-                  <span>{preset.icon}</span> {preset.label}
+                  <span>{preset.icon}</span>
+                  <span>{preset.label}</span>
                 </button>
               ))}
               <button
-                className="ai-preset-chip"
+                className="ai-preset-chip ai-autogen-chip"
                 onClick={generateAiTestForUrl}
                 disabled={!urlValid || autoGenLoading}
-                style={{
-                  background: 'linear-gradient(135deg, rgba(217,119,87,0.15), rgba(59,130,246,0.12))',
-                  color: 'var(--accent)',
-                  borderColor: 'var(--accent)',
-                  opacity: (!urlValid || autoGenLoading) ? 0.5 : 1,
-                  cursor: (!urlValid || autoGenLoading) ? 'not-allowed' : 'pointer',
-                }}
-                title="AI scans the real website structure and auto-generates precise test scenarios"
+                title={urlValid ? "AI scans the real website structure and auto-generates precise test scenarios" : "Enter a target URL first"}
               >
                 {autoGenLoading ? (
                   <><Loader2 size={12} className="spinner" /> Analyzing Site...</>
                 ) : (
-                  <><Zap size={12} /> ✨ Auto-Generate Site Tests</>
+                  <><Sparkles size={12} /> Auto-Generate Site Tests</>
                 )}
               </button>
             </div>
