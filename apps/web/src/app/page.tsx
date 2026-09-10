@@ -953,26 +953,42 @@ export default function Home() {
                       </button>
                     )}
                   </div>
-                  <button 
-                    onClick={() => run()}
-                    disabled={!urlValid || running}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 active:scale-[0.98] text-white font-medium text-sm flex items-center justify-center space-x-2 shadow-lg shadow-sky-900/30 transition-all cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
-                    type="button"
-                    title={urlValid ? 'Execute Browser Audit (⌘+Enter)' : 'Enter a valid URL to run inspection'}
-                  >
-                    {running ? (
-                      <>
-                        <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                        <span>Inspecting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <i className="ph-bold ph-lightning text-base text-sky-200" />
-                        <span>Inspect &amp; Run Audit</span>
-                        <span className="text-sky-200/60 font-mono text-xs ml-1">⌘↵</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Redesigned Radiant Centerpiece CTA (Luminous Shimmer CTA) */}
+                  <div className="relative group shrink-0 w-full sm:w-auto">
+                    {/* Radial Glow Aura Background */}
+                    <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 opacity-65 blur-lg group-hover:opacity-95 group-hover:blur-xl transition duration-500 group-hover:duration-200 pointer-events-none" />
+                    <button 
+                      onClick={() => run()}
+                      disabled={!urlValid || running}
+                      className="relative w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 hover:from-cyan-300 hover:via-sky-400 hover:to-blue-500 active:scale-[0.98] text-white font-semibold text-sm tracking-wide flex items-center justify-center space-x-3 shadow-luminous hover:shadow-luminous-hover border border-white/35 transition-all duration-300 cursor-pointer overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
+                      type="button"
+                      title={urlValid ? 'Execute Browser Audit (⌘+Enter)' : 'Enter a valid URL to run inspection'}
+                    >
+                      {/* Animated Light Shimmer Streak */}
+                      <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/35 to-transparent -translate-x-full animate-shimmer-slide pointer-events-none" />
+                      
+                      {running ? (
+                        <>
+                          <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                          <span className="relative z-10 text-white font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">Inspecting Target…</span>
+                        </>
+                      ) : (
+                        <>
+                          {/* Crisp Radiant Icon with Subtle Glow Aura */}
+                          <div className="relative flex items-center justify-center">
+                            <span className="absolute w-4 h-4 rounded-full bg-cyan-300/40 blur-xs animate-pulse-subtle" />
+                            <i className="ph-fill ph-play text-sm text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.85)] relative z-10" />
+                          </div>
+                          {/* CTA Text */}
+                          <span className="relative z-10 text-white font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">Inspect &amp; Run Audit</span>
+                          {/* Frosted Tactile Keyboard Shortcut Badge */}
+                          <span className="relative z-10 inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-black/25 backdrop-blur-md border border-white/25 text-cyan-100 font-mono text-[11px] font-medium tracking-tight shadow-inner">
+                            <span className="text-[10px] leading-none opacity-80">⌘</span><span className="leading-none">↵</span>
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Quick Starter Presets */}
