@@ -778,53 +778,28 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── Main content — Original Full-Page when Idle, 50/50 Split Workspace when Executing ── */}
-      <main className={`workspace-container ${isExecutionActive ? 'workspace-grid is-split' : 'workspace-idle-pane is-idle'}`}>
+      {/* ── Main content ── */}
+      <main className={isExecutionActive ? 'max-w-[1600px] mx-auto px-4 pt-6 pb-20 w-full flex flex-col lg:flex-row gap-6 relative z-10' : 'max-w-5xl mx-auto px-4 sm:px-6 pt-12 md:pt-16 pb-20 relative z-10'}>
         {/* ── LEFT COLUMN (or Centered Content when Idle) ── */}
-        <div className={isExecutionActive ? 'workspace-left-pane' : 'workspace-idle-content'}>
+        <div className={isExecutionActive ? 'w-full lg:w-[45%] flex flex-col gap-4' : 'w-full'}>
             {/* Navigation Bar when Results exist */}
             {result && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', marginBottom: 8 }}>
-                <div style={{ display: 'flex', gap: 6, background: 'var(--bg-hover)', padding: 3, borderRadius: 10, border: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-2">
+                <div className="flex p-1 bg-black/40 backdrop-blur-md rounded-xl border border-white/10 shadow-inner">
                   <button
                     type="button"
-                    className={`settings-pill ${activeLeftTab === 'config' ? 'active' : ''}`}
                     onClick={() => setActiveLeftTab('config')}
-                    style={{
-                      height: 28,
-                      fontSize: 12,
-                      padding: '0 12px',
-                      borderRadius: 8,
-                      border: 'none',
-                      background: activeLeftTab === 'config' ? 'var(--bg-surface)' : 'transparent',
-                      color: activeLeftTab === 'config' ? 'var(--text)' : 'var(--text-secondary)',
-                      fontWeight: 600,
-                      boxShadow: activeLeftTab === 'config' ? 'var(--shadow-sm)' : 'none',
-                    }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeLeftTab === 'config' ? 'bg-white/10 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}
                   >
-                    📝 Scan Setup & Prompt
+                    <i className="ph ph-sliders" /> Edit Scan Setup
                   </button>
                   <button
                     type="button"
-                    className={`settings-pill ${activeLeftTab === 'results' ? 'active' : ''}`}
                     onClick={() => setActiveLeftTab('results')}
-                    style={{
-                      height: 28,
-                      fontSize: 12,
-                      padding: '0 12px',
-                      borderRadius: 8,
-                      border: 'none',
-                      background: activeLeftTab === 'results' ? 'var(--bg-surface)' : 'transparent',
-                      color: activeLeftTab === 'results' ? 'var(--accent)' : 'var(--text-secondary)',
-                      fontWeight: 600,
-                      boxShadow: activeLeftTab === 'results' ? 'var(--shadow-sm)' : 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeLeftTab === 'results' ? 'bg-white/10 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}
                   >
-                    📊 Audit Report
-                    <span className={`pill ${result.status === 'passed' ? 'passed' : 'failed'}`} style={{ fontSize: 10, padding: '1px 6px', lineHeight: 1.2 }}>
+                    <i className="ph ph-chart-bar" /> Audit Report
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] ml-1 ${result.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
                       {result.totals.passed}/{result.totals.total} Passed
                     </span>
                   </button>
@@ -832,47 +807,41 @@ export default function Home() {
 
                 <button
                   type="button"
-                  className="secondary"
                   onClick={resetToOriginal}
-                  style={{ fontSize: 12, padding: '4px 10px', height: 28 }}
-                  title="Clear run and return to full-page view"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border border-rose-500/20 transition-all cursor-pointer"
+                  title="Clear run and return to home"
                 >
-                  + New Inspection
+                  <i className="ph ph-trash" /> Clear Run
                 </button>
               </div>
             )}
 
             {/* ── Error Banner ── */}
             {error && (
-              <div className="card" style={{ borderLeft: '4px solid var(--fail)', padding: '14px 18px', marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--fail)', fontWeight: 600, fontSize: 14 }}>
-                    <AlertTriangle size={16} /> Execution Failed
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 mb-4 backdrop-blur-md">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-rose-400 font-semibold text-sm">
+                    <i className="ph ph-warning-circle text-lg" /> Execution Failed
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="secondary" onClick={resetToOriginal} style={{ fontSize: 11, padding: '2px 8px' }}>
-                      + New Inspection
+                  <div className="flex gap-2">
+                    <button onClick={resetToOriginal} className="px-2.5 py-1 text-xs rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-colors">
+                      Reset
                     </button>
-                    <button className="secondary" onClick={() => { setError(null); setRunStartedAt(null); }} style={{ fontSize: 11, padding: '2px 8px' }}>
+                    <button onClick={() => { setError(null); setRunStartedAt(null); }} className="px-2.5 py-1 text-xs rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-colors">
                       Dismiss
                     </button>
                   </div>
                 </div>
-                <div style={{ marginTop: 6, fontSize: 13, color: 'var(--text-secondary)' }}>
+                <div className="mt-2 text-sm text-rose-300/80">
                   {error.findings?.[0]?.detail || (error as any).detail || (error as any).error || 'The run could not complete. Check URL connectivity.'}
                 </div>
               </div>
             )}
 
             {/* ── VIEW 1: Input, Presets & Configuration ── */}
-            <div style={{
-              display: (activeLeftTab === 'config' || !result) ? 'flex' : 'none',
-              flexDirection: 'column',
-              gap: 16,
-              width: '100%',
-            }}>
+            <div className={`flex-col gap-6 w-full ${(activeLeftTab === 'config' || !result) ? 'flex' : 'hidden'}`}>
               {/* Hero Title & Value Proposition */}
-              <section className="text-center mb-6 sm:mb-8 max-w-3xl mx-auto" data-purpose="hero-headline">
+              <section className={`text-center max-w-3xl mx-auto ${isExecutionActive ? 'hidden' : 'mb-6 sm:mb-8'}`} data-purpose="hero-headline">
                 {/* Modern Eyebrow Badge */}
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-amber-500/20 mb-4 shadow-inner">
                   <i className="ph-bold ph-sparkle text-amber-400 text-xs" />
@@ -922,7 +891,7 @@ export default function Home() {
                 </div>
 
                 {/* URL Target Input Bar & Primary CTA */}
-                <div className="flex flex-col sm:flex-row items-center gap-2.5 mb-6">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6 p-1.5 sm:p-2 rounded-2xl bg-gradient-to-b from-white/[0.04] to-transparent border border-white/[0.08] shadow-inner">
                   <div className="relative w-full flex-1">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
                       <i className={`ph ${urlValid && (url.startsWith('https://') || url.startsWith('http://localhost')) ? 'ph-lock-key text-emerald-400' : 'ph-globe text-sky-400'} text-base`} />
@@ -937,8 +906,8 @@ export default function Home() {
                           run();
                         }
                       }}
-                      className="w-full pl-10 pr-10 py-3 bg-[#110e0c]/90 border border-white/10 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 rounded-xl text-neutral-200 placeholder:text-neutral-500 text-sm font-mono transition-all outline-none" 
-                      placeholder="https://your-domain.com or web app URL..." 
+                      className="w-full pl-10 pr-10 py-3 bg-[#100c0a]/95 border border-white/10 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 rounded-xl text-neutral-200 placeholder:text-neutral-500 text-sm font-mono transition-all outline-none" 
+                      placeholder="Enter target URL to inspect..." 
                       autoComplete="off"
                       spellCheck={false}
                     />
