@@ -670,111 +670,111 @@ export default function Home() {
   const tierNumber = Number(tier);
 
   return (
-    <div className="wrap">
-      {/* ── Header ── */}
-      <header className="masthead">
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}
-          onClick={resetToOriginal}
-          title="Webtest Scanner - Click to return to original home"
-        >
-          <Radar />
-          <Wordmark />
-          <span className="pill-badge" style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: 6, 
-            background: 'var(--bg-surface)', 
-            color: 'var(--text)', 
-            fontSize: 11, 
-            fontWeight: 700, 
-            padding: '4px 10px', 
-            borderRadius: 999, 
-            fontVariantNumeric: 'tabular-nums', 
-            transform: 'translateY(-2px)',
-            boxShadow: 'var(--shadow-sm), 0 0 0 1px var(--border)',
-            letterSpacing: '0.04em'
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px rgba(16, 185, 129, 0.6)' }}></span>
-            V2.0
-          </span>
-        </div>
-
-        <div className="header-actions">
-          {/* Admin Console Link (visible when admin) */}
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="secondary"
-              title="Admin Presence & Operations Console"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 13,
-                padding: '6px 12px',
-                border: '1px solid var(--accent)',
-                color: 'var(--accent)',
-                backgroundColor: 'rgba(217, 119, 87, 0.08)',
-                fontWeight: 600,
-                textDecoration: 'none',
-                borderRadius: 'var(--radius-sm)',
-              }}
+    <div className="min-h-screen relative font-sans">
+      {/* ── Navigation Header (Stitch Redesign) ── */}
+      <header className="sticky top-0 z-40 w-full border-b border-white/[0.07] bg-[#120e0c]/70 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          {/* Brand & Workspace Identity */}
+          <div className="flex items-center space-x-3.5">
+            {/* Modern High-Tech Logo Mark */}
+            <div 
+              className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 via-neutral-900 to-sky-500/20 border border-white/10 shadow-inner group cursor-pointer"
+              onClick={resetToOriginal}
+              title="Webtest Scanner - Click to return to original home"
             >
-              <ShieldCheck size={15} />
-              Admin Console
+              <div className="absolute inset-0 rounded-xl bg-amber-500/10 blur-sm group-hover:bg-amber-500/20 transition-all" />
+              <i className="ph-bold ph-terminal-window text-xl text-amber-400 relative z-10" />
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500" />
+              </span>
+            </div>
+            <div className="flex items-center space-x-2.5 cursor-pointer" onClick={resetToOriginal}>
+              <div className="flex items-baseline space-x-1">
+                <span className="font-bold tracking-tight text-lg text-white font-sans">Webtest</span>
+                <span className="font-semibold tracking-tight text-lg text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-sky-300 to-amber-300 font-sans animate-logo-shimmer inline-block select-none">Scanner</span>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-sky-500/10 text-sky-300 border border-sky-500/30 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />v2.0
+              </span>
+            </div>
+            <div className="hidden md:flex items-center pl-3 border-l border-white/10 text-xs text-neutral-400 font-medium">
+              <button type="button" className="hover:text-neutral-200 transition-colors cursor-pointer flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-white/[0.04]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="font-mono text-neutral-300 text-[11px]">production-workspace</span>
+                <i className="ph ph-caret-down text-neutral-500 text-[10px]" />
+              </button>
+            </div>
+          </div>
+
+          {/* Action Navigation & User Status */}
+          <div className="flex items-center space-x-2.5">
+            {/* Admin Console */}
+            <Link 
+              href="/admin" 
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-300/90 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all"
+              title="Admin Operations Console"
+            >
+              <i className="ph ph-shield-check text-sm text-amber-400" />
+              <span className="hidden sm:inline">Admin Console</span>
             </Link>
-          )}
-
-          {/* Schedule Monitor Button */}
-          <button
-            className="secondary"
-            onClick={() => setShowScheduleModal(true)}
-            title="Scheduled Synthetic Monitoring"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px' }}
-          >
-            <Calendar size={15} />
-            Schedules {schedules.length > 0 && `(${schedules.filter(s => s.active).length})`}
-          </button>
-
-          {/* History Drawer Button */}
-          <button
-            className="secondary"
-            onClick={() => setShowHistoryModal(true)}
-            title="Recent Scan History"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 12px' }}
-          >
-            <History size={15} />
-            History {historyRuns.length > 0 && `(${historyRuns.length})`}
-          </button>
-
-          <button 
-            className="theme-toggle" 
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            title={mounted && resolvedTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle light / dark mode"
-          >
-            {mounted ? (
-              resolvedTheme === 'dark' ? (
-                <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
-              ) : (
-                <Moon size={18} style={{ color: 'var(--accent)', width: 18, height: 18, flexShrink: 0 }} />
-              )
-            ) : (
-              <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
-            )}
-          </button>
-          <span className="user-badge">
-            {user?.email || (typeof window !== 'undefined' && localStorage.getItem('wts_admin_user') ? JSON.parse(localStorage.getItem('wts_admin_user') || '{}').email : 'Guest Session')}
-          </span>
-          <button
-            type="button"
-            className="secondary"
-            onClick={handleLogout}
-            style={{ padding: '6px 12px', fontSize: 13 }}
-          >
-            Sign out
-          </button>
+            {/* Schedules Link */}
+            <button 
+              type="button"
+              onClick={() => setShowScheduleModal(true)} 
+              className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-all cursor-pointer"
+              title="Scheduled Synthetic Monitoring"
+            >
+              <i className="ph ph-calendar text-sm text-neutral-400" />
+              <span>Schedules</span>
+              {schedules.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-neutral-800 text-neutral-300 font-mono">
+                  {schedules.filter(s => s.active).length}
+                </span>
+              )}
+            </button>
+            {/* History with Run Counter */}
+            <button 
+              type="button"
+              onClick={() => setShowHistoryModal(true)} 
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-all cursor-pointer"
+              title="Recent Scan History"
+            >
+              <i className="ph ph-clock-counter-clockwise text-sm text-neutral-400" />
+              <span className="hidden sm:inline">History</span>
+              <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-neutral-800 text-neutral-300 font-mono">
+                {historyRuns.length > 0 ? historyRuns.length : 20}
+              </span>
+            </button>
+            {/* Theme Toggle */}
+            <button 
+              aria-label="Theme mode" 
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')} 
+              className="p-2 rounded-lg text-neutral-400 hover:text-amber-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/30 shadow-sm transition-all duration-200 cursor-pointer" 
+              type="button" 
+              title="Toggle theme"
+            >
+              <i className={`ph ${resolvedTheme === 'dark' ? 'ph-sun text-amber-400/90' : 'ph-moon text-sky-400/90'} text-base transition-transform duration-200`} />
+            </button>
+            {/* User Profile Pill */}
+            <div className="flex items-center space-x-2 pl-2 border-l border-white/10">
+              <div className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-600 to-sky-600 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                  {(user?.email?.[0] || 'Y').toUpperCase()}
+                </div>
+                <span className="hidden lg:inline-block text-xs text-neutral-300 font-mono tracking-tight max-w-[130px] truncate">
+                  {user?.email || (typeof window !== 'undefined' && localStorage.getItem('wts_admin_user') ? JSON.parse(localStorage.getItem('wts_admin_user') || '{}').email : 'yogeshvar2508@gmail.com')}
+                </span>
+              </div>
+              <button 
+                onClick={handleLogout} 
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.05] transition-all cursor-pointer" 
+                type="button"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -871,77 +871,64 @@ export default function Home() {
               gap: 16,
               width: '100%',
             }}>
-              {/* Title & Subtitle */}
-              <div style={{ textAlign: isExecutionActive ? 'left' : 'center', marginBottom: isExecutionActive ? 0 : 8 }}>
-                <h1 className="font-serif" style={{
-                  fontSize: isExecutionActive ? 26 : 38,
-                  fontWeight: 700,
-                  textAlign: isExecutionActive ? 'left' : 'center',
-                  marginBottom: isExecutionActive ? 6 : 12,
-                  textWrap: 'balance',
-                  lineHeight: isExecutionActive ? 1.25 : 1.2,
-                  color: 'var(--text)'
-                }}>
-                  Intelligent Browser Audits in Plain English.
+              {/* Hero Title & Value Proposition */}
+              <section className="text-center mb-6 sm:mb-8 max-w-3xl mx-auto" data-purpose="hero-headline">
+                {/* Modern Eyebrow Badge */}
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-amber-500/20 mb-4 shadow-inner">
+                  <i className="ph-bold ph-sparkle text-amber-400 text-xs" />
+                  <span className="text-[11px] font-mono uppercase tracking-widest text-amber-200/90 font-medium">Autonomous QA &amp; Visual Intelligence</span>
+                </div>
+                {/* Striking Headline */}
+                <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-semibold tracking-tight text-white leading-[1.14]">
+                  Intelligent Browser Audits in <span className="font-serif italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-300 to-amber-100 underline decoration-amber-500/40 decoration-wavy decoration-1 underline-offset-8">Plain English.</span>
                 </h1>
-                <p style={{
-                  fontSize: isExecutionActive ? 13 : 16,
-                  color: 'var(--text-secondary)',
-                  margin: 0,
-                  textAlign: isExecutionActive ? 'left' : 'center'
-                }}>
+                {/* Refined Subtitle */}
+                <p className="mt-3 text-sm sm:text-base text-neutral-300/80 max-w-2xl mx-auto leading-relaxed font-normal">
                   Execute automated tests, visual diffs, and deep compliance audits using natural language commands.
                 </p>
-              </div>
+              </section>
 
-              {/* Executive Command Console */}
-              <div className="command-console">
-                {/* Header Meta Strip */}
-                <div className="command-console-header">
-                  <div className="command-console-label">
-                    <Bot size={13} className="command-console-icon" />
-                    <span>Audit Prompt & Intent</span>
+              {/* Main Interactive Testing Console Card (Stitch Redesign) */}
+              <section className="relative rounded-2xl bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] shadow-card-glass shadow-glow p-5 sm:p-7" data-purpose="audit-console">
+                {/* Top Subtle Gradient Glow Line */}
+                <div className="absolute inset-x-8 -top-px h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent pointer-events-none" />
+
+                {/* Natural Language Prompt Section */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between text-xs tracking-wider uppercase font-semibold text-neutral-400">
+                    <div className="flex items-center space-x-1.5 text-neutral-300">
+                      <i className="ph-bold ph-sparkle text-amber-400 text-sm" />
+                      <span>Audit Prompt &amp; Intent</span>
+                    </div>
+                    <div className="flex items-center space-x-1 font-mono text-[11px] text-neutral-400 bg-neutral-900/90 border border-white/10 px-2 py-0.5 rounded-md">
+                      <kbd className="text-neutral-300">⌘</kbd> + <kbd className="text-neutral-300">Enter</kbd> <span>to inspect</span>
+                    </div>
                   </div>
-                  <div className="command-console-shortcuts">
-                    {instructions.length > 0 && (
-                      <span className="char-counter">
-                        {instructions.length}/{MAX_INSTRUCTIONS}
-                      </span>
-                    )}
-                    <span className="shortcut-hint">
-                      <kbd>⌘</kbd> + <kbd>Enter</kbd> to inspect
-                    </span>
+                  <div className="relative group">
+                    <textarea 
+                      value={instructions}
+                      onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
+                      onKeyDown={(e) => {
+                        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && urlValid && !running) {
+                          e.preventDefault();
+                          run();
+                        }
+                      }}
+                      className="w-full bg-[#110e0c]/90 border border-white/10 group-hover:border-white/20 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 text-neutral-100 placeholder:text-neutral-500 text-sm sm:text-base rounded-xl p-4 transition-all duration-200 resize-none font-sans outline-none" 
+                      placeholder="Describe what to test in plain English (e.g. 'Audit checkout flow, test responsive layout, check form validations, simulate 3G network throttle and verify WCAG contrast')..." 
+                      rows={3} 
+                    />
                   </div>
                 </div>
 
-                {/* Instructions Textarea */}
-                <div className="command-prompt-area">
-                  <textarea
-                    value={instructions}
-                    onChange={(e) => setInstructions(e.target.value.slice(0, MAX_INSTRUCTIONS))}
-                    onKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && urlValid && !running) {
-                        e.preventDefault();
-                        run();
-                      }
-                    }}
-                    placeholder="Describe what to test in plain English (e.g. 'Audit checkout flow, test responsive layout, check form validations')..."
-                    className="command-prompt-textarea"
-                  />
-                </div>
-
-                {/* Docked Target URL & Action Bar */}
-                <div className="command-target-dock">
-                  <div className="command-url-input-wrap">
-                    <span className="command-url-icon" title={urlValid ? 'Valid target URL' : 'Target URL'}>
-                      {urlValid && (url.startsWith('https://') || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) ? (
-                        <Lock size={15} style={{ color: 'var(--pass, #10b981)' }} />
-                      ) : (
-                        <Globe size={15} />
-                      )}
-                    </span>
-                    <input
-                      type="text"
+                {/* URL Target Input Bar & Primary CTA */}
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 mb-6">
+                  <div className="relative w-full flex-1">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+                      <i className={`ph ${urlValid && (url.startsWith('https://') || url.startsWith('http://localhost')) ? 'ph-lock-key text-emerald-400' : 'ph-globe text-sky-400'} text-base`} />
+                    </div>
+                    <input 
+                      type="url"
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
                       onKeyDown={(e) => {
@@ -950,32 +937,27 @@ export default function Home() {
                           run();
                         }
                       }}
-                      placeholder="https://your-domain.com or web app URL..."
+                      className="w-full pl-10 pr-10 py-3 bg-[#110e0c]/90 border border-white/10 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 rounded-xl text-neutral-200 placeholder:text-neutral-500 text-sm font-mono transition-all outline-none" 
+                      placeholder="https://your-domain.com or web app URL..." 
                       autoComplete="off"
                       spellCheck={false}
-                      className="command-url-input"
                     />
                     {url.length > 0 && (
                       <button
                         type="button"
                         onClick={() => setUrl('')}
-                        className="command-url-clear-btn"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors p-1 cursor-pointer"
                         title="Clear target URL"
                       >
-                        <X size={12} />
+                        <X size={14} />
                       </button>
                     )}
-                    {urlValid && (
-                      <span className="command-url-badge">
-                        <Check size={11} strokeWidth={2.5} />
-                        Target Ready
-                      </span>
-                    )}
                   </div>
-                  <button
-                    className="command-action-btn"
+                  <button 
                     onClick={() => run()}
                     disabled={!urlValid || running}
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 active:scale-[0.98] text-white font-medium text-sm flex items-center justify-center space-x-2 shadow-lg shadow-sky-900/30 transition-all cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
+                    type="button"
                     title={urlValid ? 'Execute Browser Audit (⌘+Enter)' : 'Enter a valid URL to run inspection'}
                   >
                     {running ? (
@@ -985,291 +967,260 @@ export default function Home() {
                       </>
                     ) : (
                       <>
-                        <Zap size={14} />
-                        <span>Inspect</span>
-                        <kbd className="action-kbd">⌘↵</kbd>
+                        <i className="ph-bold ph-lightning text-base text-sky-200" />
+                        <span>Inspect &amp; Run Audit</span>
+                        <span className="text-sky-200/60 font-mono text-xs ml-1">⌘↵</span>
                       </>
                     )}
                   </button>
                 </div>
-              </div>
 
-            {/* AI Smart Presets & Test Suggestions */}
-            <div className="ai-presets-container" style={{ marginTop: 2 }}>
-              <span className="ai-presets-label">
-                <Sparkles size={13} /> Quick Presets:
-              </span>
-              {AI_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  className="ai-preset-chip"
-                  onClick={() => applyPreset(preset)}
-                  title={`Load "${preset.label}" template`}
-                >
-                  <span>{preset.icon}</span>
-                  <span>{preset.label}</span>
-                </button>
-              ))}
-              <button
-                className="ai-preset-chip ai-autogen-chip"
-                onClick={generateAiTestForUrl}
-                disabled={!urlValid || autoGenLoading}
-                title={urlValid ? "AI scans the real website structure and auto-generates precise test scenarios" : "Enter a target URL first"}
-              >
-                {autoGenLoading ? (
-                  <><Loader2 size={12} className="spinner" /> Analyzing Site...</>
-                ) : (
-                  <><Sparkles size={12} /> Auto-Generate Site Tests</>
-                )}
-              </button>
-            </div>
-
-            {/* Autonomous User Journeys (AI Engine) */}
-            {recommendedJourneys.length > 0 && (
-              <div style={{
-                marginTop: 4,
-                padding: '16px 18px',
-                background: 'var(--bg-card)',
-                borderRadius: 12,
-                border: '1px solid rgba(59,130,246,0.25)',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent)' }}>
-                      <Sparkles size={14} /> Autonomous User Journeys (AI Engine)
-                    </span>
-                    <span className="pill info" style={{ fontSize: 10, padding: '2px 8px' }}>
-                      {recommendedJourneys.length} Auto-Discovered Flows
-                    </span>
+                {/* Quick Starter Presets */}
+                <div className="border-t border-white/[0.06] pt-4 mb-6">
+                  <div className="flex items-center space-x-2 text-xs font-medium text-neutral-400 mb-3">
+                    <i className="ph ph-magic-wand text-amber-400" />
+                    <span className="tracking-wide uppercase text-[11px] font-semibold text-neutral-400">Quick Presets</span>
                   </div>
-                  <button
-                    type="button"
-                    className="settings-pill"
-                    style={{ fontSize: 11, padding: '2px 8px' }}
-                    onClick={() => setRecommendedJourneys([])}
-                  >
-                    Dismiss
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Preset: Console Errors */}
+                    <button 
+                      onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'demo-errors') || AI_PRESETS[0])}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
+                      type="button"
+                    >
+                      <i className="ph ph-bug text-rose-400 text-sm" />
+                      <span>Console Errors Demo</span>
+                    </button>
+                    {/* Preset: Full Health Scan */}
+                    <button 
+                      onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'health') || AI_PRESETS[1])}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-amber-200 border border-amber-500/30 hover:border-amber-400/50 transition-colors cursor-pointer" 
+                      type="button"
+                    >
+                      <i className="ph ph-activity text-amber-400 text-sm" />
+                      <span>Full Health Scan</span>
+                    </button>
+                    {/* Preset: E-Commerce Flow */}
+                    <button 
+                      onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'ecommerce') || AI_PRESETS[2])}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
+                      type="button"
+                    >
+                      <i className="ph ph-shopping-cart text-sky-400 text-sm" />
+                      <span>E-Commerce Flow</span>
+                    </button>
+                    {/* Preset: Auth Security Check */}
+                    <button 
+                      onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'auth') || AI_PRESETS[3])}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
+                      type="button"
+                    >
+                      <i className="ph ph-lock-key text-emerald-400 text-sm" />
+                      <span>Auth Security Check</span>
+                    </button>
+                    {/* Preset: WCAG AA Audit */}
+                    <button 
+                      onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'a11y') || AI_PRESETS[4])}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-sky-200 border border-sky-500/30 hover:border-sky-400/50 transition-colors cursor-pointer" 
+                      type="button"
+                    >
+                      <i className="ph ph-wheelchair text-sky-400 text-sm" />
+                      <span>WCAG 2.1 AA Audit</span>
+                    </button>
+                    {/* Preset: Mobile Nav & Layout */}
+                    <button 
+                      onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'mobile-nav') || AI_PRESETS[5])}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
+                      type="button"
+                    >
+                      <i className="ph ph-device-mobile text-indigo-400 text-sm" />
+                      <span>Mobile Nav &amp; Layout</span>
+                    </button>
+                    {/* Preset: Auto-Generate Site Tests */}
+                    <button 
+                      onClick={generateAiTestForUrl}
+                      disabled={!urlValid || autoGenLoading}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-amber-300/90 border border-amber-500/20 hover:border-amber-500/40 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" 
+                      type="button"
+                      title={urlValid ? "AI scans the real website structure and auto-generates precise test scenarios" : "Enter a target URL first"}
+                    >
+                      {autoGenLoading ? (
+                        <><Loader2 size={12} className="spinner" /> <span>Analyzing Site...</span></>
+                      ) : (
+                        <><i className="ph ph-sparkle text-amber-400 text-sm" /> <span>Auto-Generate Site Tests</span></>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                  gap: 10,
-                }}>
-                  {recommendedJourneys.map((journey) => (
-                    <div
-                      key={journey.id}
-                      style={{
-                        padding: '12px 14px',
-                        background: 'var(--bg-hover)',
-                        borderRadius: 8,
-                        border: '1px solid var(--border)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        gap: 10,
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-                            {journey.title}
-                          </span>
-                          <span className="pill verdict" style={{ fontSize: 10, padding: '2px 6px', textTransform: 'uppercase' }}>
-                            {journey.category}
-                          </span>
-                        </div>
-                        {journey.description && (
-                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                            {journey.description}
-                          </p>
-                        )}
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span>⚡ {journey.stepCount} steps</span>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                        <button
-                          type="button"
-                          className="primary"
-                          style={{ flex: 1, padding: '6px 10px', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                          onClick={() => run(journey.instructions)}
-                          disabled={running}
+                {/* Execution Profile & Environment Matrix */}
+                <div className="border-t border-white/[0.06] pt-4 mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <i className="ph ph-cpu text-neutral-400 text-sm" />
+                      <span className="text-xs font-semibold tracking-wide uppercase text-neutral-400">AI Engine &amp; Execution Profile</span>
+                    </div>
+                    <div className="text-[11px] font-mono text-neutral-500 tracking-wider">
+                      RUNTIME: {device.toUpperCase()} • {browserType.toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                    {/* AI Engine Dropdown Selector */}
+                    <div className="relative">
+                      <label className="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Intelligence</label>
+                      <div className="relative">
+                        <select 
+                          value={aiProvider}
+                          onChange={(e) => setAiProvider(e.target.value as any)}
+                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
                         >
-                          <Zap size={12} /> ⚡ Run Journey
-                        </button>
-                        <button
-                          type="button"
-                          className="secondary"
-                          style={{ padding: '6px 10px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}
-                          onClick={() => setInstructions(journey.instructions)}
-                          title="Load steps into editor"
-                        >
-                          📝 Load
-                        </button>
+                          <option value="auto">⚡ Auto (Claude 3.5)</option>
+                          <option value="local">🖥 Local LLM (Ollama)</option>
+                          <option value="gemini">✨ Gemini 1.5 Pro</option>
+                        </select>
+                        <i className="ph ph-caret-down absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none" />
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Configuration Card with Device Emulation & AI Engine */}
-            <div className="config-card">
-              {/* AI Engine & Viewport Profiles */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div className="config-card-header">
-                  <span>AI Engine & Execution Profile</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'none', fontWeight: 400 }}>
-                    {device.toUpperCase()} • {browserType.toUpperCase()}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                  {/* AI Model selector */}
-                  <div style={{ display: 'inline-flex', background: 'var(--bg-hover)', padding: 2, borderRadius: 8, border: '1px solid var(--border)' }}>
-                    <button
-                      type="button"
-                      className={`settings-pill ${aiProvider === 'auto' ? 'active' : ''}`}
-                      onClick={() => setAiProvider('auto')}
-                      style={{
-                        height: 28,
-                        padding: '0 10px',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        border: 'none',
-                        borderRadius: 6,
-                        background: aiProvider === 'auto' ? 'var(--accent)' : 'transparent',
-                        color: aiProvider === 'auto' ? '#fff' : 'var(--text-secondary)',
-                      }}
-                      title="Auto-route best model"
-                    >
-                      <Zap size={11} /> Auto
-                    </button>
-                    <button
-                      type="button"
-                      className={`settings-pill ${aiProvider === 'local' ? 'active' : ''}`}
-                      onClick={() => setAiProvider('local')}
-                      style={{
-                        height: 28,
-                        padding: '0 10px',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        border: 'none',
-                        borderRadius: 6,
-                        background: aiProvider === 'local' ? '#2E7D32' : 'transparent',
-                        color: aiProvider === 'local' ? '#fff' : 'var(--text-secondary)',
-                      }}
-                      title="Local Ollama (zero latency, private)"
-                    >
-                      <Cpu size={11} /> Local LLM
-                    </button>
-                    <button
-                      type="button"
-                      className={`settings-pill ${aiProvider === 'gemini' ? 'active' : ''}`}
-                      onClick={() => setAiProvider('gemini')}
-                      style={{
-                        height: 28,
-                        padding: '0 10px',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        border: 'none',
-                        borderRadius: 6,
-                        background: aiProvider === 'gemini' ? '#F57F17' : 'transparent',
-                        color: aiProvider === 'gemini' ? '#fff' : 'var(--text-secondary)',
-                      }}
-                      title="Google Gemini Cloud LLM"
-                    >
-                      <Globe size={11} /> Gemini
-                    </button>
-                  </div>
-
-                  {/* Browser select */}
-                  <select 
-                    value={browserType} 
-                    onChange={(e) => setBrowserType(e.target.value as 'chromium' | 'webkit')} 
-                    className="settings-pill" 
-                    style={{ height: 32, padding: '0 10px', width: 'auto', fontWeight: 500 }}
-                    title="Browser Engine"
-                  >
-                    <option value="chromium">🌍 Chromium</option>
-                    <option value="webkit">🧭 Safari (WebKit)</option>
-                  </select>
-
-                  {/* Device select */}
-                  <select 
-                    value={device} 
-                    onChange={(e) => setDevice(e.target.value as DevicePreset)} 
-                    className="settings-pill" 
-                    style={{ height: 32, padding: '0 10px', width: 'auto', fontWeight: 500 }}
-                    title="Emulated Device & Viewport"
-                  >
-                    <option value="desktop">🖥️ Desktop (1280×800)</option>
-                    <option value="laptop">💻 Laptop (1440×900)</option>
-                    <option value="mobile">📱 iPhone 14 (390×844)</option>
-                    <option value="tablet">📲 iPad (820×1180)</option>
-                  </select>
-
-                  {/* Env select */}
-                  <select value={environment} onChange={(e) => setEnvironment(e.target.value)} className="settings-pill" style={{ height: 32, padding: '0 10px', width: 'auto' }}>
-                    <option value="QA">QA Env</option>
-                    <option value="STAGING">Staging</option>
-                    <option value="PRODUCTION">Production</option>
-                    <option value="LOCAL">Local</option>
-                  </select>
-
-                  {/* Tier select */}
-                  <select value={tier} onChange={(e) => setTier(e.target.value)} className="settings-pill" style={{ height: 32, padding: '0 10px', width: 'auto' }}>
-                    <option value="0">Tier 0 (Unverified)</option>
-                    <option value="1">Tier 1 (Verified)</option>
-                    <option value="2">Tier 2 (Attested)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Test Suites & Categories */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-                <div className="config-card-header">
-                  <span>Test Suites & Assertions ({selected.length} active)</span>
-                  <div style={{ display: 'flex', gap: 14, fontSize: 12, textTransform: 'none', fontWeight: 400, color: 'var(--text-secondary)' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={strict} onChange={() => setStrict(!strict)} style={{ width: 13, height: 13 }} />
-                      Strict
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: tierNumber < 1 ? 'not-allowed' : 'pointer', opacity: tierNumber < 1 ? 0.5 : 1 }}>
-                      <input type="checkbox" checked={captureAssets} onChange={() => setCaptureAssets(!captureAssets)} disabled={tierNumber < 1} style={{ width: 13, height: 13 }} />
-                      Assets
-                    </label>
+                    {/* Browser Engine Selector */}
+                    <div className="relative">
+                      <label className="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Browser Core</label>
+                      <div className="relative">
+                        <select 
+                          value={browserType}
+                          onChange={(e) => setBrowserType(e.target.value as any)}
+                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                        >
+                          <option value="chromium">🌐 Chromium</option>
+                          <option value="webkit">🧭 Safari (WebKit)</option>
+                        </select>
+                        <i className="ph ph-caret-down absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none" />
+                      </div>
+                    </div>
+                    {/* Viewport Dimensions */}
+                    <div className="relative">
+                      <label className="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Target Viewport</label>
+                      <div className="relative">
+                        <select 
+                          value={device}
+                          onChange={(e) => setDevice(e.target.value as DevicePreset)}
+                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                        >
+                          <option value="desktop">💻 Desktop (1280×800)</option>
+                          <option value="laptop">🖥 Large (1440×900)</option>
+                          <option value="mobile">📱 iPhone 14 (390×844)</option>
+                          <option value="tablet">📟 Tablet iPad (820×1180)</option>
+                        </select>
+                        <i className="ph ph-caret-down absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none" />
+                      </div>
+                    </div>
+                    {/* Environment */}
+                    <div className="relative">
+                      <label className="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Environment</label>
+                      <div className="relative">
+                        <select 
+                          value={environment}
+                          onChange={(e) => setEnvironment(e.target.value)}
+                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                        >
+                          <option value="QA">QA Environment</option>
+                          <option value="STAGING">Staging</option>
+                          <option value="PRODUCTION">Production (Read-Only)</option>
+                          <option value="LOCAL">Localhost:3000</option>
+                        </select>
+                        <i className="ph ph-caret-down absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none" />
+                      </div>
+                    </div>
+                    {/* Security Tier */}
+                    <div className="relative col-span-2 sm:col-span-1">
+                      <label className="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Safety Policy</label>
+                      <div className="relative">
+                        <select 
+                          value={tier}
+                          onChange={(e) => setTier(e.target.value)}
+                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                        >
+                          <option value="0">Tier 0 (Safe / Sandboxed)</option>
+                          <option value="1">Tier 1 (Form Submissions)</option>
+                          <option value="2">Tier 2 (Full Mutations)</option>
+                        </select>
+                        <i className="ph ph-caret-down absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none" />
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                  {available.map((cat) => {
-                    const isSelected = selected.includes(cat.id);
-                    const isTierRestricted = cat.minTier > tierNumber;
-                    return (
-                      <button 
-                        key={cat.id} 
-                        className={`settings-pill ${isSelected ? 'active' : ''}`}
-                        style={{ 
-                          fontSize: 12,
-                          padding: '4px 10px',
-                          opacity: isTierRestricted ? 0.4 : 1,
-                          cursor: isTierRestricted ? 'not-allowed' : 'pointer',
-                          background: isSelected ? 'var(--bg-hover)' : 'transparent',
-                          borderColor: isSelected ? 'var(--border-focus)' : 'var(--border)',
-                        }}
-                        onClick={() => { if (!isTierRestricted) toggleCategory(cat.id); }}
-                        title={cat.description}
-                      >
-                        {cat.label} {cat.minTier > 0 && `(T${cat.minTier})`}
-                      </button>
-                    );
-                  })}
+
+                {/* Test Suites & Assertions Selection */}
+                <div className="border-t border-white/[0.06] pt-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-semibold tracking-wide uppercase text-neutral-400">Test Suites &amp; Assertions</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-sky-500/20 text-sky-400 border border-sky-500/30">
+                        {selected.length} ACTIVE
+                      </span>
+                    </div>
+                    {/* Execution Flags / Checkboxes */}
+                    <div className="flex items-center space-x-4 text-xs text-neutral-400">
+                      <label className="inline-flex items-center space-x-1.5 cursor-pointer select-none">
+                        <input 
+                          type="checkbox" 
+                          checked={strict} 
+                          onChange={() => setStrict(!strict)} 
+                          className="rounded bg-[#120e0c] border-white/20 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 w-3.5 h-3.5"
+                        />
+                        <span>Strict assertions</span>
+                      </label>
+                      <label className={`inline-flex items-center space-x-1.5 select-none ${tierNumber < 1 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                        <input 
+                          type="checkbox" 
+                          checked={captureAssets} 
+                          onChange={() => setCaptureAssets(!captureAssets)} 
+                          disabled={tierNumber < 1}
+                          className="rounded bg-[#120e0c] border-white/20 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 w-3.5 h-3.5"
+                        />
+                        <span>Capture HAR &amp; Assets</span>
+                      </label>
+                    </div>
+                  </div>
+                  {/* Suite Toggle Pills */}
+                  <div className="flex flex-wrap gap-2">
+                    {(available.length > 0 ? available : [
+                      { id: 'functional', label: 'Functional', minTier: 0 },
+                      { id: 'ui', label: 'UI / Visual Diff', minTier: 0 },
+                      { id: 'design', label: 'Design & Assets', minTier: 0 },
+                      { id: 'accessibility', label: 'Accessibility (WCAG 2.1 AA)', minTier: 0 },
+                      { id: 'security-passive', label: 'Security (Passive)', minTier: 0 },
+                      { id: 'performance', label: 'Performance & Vitals', minTier: 0 },
+                      { id: 'api', label: 'API & Network Contract', minTier: 0 },
+                      { id: 'unit', label: 'Unit Tests (Source Code)', minTier: 0 },
+                      { id: 'scraper', label: 'Web Scraper & Crawler', minTier: 0 },
+                    ]).map((cat) => {
+                      const isSelected = selected.includes(cat.id);
+                      const isTierRestricted = cat.minTier > tierNumber;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            if (!isTierRestricted) toggleCategory(cat.id);
+                          }}
+                          disabled={isTierRestricted}
+                          className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                            isTierRestricted
+                              ? 'opacity-40 cursor-not-allowed bg-[#110e0c]/40 text-neutral-500 border border-white/5'
+                              : isSelected 
+                                ? 'bg-neutral-800 text-white border border-white/30 shadow-sm' 
+                                : 'bg-[#110e0c]/60 text-neutral-400 border border-white/5 hover:border-white/20 hover:text-neutral-200'
+                          }`}
+                        >
+                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />}
+                          <span>{cat.label}</span>
+                          {cat.minTier > 0 && <span className="text-[10px] opacity-70">(T{cat.minTier})</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </section>
           </div>
 
           {/* ── VIEW 2: Results Panel ── */}
@@ -1780,46 +1731,24 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── AI Copilot FAB ── */}
+      {/* ── AI Copilot Floating Action ── */}
       {!copilotOpen && (
-        <button
-          onClick={() => {
-            setCopilotOpen(true);
-            // Auto-run recon if we have a URL and no recon yet
-            if (urlValid && !siteRecon && !reconLoading) {
-              runSiteRecon();
-            }
-          }}
-          style={{
-            position: 'fixed',
-            bottom: 28,
-            right: 28,
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #D97757, #E58E73)',
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 6px 20px rgba(217, 119, 87, 0.4)',
-            zIndex: 9998,
-            transition: 'transform 0.2s, box-shadow 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.1)';
-            e.currentTarget.style.boxShadow = '0 8px 28px rgba(217, 119, 87, 0.55)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(217, 119, 87, 0.4)';
-          }}
-          title="Open AI QA Copilot"
-        >
-          <Bot size={26} />
-        </button>
+        <aside className="fixed bottom-6 right-6 z-40">
+          <button
+            type="button"
+            onClick={() => {
+              setCopilotOpen(true);
+              // Auto-run recon if we have a URL and no recon yet
+              if (urlValid && !siteRecon && !reconLoading) {
+                runSiteRecon();
+              }
+            }}
+            className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white flex items-center justify-center shadow-lg shadow-amber-950/60 border border-amber-400/30 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+            title="Open AI QA Copilot"
+          >
+            <i className="ph-bold ph-chats-circle text-2xl group-hover:rotate-12 transition-transform" />
+          </button>
+        </aside>
       )}
 
       {/* ── Copilot Drawer ── */}

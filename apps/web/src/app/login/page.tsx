@@ -102,75 +102,69 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="wrap">
-      <header className="masthead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Radar />
-          <span className="font-serif" style={{ fontSize: 24, fontWeight: 600 }}>Webtest Scanner</span>
-          <span className="pill-badge" style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>
-            v2.0
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            title={mounted && resolvedTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle light / dark mode"
-          >
-            {mounted ? (
-              resolvedTheme === 'dark' ? (
-                <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
-              ) : (
-                <Moon size={18} style={{ color: 'var(--accent)', width: 18, height: 18, flexShrink: 0 }} />
-              )
-            ) : (
-              <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
-            )}
-          </button>
-          <Link href="/" className="secondary" style={{ textDecoration: 'none' }}>
-            Go Back
+    <div className="min-h-screen flex flex-col">
+      <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#0c0908]/80 backdrop-blur-xl px-4 lg:px-8 py-3.5 mb-8">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center space-x-3 group text-left">
+            <div className="relative w-8 h-8 rounded-lg bg-[#1a1412] border border-white/10 flex items-center justify-center text-sky-400 group-hover:border-sky-500/40 transition-colors shadow-sm">
+              <i className="ph ph-terminal-window text-lg" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400" />
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-base font-semibold tracking-tight text-white group-hover:text-neutral-100 transition-colors">
+                Webtest <span className="animate-logo-shimmer font-serif italic text-amber-400/90 font-normal">Scanner</span>
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                v2.0
+              </span>
+            </div>
           </Link>
+
+          <div className="flex items-center space-x-3">
+            <button
+              type="button"
+              className="p-2 rounded-lg bg-[#15110f] hover:bg-[#1f1916] text-neutral-400 hover:text-white transition-colors border border-white/5 cursor-pointer"
+              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+              title={mounted && resolvedTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle light / dark mode"
+            >
+              {mounted ? (
+                resolvedTheme === 'dark' ? (
+                  <Sun size={16} className="text-amber-400" />
+                ) : (
+                  <Moon size={16} className="text-sky-400" />
+                )
+              ) : (
+                <Sun size={16} className="text-amber-400" />
+              )}
+            </button>
+            <Link
+              href="/"
+              className="inline-flex items-center space-x-1.5 text-xs font-medium text-neutral-300 hover:text-white px-3 py-1.5 rounded-lg bg-[#171311] hover:bg-[#1f1a17] border border-white/10 transition-colors"
+            >
+              <i className="ph ph-arrow-left text-sm" />
+              <span>Back to Scanner</span>
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 'calc(100vh - 140px)',
-          padding: '20px 0',
-        }}
-      >
-        <div className="card" style={{ width: '100%', maxWidth: '420px', padding: '32px' }}>
+      <main className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="relative rounded-2xl bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] shadow-card-glass shadow-glow p-7 sm:p-9 w-full max-w-md">
           {/* Mode Switcher Tabs */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              borderBottom: '1px solid var(--border)',
-              paddingBottom: '16px',
-              marginBottom: '24px',
-            }}
-          >
+          <div className="flex p-1 bg-[#120e0c] rounded-xl border border-white/5 mb-6">
             <button
               type="button"
               onClick={() => {
                 setMode('signin');
                 setErrorMsg(null);
               }}
-              style={{
-                flex: 1,
-                background: mode === 'signin' ? 'var(--card)' : 'transparent',
-                color: mode === 'signin' ? 'var(--fg)' : 'var(--muted)',
-                borderColor: mode === 'signin' ? 'var(--primary)' : 'transparent',
-                fontWeight: mode === 'signin' ? 600 : 400,
-                padding: '8px 12px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-              }}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                mode === 'signin'
+                  ? 'bg-neutral-800 text-white shadow-sm border border-white/15'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
             >
               Sign In
             </button>
@@ -180,95 +174,66 @@ export default function LoginPage() {
                 setMode('signup');
                 setErrorMsg(null);
               }}
-              style={{
-                flex: 1,
-                background: mode === 'signup' ? 'var(--card)' : 'transparent',
-                color: mode === 'signup' ? 'var(--fg)' : 'var(--muted)',
-                borderColor: mode === 'signup' ? 'var(--primary)' : 'transparent',
-                fontWeight: mode === 'signup' ? 600 : 400,
-                padding: '8px 12px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-              }}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                mode === 'signup'
+                  ? 'bg-neutral-800 text-white shadow-sm border border-white/15'
+                  : 'text-neutral-400 hover:text-neutral-200'
+              }`}
             >
               Create Account
             </button>
           </div>
 
-          <h1 style={{ margin: '0 0 8px 0', fontSize: '22px', fontWeight: 600 }}>
-            {mode === 'signin' ? 'Welcome Back' : 'Get Started'}
+          <h1 className="text-xl font-semibold text-white mb-1.5">
+            {mode === 'signin' ? 'Welcome Back' : 'Create Account'}
           </h1>
-          <p className="hint" style={{ margin: '0 0 20px 0' }}>
+          <p className="text-xs text-neutral-400 mb-6">
             {mode === 'signin'
-              ? 'Sign in to access and manage your website test scans.'
-              : 'Create a free account to scan any website from anywhere.'}
+              ? 'Sign in to access your automated test suites, reports, and telemetry.'
+              : 'Create your account to start running AI-driven synthetic audits.'}
           </p>
 
           {errorMsg && (
-            <div
-              className="err"
-              style={{
-                marginBottom: '16px',
-                padding: '10px 14px',
-                borderRadius: '6px',
-                fontSize: '13px',
-              }}
-            >
-              <strong>Error:</strong> {errorMsg}
+            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+              <i className="ph ph-warning-circle text-base flex-shrink-0" />
+              <span>{errorMsg}</span>
             </div>
           )}
 
           {/* Google Sign In Button */}
           <button
             type="button"
-            className="secondary"
             onClick={handleGoogleSignIn}
             disabled={submitting}
-            style={{
-              width: '100%',
-              justifyContent: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '10px 16px',
-              marginBottom: '20px',
-              cursor: 'pointer',
-            }}
+            className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl bg-[#120e0c] hover:bg-[#1a1412] text-neutral-200 text-xs font-medium border border-white/10 transition-colors mb-5 cursor-pointer disabled:opacity-50"
           >
             <GoogleIcon />
             Continue with Google
           </button>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              textAlign: 'center',
-              color: 'var(--muted)',
-              fontSize: '12px',
-              margin: '16px 0',
-            }}
-          >
-            <span style={{ flex: 1, borderBottom: '1px solid var(--border)' }} />
-            <span style={{ padding: '0 10px', textTransform: 'uppercase' }}>or with email</span>
-            <span style={{ flex: 1, borderBottom: '1px solid var(--border)' }} />
+          <div className="flex items-center text-center text-[11px] uppercase tracking-wider text-neutral-500 my-4">
+            <span className="flex-1 border-b border-white/[0.08]" />
+            <span className="px-3">or with email</span>
+            <span className="flex-1 border-b border-white/[0.08]" />
           </div>
 
-          <form onSubmit={handleEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div className="field">
-              <label htmlFor="email">Email address</label>
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-[11px] font-mono uppercase text-neutral-400 mb-1.5">Email address</label>
               <input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="you@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
+                className="w-full bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2.5 px-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none placeholder:text-neutral-600 transition-colors"
               />
             </div>
 
-            <div className="field">
-              <label htmlFor="password">Password</label>
+            <div>
+              <label htmlFor="password" className="block text-[11px] font-mono uppercase text-neutral-400 mb-1.5">Password</label>
               <input
                 id="password"
                 type="password"
@@ -278,18 +243,18 @@ export default function LoginPage() {
                 required
                 minLength={6}
                 autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                className="w-full bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2.5 px-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none placeholder:text-neutral-600 transition-colors"
               />
             </div>
 
             <button
               type="submit"
-              className="primary"
               disabled={submitting || !email || !password}
-              style={{ marginTop: '8px', width: '100%', justifyContent: 'center' }}
+              className="w-full mt-2 inline-flex items-center justify-center py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-md shadow-sky-950/40 border border-sky-400/30 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
                 <>
-                  <span className="spinner" />
+                  <span className="spinner mr-2" />
                   {mode === 'signin' ? 'Signing in…' : 'Creating account…'}
                 </>
               ) : mode === 'signin' ? (
@@ -300,7 +265,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+          <div className="text-center mt-6 pt-5 border-t border-white/[0.08]">
             <button
               type="button"
               onClick={() => {
@@ -309,19 +274,10 @@ export default function LoginPage() {
                   router.push('/');
                 }
               }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--text-secondary)',
-                fontSize: 12.5,
-                fontWeight: 600,
-                textDecoration: 'underline',
-                cursor: 'pointer',
-                padding: '4px 8px',
-              }}
+              className="text-xs font-semibold text-neutral-400 hover:text-amber-400 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
               title="Test the application locally without creating an account"
             >
-              🚀 Continue as Guest (Skip Sign-In)
+              <span>🚀</span> Continue as Guest (Instant Access)
             </button>
           </div>
         </div>

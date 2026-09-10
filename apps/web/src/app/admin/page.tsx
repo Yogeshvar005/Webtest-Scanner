@@ -461,27 +461,23 @@ export default function AdminPage() {
             Back to Scanner
           </Link>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(217, 119, 87, 0.15)',
-                color: 'var(--accent)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Shield size={20} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="relative w-8 h-8 rounded-lg bg-[#1a1412] border border-white/10 flex items-center justify-center text-sky-400 shadow-sm flex-shrink-0">
+              <i className="ph ph-terminal-window text-lg" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400" />
             </div>
             <div>
-              <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, lineHeight: 1.2, color: 'var(--text)' }}>
-                Admin Operations Console
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, lineHeight: 1.2, color: 'var(--text)' }}>
+                  Webtest <span className="animate-logo-shimmer font-serif italic text-amber-400/90 font-normal">Scanner</span> Admin
+                </h1>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  Telemetry v2.0
+                </span>
+              </div>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
-                Live user presence, target audits, session control & telemetry
+                Live user presence, target audits, session control &amp; telemetry
               </p>
             </div>
           </div>
