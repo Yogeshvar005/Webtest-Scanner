@@ -4,7 +4,7 @@ import { uiSans, serif } from './fonts';
 import { AuthProvider } from '../lib/auth-context';
 import { ThemeProvider } from 'next-themes';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import './globals.css';
+import './tailwind-compiled.css';
 import './motion.css';
 
 export const metadata: Metadata = {

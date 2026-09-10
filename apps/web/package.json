@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build",
+    "prebuild": "tailwindcss -i ./src/app/globals.css -o ./src/app/tailwind-compiled.css --minify",
+    "build": "tailwindcss -i ./src/app/globals.css -o ./src/app/tailwind-compiled.css --minify && next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test"
