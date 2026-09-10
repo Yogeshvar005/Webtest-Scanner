@@ -307,6 +307,9 @@ export default function Home() {
     setRunStartedAt(null);
     setLiveSteps([]);
     setTerminalLogs([]);
+    setLiveFrame(null);
+    setUrl('');
+    setInstructions('');
     setActiveLeftTab('config');
   }
 
@@ -1235,15 +1238,7 @@ export default function Home() {
           {/* ── VIEW 2: Results Panel ── */}
           {result && activeLeftTab === 'results' && (
             <div style={{ width: '100%', marginTop: 8 }}>
-              <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => setActiveLeftTab('config')}
-                  style={{ fontSize: 12, padding: '6px 12px' }}
-                >
-                  ← Edit Prompt & Config
-                </button>
+              <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className="results-sub-meta" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {device === 'mobile' ? <Smartphone size={14} /> : device === 'tablet' ? <Tablet size={14} /> : device === 'laptop' ? <Laptop size={14} /> : <Monitor size={14} />}
