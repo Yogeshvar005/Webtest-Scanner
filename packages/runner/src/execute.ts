@@ -36,6 +36,7 @@ export interface ExecuteOptions {
   /** Download the site's actual asset files, not just catalogue them. */
   captureAssets?: boolean;
   onStep?: (result: StepResult) => void;
+  onFrame?: (frameBase64: string) => void;
   onLog?: (event: LogEvent) => void;
   viewport?: { width: number; height: number };
   isMobile?: boolean;
@@ -224,6 +225,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
   }
 
   let browser: Browser | undefined;
+  let cdpSession: any = null;
 
   try {
     if (policyDecision.effect === 'deny') {
@@ -433,16 +435,53 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
 
       attachConsoleListeners(page);
 
+      const startScreencastForPage = async (targetPage: Page) => {
+        if (!options.onFrame || options.browserType === 'webkit') return;
+        try {
+          if (cdpSession) {
+            try {
+              await cdpSession.send('Page.stopScreencast');
+              await cdpSession.detach();
+            } catch {}
+            cdpSession = null;
+          }
+          cdpSession = await context.newCDPSession(targetPage);
+          await cdpSession.send('Page.startScreencast', {
+            format: 'jpeg',
+            quality: 60,
+            maxWidth: options.viewport?.width || 1280,
+            maxHeight: options.viewport?.height || 800,
+            everyNthFrame: 1,
+          });
+          let lastFrameTime = 0;
+          cdpSession.on('Page.screencastFrame', async ({ data, sessionId }: { data: string; sessionId: number }) => {
+            try {
+              await cdpSession.send('Page.screencastFrameAck', { sessionId });
+            } catch {}
+            const now = Date.now();
+            if (now - lastFrameTime >= 100) {
+              lastFrameTime = now;
+              options.onFrame?.(`data:image/jpeg;base64,${data}`);
+            }
+          });
+        } catch (err) {
+          console.warn('[runner] CDP screencast unavailable on current target/tier:', err);
+        }
+      };
+
+      await startScreencastForPage(page);
+
       let activePage = page;
       for (const step of scenario.steps) {
         emitLog('step', `▶ Step ${step.index + 1}/${scenario.steps.length}: ${step.intent || (step.action as any).type}`, 'info');
         const before = consoleErrors.length;
         const started = Date.now();
-        const { result, subResults, page: nextPage } = await runStep(activePage, step, targetUrl, artifactDir, artifactUrlPrefix, runId);
+        const { result, subResults, page: nextPage } = await runStep(activePage, step, targetUrl, artifactDir, artifactUrlPrefix, runId, options.onFrame);
         // If the step opened a new tab (e.g. Sign Up), switch to it for all subsequent steps
         if (nextPage !== activePage) {
           activePage = nextPage;
           attachConsoleListeners(activePage);
+          await startScreencastForPage(activePage);
           // Re-attach response listener to the new page
           activePage.on('response', (response) => {
             const request = response.request();
@@ -487,6 +526,9 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
           steps.push(...subResults);
         }
         options.onStep?.(result);
+        if (result.screenshot && options.onFrame) {
+          options.onFrame(result.screenshot);
+        }
 
         if (result.status === 'failed' && step.onFailure === 'abort') break;
       }
@@ -574,6 +616,12 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
       detail: error instanceof Error ? error.message : String(error),
     });
   } finally {
+    if (cdpSession) {
+      try {
+        await cdpSession.send('Page.stopScreencast');
+        await cdpSession.detach();
+      } catch {}
+    }
     await browser?.close().catch(() => undefined);
   }
 
@@ -685,6 +733,7 @@ async function runStep(
   artifactDir: string,
   artifactUrlPrefix: string,
   runId: string,
+  onFrame?: (frameBase64: string) => void,
 ): Promise<{ result: StepResult; subResults?: StepResult[]; page: Page }> {
   let activePage = page;
   const result: StepResult = {
@@ -735,6 +784,12 @@ async function runStep(
           }, { timeout: 8000 }),
         ]).catch(() => {});
         await activePage.waitForTimeout(1500).catch(() => {});
+        if (onFrame) {
+          try {
+            const buffer = await activePage.screenshot({ type: 'jpeg', quality: 50, scale: 'css' });
+            onFrame(`data:image/jpeg;base64,${buffer.toString('base64')}`);
+          } catch {}
+        }
         break;
       }
       case 'click': {
@@ -904,6 +959,9 @@ async function runStep(
       await writeFile(join(artifactDir, file), buffer).catch(() => {});
       // In serverless / cloud mode, data URLs ensure screenshots render seamlessly everywhere
       result.screenshot = `data:image/png;base64,${buffer.toString('base64')}`;
+      if (onFrame) {
+        onFrame(result.screenshot);
+      }
     } catch {
       // A failed screenshot must not fail the step it was documenting.
     }

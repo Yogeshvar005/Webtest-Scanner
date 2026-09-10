@@ -181,6 +181,10 @@ export async function POST(request: Request) {
               const event = JSON.stringify({ type: 'step', data: stepResult });
               controller.enqueue(new TextEncoder().encode(event + '\n'));
             },
+            onFrame: (frameBase64) => {
+              const event = JSON.stringify({ type: 'frame', data: frameBase64 });
+              controller.enqueue(new TextEncoder().encode(event + '\n'));
+            },
             onLog: (logEvent) => {
               const event = JSON.stringify({ type: 'log', data: logEvent });
               controller.enqueue(new TextEncoder().encode(event + '\n'));

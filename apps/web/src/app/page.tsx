@@ -150,6 +150,7 @@ export default function Home() {
   const [autoGenLoading, setAutoGenLoading] = useState(false);
   const [recommendedJourneys, setRecommendedJourneys] = useState<RecommendedJourney[]>([]);
   const [terminalLogs, setTerminalLogs] = useState<Array<{ type: string; level: string; message: string; timestamp: string }>>([]);
+  const [liveFrame, setLiveFrame] = useState<string | null>(null);
   const [previewTab, setPreviewTab] = useState<'visual' | 'terminal'>('visual');
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
@@ -325,8 +326,8 @@ export default function Home() {
     }
     if ((preset as any).targetUrl) {
       setUrl((preset as any).targetUrl);
-      setPreviewTab('terminal');
     }
+    setPreviewTab('visual');
   }
 
   async function runSiteRecon() {
@@ -538,6 +539,8 @@ export default function Home() {
     setError(null);
     setLiveSteps([]);
     setTerminalLogs([]);
+    setLiveFrame(null);
+    setPreviewTab('visual');
 
     const controller = new AbortController();
     setAbortController(controller);
@@ -601,6 +604,8 @@ export default function Home() {
               setTerminalLogs((prev) => [...prev, event.data]);
             } else if (event.type === 'step') {
               setLiveSteps((prev) => [...prev, event.data]);
+            } else if (event.type === 'frame') {
+              setLiveFrame(event.data);
             } else if (event.type === 'done') {
               const fullResult = event.data as RunResponse;
               setResult(fullResult);
@@ -1415,28 +1420,34 @@ export default function Home() {
                   const stepsWithScreenshots = (result?.steps && result.steps.length > 0 ? result.steps : liveSteps);
                   const lastStepWithScreenshot = stepsWithScreenshots.slice().reverse().find((s) => Boolean(s.screenshot));
                   const currentStep = liveSteps[liveSteps.length - 1];
+                  const activeImage = liveFrame || lastStepWithScreenshot?.screenshot;
 
-                  if (lastStepWithScreenshot?.screenshot) {
+                  if (activeImage) {
                     return (
                       <div className={`browser-viewport-container device-${device}`}>
                         <div className="browser-viewport-frame">
                           {device === 'mobile' && <div className="mobile-dynamic-island" />}
                           <img
-                            src={lastStepWithScreenshot.screenshot}
+                            src={activeImage}
                             alt="Live browser preview"
                             className="browser-viewport-img"
                           />
                           {device === 'mobile' && <div className="mobile-home-indicator" />}
-                          {(running && currentStep) && (
+                          {running && (
                             <div className="browser-viewport-hud">
                               <span className="hud-indicator-dot" />
                               <span className="hud-text">
-                                {currentStep.intent ||
-                                  (currentStep.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` :
-                                   currentStep.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
-                                   currentStep.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
-                                   currentStep.action?.type === 'waitFor' ? 'Waiting for page load' :
-                                   `Executing ${currentStep.action?.type || 'step'}...`)}
+                                {currentStep?.intent ||
+                                  (currentStep?.action?.type === 'navigate' ? `Navigating to ${currentStep.action.url || currentStep.action.path || '/'}` :
+                                   currentStep?.action?.type === 'click' ? `Clicking ${currentStep.action.targetName || currentStep.action.target?.name || 'element'}` :
+                                   currentStep?.action?.type === 'fill' ? `Filling ${currentStep.action.targetName || currentStep.action.target?.name || 'input'}` :
+                                   currentStep?.action?.type === 'waitFor' ? 'Waiting for page load' :
+                                   currentStep ? `Executing ${currentStep.action?.type || 'step'}...` :
+                                   'Live browser session active...')}
+                              </span>
+                              <span style={{ fontSize: 9, background: 'rgba(16,185,129,0.25)', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)', borderRadius: 4, padding: '1px 6px', fontWeight: 700, letterSpacing: 0.5, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                                LIVE
                               </span>
                             </div>
                           )}
@@ -1453,11 +1464,19 @@ export default function Home() {
 
                   if (running) {
                     return (
-                      <div className="browser-launching-box">
-                        <div className="spinner" style={{ width: 34, height: 34, borderWidth: 3 }} />
-                        <div style={{ textAlign: 'center' }}>
-                          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Launching browser environment...</p>
-                          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>Spawning headless {browserType} & loading {url || 'target'}...</p>
+                      <div className={`browser-viewport-container device-${device}`}>
+                        <div className="browser-viewport-frame" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', minHeight: 280 }}>
+                          {device === 'mobile' && <div className="mobile-dynamic-island" />}
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 30 }}>
+                            <div className="spinner" style={{ width: 36, height: 36, borderWidth: 3 }} />
+                            <div style={{ textAlign: 'center' }}>
+                              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Launching Live Browser...</p>
+                              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '6px 0 0', maxWidth: 280 }}>
+                                Spawning {browserType === 'chromium' ? 'Chromium' : 'WebKit'} & streaming {url || 'target'}...
+                              </p>
+                            </div>
+                          </div>
+                          {device === 'mobile' && <div className="mobile-home-indicator" />}
                         </div>
                       </div>
                     );
