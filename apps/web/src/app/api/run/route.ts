@@ -159,80 +159,104 @@ export async function POST(request: Request) {
       viewport = { width: 1440, height: 900 };
     }
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          const result = await executeScenario({
-            scenario,
-            targetUrl: origin,
-            policyRequest,
-            artifactDir,
-            artifactUrlPrefix: '/artifacts',
-            runId,
-            categories,
-            strict: body.strict ?? false,
-            captureAssets: body.captureAssets ?? false,
-            browserType: body.browserType,
-            viewport,
-            isMobile,
-            hasTouch,
-            userAgent,
-            onStep: (stepResult) => {
-              const event = JSON.stringify({ type: 'step', data: stepResult });
-              controller.enqueue(new TextEncoder().encode(event + '\n'));
-            },
-            onFrame: (frameBase64) => {
-              const event = JSON.stringify({ type: 'frame', data: frameBase64 });
-              controller.enqueue(new TextEncoder().encode(event + '\n'));
-            },
-            onLog: (logEvent) => {
-              const event = JSON.stringify({ type: 'log', data: logEvent });
-              controller.enqueue(new TextEncoder().encode(event + '\n'));
-            },
-          });
-
-          const finalEvent = JSON.stringify({
-            type: 'done',
-            data: {
-              ...result,
-              lintIssues,
-              unparsed,
-              meanConfidence,
-              reviewFlag: requiresManualReview(target.hostname) ?? null,
-              selectedCategories: categories,
-              ownership: { recordedTier, effectiveTier: tier },
-            }
-          });
-          void recordActivity({
-            uid: body.user?.uid || 'guest-session',
-            email: body.user?.email || 'guest@local.dev',
-            type: 'scan',
-            title: `Ran ${result.steps.length} test steps on ${target.hostname}`,
-            detail: `${result.steps.filter((s) => s.status === 'passed').length}/${result.steps.length} passed (${((result.durationMs || 0) / 1000).toFixed(1)}s)`,
-            targetUrl: target.href,
-            status: result.status === 'passed' ? 'passed' : 'failed',
-            metadata: {
-              targetUrl: target.href,
-              stepsCount: result.steps.length,
-              passedCount: result.steps.filter((s) => s.status === 'passed').length,
-              findingsCount: result.findings.length,
-              durationMs: result.durationMs,
-            },
-          }).catch(() => {});
-
-          controller.enqueue(new TextEncoder().encode(finalEvent + '\n'));
-          controller.close();
-        } catch (error) {
-          console.error('Scan execution failure:', error);
-          const errorEvent = JSON.stringify({
-            type: 'error',
-            error: 'Execution failed on target website.',
-            detail: error instanceof Error ? error.message : String(error),
-          });
-          controller.enqueue(new TextEncoder().encode(errorEvent + '\n'));
-          controller.close();
-        }
+    let isClosed = false;
+    const safeEnqueue = (payload: unknown) => {
+      if (isClosed) return;
+      try {
+        const text = typeof payload === 'string' ? payload : JSON.stringify(payload);
+        controller.enqueue(new TextEncoder().encode(text + '\n'));
+      } catch {
+        isClosed = true;
       }
+    };
+
+    const safeClose = () => {
+      if (isClosed) return;
+      isClosed = true;
+      try {
+        controller.close();
+      } catch {
+        // Stream already terminated or cancelled by client
+      }
+    };
+
+    let controller!: ReadableStreamDefaultController;
+    const stream = new ReadableStream({
+      start(ctrl) {
+        controller = ctrl;
+        (async () => {
+          try {
+            const result = await executeScenario({
+              scenario,
+              targetUrl: origin,
+              policyRequest,
+              artifactDir,
+              artifactUrlPrefix: '/artifacts',
+              runId,
+              categories,
+              strict: body.strict ?? false,
+              captureAssets: body.captureAssets ?? false,
+              browserType: body.browserType,
+              viewport,
+              isMobile,
+              hasTouch,
+              userAgent,
+              onStep: (stepResult) => {
+                safeEnqueue({ type: 'step', data: stepResult });
+              },
+              onFrame: (frameBase64) => {
+                safeEnqueue({ type: 'frame', data: frameBase64 });
+              },
+              onLog: (logEvent) => {
+                safeEnqueue({ type: 'log', data: logEvent });
+              },
+            });
+
+            const finalEvent = {
+              type: 'done',
+              data: {
+                ...result,
+                lintIssues,
+                unparsed,
+                meanConfidence,
+                reviewFlag: requiresManualReview(target.hostname) ?? null,
+                selectedCategories: categories,
+                ownership: { recordedTier, effectiveTier: tier },
+              }
+            };
+            void recordActivity({
+              uid: body.user?.uid || 'guest-session',
+              email: body.user?.email || 'guest@local.dev',
+              type: 'scan',
+              title: `Ran ${result.steps.length} test steps on ${target.hostname}`,
+              detail: `${result.steps.filter((s) => s.status === 'passed').length}/${result.steps.length} passed (${((result.durationMs || 0) / 1000).toFixed(1)}s)`,
+              targetUrl: target.href,
+              status: result.status === 'passed' ? 'passed' : 'failed',
+              metadata: {
+                targetUrl: target.href,
+                stepsCount: result.steps.length,
+                passedCount: result.steps.filter((s) => s.status === 'passed').length,
+                findingsCount: result.findings.length,
+                durationMs: result.durationMs,
+              },
+            }).catch(() => {});
+
+            safeEnqueue(finalEvent);
+            safeClose();
+          } catch (error) {
+            console.error('Scan execution failure:', error);
+            safeEnqueue({
+              type: 'error',
+              error: 'Execution failed on target website.',
+              detail: error instanceof Error ? error.message : String(error),
+            });
+            safeClose();
+          }
+        })();
+      },
+      cancel() {
+        isClosed = true;
+      },
     });
 
     return new Response(stream, {
