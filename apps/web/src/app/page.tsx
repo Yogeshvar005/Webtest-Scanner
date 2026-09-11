@@ -928,7 +928,7 @@ export default function Home() {
                           run();
                         }
                       }}
-                      className="w-full pl-10 pr-10 py-3 bg-[#110e0c]/95 border border-white/10 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 rounded-xl text-neutral-200 placeholder:text-neutral-500 text-sm font-mono transition-all outline-none" 
+                      className="w-full !pl-10 !pr-10 py-3 bg-[#110e0c]/95 border border-white/10 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 rounded-xl text-neutral-200 placeholder:text-neutral-500 text-sm font-mono transition-all outline-none" 
                       placeholder="Enter target URL to inspect..." 
                       autoComplete="off"
                       spellCheck={false}
