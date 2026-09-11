@@ -26,6 +26,11 @@
   --bg-surface-glass: rgba(255, 255, 255, 0.85);
   --bg-hover: #F0EFEA;
   
+  --accent-glow-1: rgba(14, 165, 233, 0.1);
+  --accent-glow-2: rgba(56, 189, 248, 0.08);
+  --accent-glow-3: rgba(2, 132, 199, 0.05);
+  --accent-glow-4: rgba(125, 211, 252, 0.12);
+  
   --text: #1E1D19;
   --text-secondary: #6B6965;
   --text-muted: #8E8C85;
@@ -55,7 +60,6 @@
   --warn-bg: #FFF3E0;
 }
 
-[data-theme="dark"],
 .dark {
   /* Ambient Telemetry & Operations Dark Palette */
   --bg: #0c0908;
@@ -63,6 +67,11 @@
   --bg-surface-rgb: 23, 19, 17;
   --bg-surface-glass: rgba(18, 14, 12, 0.72);
   --bg-hover: rgba(255, 255, 255, 0.05);
+  
+  --accent-glow-1: rgba(180, 83, 9, 0.18);
+  --accent-glow-2: rgba(154, 52, 18, 0.22);
+  --accent-glow-3: rgba(69, 26, 3, 0.28);
+  --accent-glow-4: rgba(217, 119, 6, 0.12);
   
   --text: #f3f4f6;
   --text-secondary: #a3a19d;
@@ -94,20 +103,22 @@
 html, body {
   margin: 0;
   padding: 0;
-  background-color: #0c0908;
+  background-color: var(--bg);
   background-image: 
-    radial-gradient(circle at 15% 25%, rgba(180, 83, 9, 0.18) 0%, transparent 45%),
-    radial-gradient(circle at 85% 65%, rgba(154, 52, 18, 0.22) 0%, transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(69, 26, 3, 0.28) 0%, transparent 60%),
-    radial-gradient(circle at 75% 15%, rgba(217, 119, 6, 0.12) 0%, transparent 35%);
+    radial-gradient(circle at 15% 25%, var(--accent-glow-1, rgba(180, 83, 9, 0.18)) 0%, transparent 45%),
+    radial-gradient(circle at 85% 65%, var(--accent-glow-2, rgba(154, 52, 18, 0.22)) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, var(--accent-glow-3, rgba(69, 26, 3, 0.28)) 0%, transparent 60%),
+    radial-gradient(circle at 75% 15%, var(--accent-glow-4, rgba(217, 119, 6, 0.12)) 0%, transparent 35%);
   background-attachment: fixed;
   background-repeat: no-repeat;
-  color: #f3f4f6;
-  font-family: 'Inter', var(--font-ui), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
   min-height: 100vh;
+  animation: blob 15s infinite alternate ease-in-out;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 /* Subtle blurred atmospheric noise overlay */

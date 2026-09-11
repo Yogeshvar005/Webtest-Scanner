@@ -467,7 +467,7 @@ export default function AdminPage() {
           </Link>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div className="relative w-8 h-8 rounded-lg bg-[#1a1412] border border-white/10 flex items-center justify-center text-sky-400 shadow-sm flex-shrink-0">
+            <div className="relative w-8 h-8 rounded-lg bg-surface border border-white/10 flex items-center justify-center text-sky-400 shadow-sm flex-shrink-0">
               <i className="ph ph-terminal-window text-lg" />
               <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
               <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400" />

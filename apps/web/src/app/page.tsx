@@ -478,7 +478,10 @@ export default function Home() {
   }
 
   function handleSaveSchedule() {
-    if (!url.trim()) return;
+    if (!url.trim()) {
+      alert('Please enter a Target Website URL first.');
+      return;
+    }
     alert('Disclaimer: Scheduled Monitoring is UI-only and has no server-side execution engine implemented yet.');
 
     const newSchedule: ScheduleConfig = {
@@ -618,7 +621,21 @@ export default function Home() {
                 setLiveSteps(fullResult.steps);
               }
             } else if (event.type === 'error') {
-              setError(event as unknown as RunResponse);
+              const runError = event as unknown as RunResponse;
+              setError(runError);
+              saveRunToHistory({
+                runId: `err-${Date.now()}`,
+                targetUrl: url,
+                status: 'failed',
+                durationMs: 0,
+                strict,
+                steps: [], findings: [], categories: [],
+                totals: { total: 0, passed: 0, failed: 1, blocked: 0, skipped: 0 },
+                policyDecision: { effect: 'deny', code: 'INTERNAL_ERROR', reason: 'Internal error' },
+                unparsed: [], meanConfidence: 0,
+                ownership: { recordedTier: Number(tier), effectiveTier: Number(tier) },
+                error: runError.error || 'Unknown stream error'
+              });
             }
           } catch (e) {
             console.warn('Failed to parse NDJSON line:', line, e);
@@ -629,8 +646,8 @@ export default function Home() {
       if (err instanceof Error && err.name === 'AbortError') {
         // Aborted
       } else {
-        setError({
-          runId: 'err',
+        const errResult = {
+          runId: 'err-' + Date.now(),
           status: 'failed',
           durationMs: 0,
           targetUrl: url,
@@ -650,7 +667,9 @@ export default function Home() {
           totals: { total: 0, passed: 0, failed: 1, blocked: 0, skipped: 0 },
           unparsed: [],
           meanConfidence: 0,
-        });
+        };
+        setError(errResult);
+        saveRunToHistory(errResult);
       }
     } finally {
       setRunning(false);
@@ -672,7 +691,7 @@ export default function Home() {
   return (
     <div className="min-h-screen relative font-sans">
       {/* ── Navigation Header (Stitch Redesign) ── */}
-      <header className="sticky top-0 z-40 w-full border-b border-white/[0.07] bg-[#120e0c]/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 w-full border-b border-white/[0.07] bg-surface/70 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Brand & Workspace Identity */}
           <div className="flex items-center space-x-3.5">
@@ -691,7 +710,7 @@ export default function Home() {
             </div>
             <div className="flex items-center space-x-2.5 cursor-pointer" onClick={resetToOriginal}>
               <div className="flex items-baseline space-x-1">
-                <span className="font-bold tracking-tight text-lg text-white font-sans">Webtest</span>
+                <span className="font-bold tracking-tight text-lg text-foreground font-sans">Webtest</span>
                 <span className="font-semibold tracking-tight text-lg text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-sky-300 to-amber-300 font-sans animate-logo-shimmer inline-block select-none">Scanner</span>
               </div>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-sky-500/10 text-sky-300 border border-sky-500/30 shadow-sm">
@@ -722,7 +741,7 @@ export default function Home() {
             <button 
               type="button"
               onClick={() => setShowScheduleModal(true)} 
-              className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-all cursor-pointer"
+              className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-foreground bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-all cursor-pointer"
               title="Scheduled Synthetic Monitoring"
             >
               <i className="ph ph-calendar text-sm text-neutral-400" />
@@ -737,7 +756,7 @@ export default function Home() {
             <button 
               type="button"
               onClick={() => setShowHistoryModal(true)} 
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-all cursor-pointer"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-foreground bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 transition-all cursor-pointer"
               title="Recent Scan History"
             >
               <i className="ph ph-clock-counter-clockwise text-sm text-neutral-400" />
@@ -759,10 +778,10 @@ export default function Home() {
             {/* User Profile Pill */}
             <div className="flex items-center space-x-2 pl-2 border-l border-white/10">
               <div className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/5">
-                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-600 to-sky-600 flex items-center justify-center text-[10px] font-bold text-white uppercase">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-600 to-sky-600 flex items-center justify-center text-[10px] font-bold text-[#ffffff] uppercase">
                   {(user?.email?.[0] || 'Y').toUpperCase()}
                 </div>
-                <span className="hidden lg:inline-block text-xs text-neutral-300 font-mono tracking-tight max-w-[130px] truncate">
+                <span className="hidden lg:inline-block text-xs text-neutral-300 font-mono tracking-tight">
                   {user?.email || (typeof window !== 'undefined' && localStorage.getItem('wts_admin_user') ? JSON.parse(localStorage.getItem('wts_admin_user') || '{}').email : 'yogeshvar2508@gmail.com')}
                 </span>
               </div>
@@ -779,9 +798,9 @@ export default function Home() {
       </header>
 
       {/* ── Main content ── */}
-      <main className={isExecutionActive ? 'max-w-[1600px] mx-auto px-4 pt-6 pb-20 w-full flex flex-col lg:flex-row gap-6 relative z-10' : 'max-w-5xl mx-auto px-4 sm:px-6 pt-12 md:pt-16 pb-20 relative z-10'}>
+      <main className={isExecutionActive ? 'max-w-[1600px] mx-auto px-4 pt-6 pb-20 w-full grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10' : 'max-w-5xl mx-auto px-4 sm:px-6 pt-12 md:pt-16 pb-20 relative z-10'}>
         {/* ── LEFT COLUMN (or Centered Content when Idle) ── */}
-        <div className={isExecutionActive ? 'w-full lg:w-[45%] flex flex-col gap-4' : 'w-full'}>
+        <div className={isExecutionActive ? 'w-full flex flex-col gap-4' : 'w-full'}>
             {/* Navigation Bar when Results exist */}
             {result && (
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-2">
@@ -789,14 +808,14 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setActiveLeftTab('config')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeLeftTab === 'config' ? 'bg-white/10 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeLeftTab === 'config' ? 'bg-white/10 text-foreground shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}
                   >
                     <i className="ph ph-sliders" /> Edit Scan Setup
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveLeftTab('results')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeLeftTab === 'results' ? 'bg-white/10 text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeLeftTab === 'results' ? 'bg-white/10 text-foreground shadow-sm' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}
                   >
                     <i className="ph ph-chart-bar" /> Audit Report
                     <span className={`px-1.5 py-0.5 rounded text-[10px] ml-1 ${result.status === 'passed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
@@ -848,7 +867,7 @@ export default function Home() {
                   <span className="text-[11px] font-mono uppercase tracking-widest text-amber-200/90 font-medium">Autonomous QA &amp; Visual Intelligence</span>
                 </div>
                 {/* Striking Headline */}
-                <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-semibold tracking-tight text-white leading-[1.14]">
+                <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-semibold tracking-tight text-foreground leading-[1.14]">
                   Intelligent Browser Audits in <br />
                   <span className="font-serif italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-300 to-amber-100 underline decoration-amber-500/40 decoration-wavy decoration-1 underline-offset-8">Plain English.</span>
                 </h1>
@@ -859,7 +878,7 @@ export default function Home() {
               </section>
 
               {/* Main Interactive Testing Console Card (Stitch Redesign) */}
-              <section className="relative rounded-2xl bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] shadow-card-glass shadow-glow p-5 sm:p-7" data-purpose="audit-console">
+              <section className="relative rounded-2xl bg-surface/85 backdrop-blur-2xl border border-white/[0.09] shadow-card-glass shadow-glow p-5 sm:p-7" data-purpose="audit-console">
                 {/* Top Subtle Gradient Glow Line */}
                 <div className="absolute inset-x-8 -top-px h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent pointer-events-none" />
 
@@ -886,7 +905,7 @@ export default function Home() {
                           run();
                         }
                       }}
-                      className="w-full bg-[#110e0c]/90 border border-white/10 group-hover:border-white/20 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 text-neutral-100 placeholder:text-neutral-500 text-sm sm:text-base rounded-xl p-4 transition-all duration-200 resize-none font-sans outline-none" 
+                      className="w-full bg-surface/90 border border-white/10 group-hover:border-white/20 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 text-neutral-100 placeholder:text-neutral-500 text-sm sm:text-base rounded-xl p-4 transition-all duration-200 resize-none font-sans outline-none" 
                       placeholder="Describe what to test in plain English (e.g. 'Audit checkout flow, test responsive layout, check form validations, simulate 3G network throttle and verify WCAG contrast')..." 
                       rows={3} 
                     />
@@ -909,7 +928,7 @@ export default function Home() {
                           run();
                         }
                       }}
-                      className="w-full pl-10 pr-10 py-3 bg-[#100c0a]/95 border border-white/10 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 rounded-xl text-neutral-200 placeholder:text-neutral-500 text-sm font-mono transition-all outline-none" 
+                      className="w-full pl-10 pr-10 py-3 bg-surface/95 border border-white/10 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 rounded-xl text-neutral-200 placeholder:text-neutral-500 text-sm font-mono transition-all outline-none" 
                       placeholder="Enter target URL to inspect..." 
                       autoComplete="off"
                       spellCheck={false}
@@ -932,7 +951,7 @@ export default function Home() {
                     <button 
                       onClick={() => run()}
                       disabled={!urlValid || running}
-                      className="relative w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 hover:from-cyan-300 hover:via-sky-400 hover:to-blue-500 active:scale-[0.98] text-white font-semibold text-sm tracking-wide flex items-center justify-center space-x-3 shadow-luminous hover:shadow-luminous-hover border border-white/35 transition-all duration-300 cursor-pointer overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
+                      className="relative w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 hover:from-cyan-300 hover:via-sky-400 hover:to-blue-500 active:scale-[0.98] text-[#ffffff] font-semibold text-sm tracking-wide flex items-center justify-center space-x-3 shadow-luminous hover:shadow-luminous-hover border border-white/35 transition-all duration-300 cursor-pointer overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
                       type="button"
                       title={urlValid ? 'Execute Browser Audit (⌘+Enter)' : 'Enter a valid URL to run inspection'}
                     >
@@ -942,17 +961,17 @@ export default function Home() {
                       {running ? (
                         <>
                           <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                          <span className="relative z-10 text-white font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">Inspecting Target…</span>
+                          <span className="relative z-10 text-[#ffffff] font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">Inspecting Target…</span>
                         </>
                       ) : (
                         <>
                           {/* Crisp Radiant Icon with Subtle Glow Aura */}
                           <div className="relative flex items-center justify-center">
                             <span className="absolute w-4 h-4 rounded-full bg-cyan-300/40 blur-[2px] animate-pulse-subtle" />
-                            <i className="ph-fill ph-play text-sm text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.85)] relative z-10" />
+                            <i className="ph-fill ph-play text-sm text-[#ffffff] drop-shadow-[0_0_8px_rgba(255,255,255,0.85)] relative z-10" />
                           </div>
                           {/* CTA Text */}
-                          <span className="relative z-10 text-white font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">Inspect &amp; Run Audit</span>
+                          <span className="relative z-10 text-[#ffffff] font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">Inspect &amp; Run Audit</span>
                           {/* Frosted Tactile Keyboard Shortcut Badge */}
                           <span className="relative z-10 inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-black/25 backdrop-blur-md border border-white/25 text-cyan-100 font-mono text-[11px] font-medium tracking-tight shadow-inner">
                             <span className="text-[10px] leading-none opacity-80">⌘</span><span className="leading-none">↵</span>
@@ -973,7 +992,7 @@ export default function Home() {
                     {/* Preset: Console Errors */}
                     <button 
                       onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'demo-errors') || AI_PRESETS[0])}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
                       type="button"
                     >
                       <i className="ph ph-bug text-rose-400 text-sm" />
@@ -982,7 +1001,7 @@ export default function Home() {
                     {/* Preset: Full Health Scan */}
                     <button 
                       onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'health') || AI_PRESETS[1])}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-amber-200 border border-amber-500/30 hover:border-amber-400/50 transition-colors cursor-pointer" 
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-neutral-800 text-amber-200 border border-amber-500/30 hover:border-amber-400/50 transition-colors cursor-pointer" 
                       type="button"
                     >
                       <i className="ph ph-activity text-amber-400 text-sm" />
@@ -991,7 +1010,7 @@ export default function Home() {
                     {/* Preset: E-Commerce Flow */}
                     <button 
                       onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'ecommerce') || AI_PRESETS[2])}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
                       type="button"
                     >
                       <i className="ph ph-shopping-cart text-sky-400 text-sm" />
@@ -1000,7 +1019,7 @@ export default function Home() {
                     {/* Preset: Auth Security Check */}
                     <button 
                       onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'auth') || AI_PRESETS[3])}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
                       type="button"
                     >
                       <i className="ph ph-lock-key text-emerald-400 text-sm" />
@@ -1009,7 +1028,7 @@ export default function Home() {
                     {/* Preset: WCAG AA Audit */}
                     <button 
                       onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'a11y') || AI_PRESETS[4])}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-sky-200 border border-sky-500/30 hover:border-sky-400/50 transition-colors cursor-pointer" 
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-neutral-800 text-sky-200 border border-sky-500/30 hover:border-sky-400/50 transition-colors cursor-pointer" 
                       type="button"
                     >
                       <i className="ph ph-wheelchair text-sky-400 text-sm" />
@@ -1018,7 +1037,7 @@ export default function Home() {
                     {/* Preset: Mobile Nav & Layout */}
                     <button 
                       onClick={() => applyPreset(AI_PRESETS.find(p => p.id === 'mobile-nav') || AI_PRESETS[5])}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-neutral-800 text-neutral-300 border border-white/10 hover:border-white/20 transition-colors cursor-pointer" 
                       type="button"
                     >
                       <i className="ph ph-device-mobile text-indigo-400 text-sm" />
@@ -1028,7 +1047,7 @@ export default function Home() {
                     <button 
                       onClick={generateAiTestForUrl}
                       disabled={!urlValid || autoGenLoading}
-                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-amber-300/90 border border-amber-500/20 hover:border-amber-500/40 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" 
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-neutral-800 text-amber-300/90 border border-amber-500/20 hover:border-amber-500/40 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" 
                       type="button"
                       title={urlValid ? "AI scans the real website structure and auto-generates precise test scenarios" : "Enter a target URL first"}
                     >
@@ -1060,7 +1079,7 @@ export default function Home() {
                         <select 
                           value={aiProvider}
                           onChange={(e) => setAiProvider(e.target.value as any)}
-                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                          className="w-full appearance-none bg-surface border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
                         >
                           <option value="auto">⚡ Auto (Claude 3.5)</option>
                           <option value="local">🖥 Local LLM (Ollama)</option>
@@ -1076,7 +1095,7 @@ export default function Home() {
                         <select 
                           value={browserType}
                           onChange={(e) => setBrowserType(e.target.value as any)}
-                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                          className="w-full appearance-none bg-surface border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
                         >
                           <option value="chromium">🌐 Chromium</option>
                           <option value="webkit">🧭 Safari (WebKit)</option>
@@ -1091,7 +1110,7 @@ export default function Home() {
                         <select 
                           value={device}
                           onChange={(e) => setDevice(e.target.value as DevicePreset)}
-                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                          className="w-full appearance-none bg-surface border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
                         >
                           <option value="desktop">💻 Desktop (1280×800)</option>
                           <option value="laptop">🖥 Large (1440×900)</option>
@@ -1108,7 +1127,7 @@ export default function Home() {
                         <select 
                           value={environment}
                           onChange={(e) => setEnvironment(e.target.value)}
-                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                          className="w-full appearance-none bg-surface border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
                         >
                           <option value="QA">QA Environment</option>
                           <option value="STAGING">Staging</option>
@@ -1125,7 +1144,7 @@ export default function Home() {
                         <select 
                           value={tier}
                           onChange={(e) => setTier(e.target.value)}
-                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                          className="w-full appearance-none bg-surface border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
                         >
                           <option value="0">Tier 0 (Safe / Sandboxed)</option>
                           <option value="1">Tier 1 (Form Submissions)</option>
@@ -1153,7 +1172,7 @@ export default function Home() {
                           type="checkbox" 
                           checked={strict} 
                           onChange={() => setStrict(!strict)} 
-                          className="rounded bg-[#120e0c] border-white/20 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 w-3.5 h-3.5"
+                          className="rounded bg-surface border-white/20 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 w-3.5 h-3.5"
                         />
                         <span>Strict assertions</span>
                       </label>
@@ -1163,7 +1182,7 @@ export default function Home() {
                           checked={captureAssets} 
                           onChange={() => setCaptureAssets(!captureAssets)} 
                           disabled={tierNumber < 1}
-                          className="rounded bg-[#120e0c] border-white/20 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 w-3.5 h-3.5"
+                          className="rounded bg-surface border-white/20 text-sky-500 focus:ring-sky-500 focus:ring-offset-0 w-3.5 h-3.5"
                         />
                         <span>Capture HAR &amp; Assets</span>
                       </label>
@@ -1194,10 +1213,10 @@ export default function Home() {
                           disabled={isTierRestricted}
                           className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                             isTierRestricted
-                              ? 'opacity-40 cursor-not-allowed bg-[#110e0c]/40 text-neutral-500 border border-white/5'
+                              ? 'opacity-40 cursor-not-allowed bg-surface/40 text-neutral-500 border border-white/5'
                               : isSelected 
-                                ? 'bg-neutral-800 text-white border border-white/30 shadow-sm' 
-                                : 'bg-[#110e0c]/60 text-neutral-400 border border-white/5 hover:border-white/20 hover:text-neutral-200'
+                                ? 'bg-neutral-800 text-foreground border border-white/30 shadow-sm' 
+                                : 'bg-surface/60 text-neutral-400 border border-white/5 hover:border-white/20 hover:text-neutral-200'
                           }`}
                         >
                           {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />}
@@ -1661,7 +1680,6 @@ export default function Home() {
                     type="button" 
                     className="pill-action-btn" 
                     onClick={handleSaveSchedule} 
-                    disabled={!url.trim()}
                     style={{ marginTop: 8, height: 40 }}
                   >
                     + Add Schedule
@@ -1731,7 +1749,7 @@ export default function Home() {
                 runSiteRecon();
               }
             }}
-            className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white flex items-center justify-center shadow-lg shadow-amber-950/60 border border-amber-400/30 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+            className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-[#ffffff] flex items-center justify-center shadow-lg shadow-amber-950/60 border border-amber-400/30 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
             title="Open AI QA Copilot"
           >
             <i className="ph-bold ph-chats-circle text-2xl group-hover:rotate-12 transition-transform" />

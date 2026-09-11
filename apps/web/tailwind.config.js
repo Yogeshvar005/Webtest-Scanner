@@ -14,6 +14,23 @@ module.exports = {
         mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
+        background: 'var(--bg)',
+        surface: 'rgb(var(--bg-surface-rgb) / <alpha-value>)',
+        foreground: 'var(--text)',
+        muted: 'var(--text-muted)',
+        border: 'var(--border)',
+        white: 'var(--text)',
+        neutral: {
+          100: 'var(--text)',
+          200: 'var(--text)',
+          300: 'var(--text-secondary)',
+          400: 'var(--text-secondary)',
+          500: 'var(--text-muted)',
+          600: 'var(--text-muted)',
+          700: 'var(--border)',
+          800: 'var(--bg-hover)',
+          900: 'var(--bg)',
+        },
         brand: {
           50: '#f0f7ff',
           400: '#38bdf8',
@@ -37,6 +54,8 @@ module.exports = {
       animation: {
         'shimmer-slide': 'shimmerSlide 3.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'pulse-subtle': 'subtlePulse 2.5s ease-in-out infinite',
+        'blob': 'blob 12s infinite alternate ease-in-out',
+        'blob-reverse': 'blobReverse 15s infinite alternate ease-in-out',
       },
       keyframes: {
         shimmerSlide: {
@@ -46,6 +65,18 @@ module.exports = {
         subtlePulse: {
           '0%, 100%': { opacity: '0.8', transform: 'scale(1)' },
           '50%': { opacity: '1', transform: 'scale(1.05)' },
+        },
+        blob: {
+          '0%': { transform: 'translate(0px, 0px) scale(1)' },
+          '33%': { transform: 'translate(40px, -60px) scale(1.1)' },
+          '66%': { transform: 'translate(-30px, 30px) scale(0.9)' },
+          '100%': { transform: 'translate(0px, 0px) scale(1)' },
+        },
+        blobReverse: {
+          '0%': { transform: 'translate(0px, 0px) scale(1)' },
+          '33%': { transform: 'translate(-40px, 60px) scale(1.2)' },
+          '66%': { transform: 'translate(30px, -30px) scale(0.8)' },
+          '100%': { transform: 'translate(0px, 0px) scale(1)' },
         }
       }
     }
