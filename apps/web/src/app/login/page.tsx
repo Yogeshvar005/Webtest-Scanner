@@ -121,8 +121,7 @@ export default function LoginPage() {
             </div>
           </Link>
 
-          <div className="flex items-center space-x-3">
-            <button
+          <button
               type="button"
               className="p-2 rounded-lg bg-[#15110f] hover:bg-[#1f1916] text-neutral-400 hover:text-white transition-colors border border-white/5 cursor-pointer"
               onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
@@ -139,14 +138,6 @@ export default function LoginPage() {
                 <Sun size={16} className="text-amber-400" />
               )}
             </button>
-            <Link
-              href="/"
-              className="inline-flex items-center space-x-1.5 text-xs font-medium text-neutral-300 hover:text-white px-3 py-1.5 rounded-lg bg-[#171311] hover:bg-[#1f1a17] border border-white/10 transition-colors"
-            >
-              <i className="ph ph-arrow-left text-sm" />
-              <span>Back to Scanner</span>
-            </Link>
-          </div>
         </div>
       </header>
 
