@@ -763,6 +763,16 @@ export default function Home() {
                 {historyRuns.length > 0 ? historyRuns.length : 20}
               </span>
             </button>
+            {/* Ambient / Theme Toggle Indicator (Static Visual) */}
+            <button 
+              aria-label="Toggle light and dark mode" 
+              className="p-2 rounded-lg text-neutral-400 hover:text-amber-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/30 shadow-sm transition-all duration-300 cursor-pointer flex items-center justify-center relative group"
+              title="Switch to Light Mode" 
+              type="button"
+            >
+              <i className="ph ph-sun text-base text-amber-400/90 transition-transform duration-300 group-hover:scale-110" />
+            </button>
+
             {/* User Profile Pill */}
             <div className="flex items-center space-x-2 pl-2 border-l border-white/10">
               <div className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/5">

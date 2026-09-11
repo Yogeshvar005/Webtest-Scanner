@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import {
   Shield,
   Users,
@@ -15,8 +14,6 @@ import {
   Search,
   Filter,
   ArrowLeft,
-  Sun,
-  Moon,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -75,12 +72,6 @@ function formatTimeAgo(isoString: string): string {
 export default function AdminPage() {
   const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
-  const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const [telemetry, setTelemetry] = useState<TelemetryResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -352,7 +343,7 @@ export default function AdminPage() {
   if (!user && !authLoading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 24 }}>
-        <div style={{ maxWidth: 420, width: '100%', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '36px 32px', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }}>
+        <div className="max-w-[420px] w-full bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl p-8 sm:p-9 shadow-2xl text-center">
           <div style={{ width: 54, height: 54, borderRadius: '50%', backgroundColor: 'rgba(217,119,87,0.15)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
             <Shield size={28} />
           </div>
@@ -372,7 +363,7 @@ export default function AdminPage() {
   if (!authLoading && activeUser && telemetry && !isAdmin) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 24 }}>
-        <div style={{ maxWidth: 460, width: '100%', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '40px 32px', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }}>
+        <div className="max-w-[460px] w-full bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl p-8 sm:p-10 shadow-2xl text-center">
           <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(239,68,68,0.12)', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 22px' }}>
             <ShieldAlert size={32} />
           </div>
@@ -430,237 +421,131 @@ export default function AdminPage() {
       )}
 
       {/* ── Top Masthead ── */}
-      <header
-        style={{
-          borderBottom: '1px solid var(--border)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          backgroundColor: 'var(--bg-surface-glass)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          padding: '16px 28px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link
-            href="/"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              color: 'var(--text-secondary)',
-              textDecoration: 'none',
-              fontSize: 13,
-              fontWeight: 500,
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--bg-surface)',
-            }}
-          >
-            <ArrowLeft size={15} />
-            Back to Scanner
-          </Link>
+      <header className="sticky top-0 z-40 w-full border-b border-white/[0.07] bg-[#120e0c]/70 backdrop-blur-xl">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all cursor-pointer"
+            >
+              <ArrowLeft size={14} />
+              <span className="hidden sm:inline">Back to Scanner</span>
+            </Link>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div className="relative w-8 h-8 rounded-lg bg-surface border border-white/10 flex items-center justify-center text-sky-400 shadow-sm flex-shrink-0">
-              <i className="ph ph-terminal-window text-lg" />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, lineHeight: 1.2, color: 'var(--text)' }}>
-                  Webtest <span className="animate-logo-shimmer font-serif italic text-amber-400/90 font-normal">Scanner</span> Admin
-                </h1>
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                  Telemetry v2.0
+            <div className="flex items-center space-x-3.5">
+              {/* Modern High-Tech Logo Mark */}
+              <Link
+                href="/"
+                className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 via-neutral-900 to-sky-500/20 border border-white/10 shadow-inner group cursor-pointer"
+                title="Webtest Scanner - Back to home"
+              >
+                <div className="absolute inset-0 rounded-xl bg-amber-500/10 blur-sm group-hover:bg-amber-500/20 transition-all" />
+                <i className="ph-bold ph-terminal-window text-xl text-amber-400 relative z-10" />
+                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500" />
                 </span>
+              </Link>
+              <div>
+                <div className="flex items-center space-x-2.5">
+                  <div className="flex items-baseline space-x-1">
+                    <span className="font-bold tracking-tight text-lg text-foreground font-sans">Webtest</span>
+                    <span className="font-semibold tracking-tight text-lg text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-sky-300 to-amber-300 font-sans animate-logo-shimmer inline-block select-none">Scanner</span>
+                    <span className="font-semibold tracking-tight text-lg text-neutral-400 font-sans ml-1">Admin</span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-sky-500/10 text-sky-300 border border-sky-500/30 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />Telemetry v2.0
+                  </span>
+                </div>
+                <p className="hidden md:block m-0 text-xs text-neutral-400">
+                  Live user presence, target audits, session control &amp; telemetry
+                </p>
               </div>
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
-                Live user presence, target audits, session control &amp; telemetry
-              </p>
             </div>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Auto Refresh Toggle */}
-          <button
-            onClick={() => setAutoRefresh(!autoRefresh)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 12,
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-pill)',
-              border: '1px solid var(--border)',
-              backgroundColor: autoRefresh ? 'rgba(76, 175, 80, 0.12)' : 'var(--bg-surface)',
-              color: autoRefresh ? 'var(--pass)' : 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
-            title={autoRefresh ? 'Live refresh active (every 10s)' : 'Live refresh paused'}
-          >
-            <span
+          <div className="flex items-center gap-2.5">
+            {/* Auto Refresh Toggle */}
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-all cursor-pointer"
               style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: autoRefresh ? 'var(--pass)' : 'var(--text-muted)',
-                display: 'inline-block',
+                color: autoRefresh ? 'var(--pass)' : 'var(--text-muted)',
               }}
-            />
-            {autoRefresh ? 'Live' : 'Paused'}
-          </button>
-
-          {/* Manual Refresh Button */}
-          <button
-            onClick={() => fetchTelemetry(false)}
-            disabled={loading}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 13,
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text)',
-              cursor: 'pointer',
-            }}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-
-          {/* Export Dropdown / Buttons */}
-          <button
-            onClick={handleExportCsv}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 13,
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text)',
-              cursor: 'pointer',
-            }}
-            title="Download audit logs in CSV format"
-          >
-            <Download size={14} />
-            Audit CSV
-          </button>
-
-          {/* Theme Toggle */}
-          <button
-            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="theme-toggle"
-            style={{
-              width: 36,
-              height: 36,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-            aria-label="Toggle light / dark mode"
-            title={mounted && resolvedTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {mounted ? (
-              resolvedTheme === 'dark' ? (
-                <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
-              ) : (
-                <Moon size={18} style={{ color: 'var(--accent)', width: 18, height: 18, flexShrink: 0 }} />
-              )
-            ) : (
-              <Sun size={18} style={{ color: '#F59E0B', width: 18, height: 18, flexShrink: 0 }} />
-            )}
-          </button>
-
-          {/* Admin User Badge */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '4px 10px 4px 6px',
-              borderRadius: 'var(--radius-pill)',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: '50%',
-                backgroundColor: 'var(--accent)',
-                color: '#fff',
-                fontSize: 12,
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              title={autoRefresh ? 'Live refresh active (every 10s)' : 'Live refresh paused'}
             >
-              {activeUser?.email ? activeUser.email.slice(0, 2).toUpperCase() : 'AD'}
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  backgroundColor: autoRefresh ? 'var(--pass)' : 'var(--text-muted)',
+                  display: 'inline-block',
+                }}
+              />
+              <span className="hidden sm:inline">{autoRefresh ? 'Live' : 'Paused'}</span>
+            </button>
+
+            {/* Manual Refresh Button */}
+            <button
+              onClick={() => fetchTelemetry(false)}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-neutral-200 transition-all cursor-pointer"
+            >
+              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+
+            {/* Export Audit CSV Button */}
+            <button
+              onClick={handleExportCsv}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-neutral-200 transition-all cursor-pointer"
+              title="Download audit logs in CSV format"
+            >
+              <Download size={13} />
+              <span>Audit CSV</span>
+            </button>
+
+            {/* Admin User Badge */}
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10">
+              <div
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--accent)',
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {activeUser?.email ? activeUser.email.slice(0, 2).toUpperCase() : 'AD'}
+              </div>
+              <span className="hidden md:inline text-xs font-medium text-neutral-200">{activeUser?.email}</span>
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Admin
+              </span>
             </div>
-            <span style={{ fontSize: 13, fontWeight: 500 }}>{activeUser?.email}</span>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                padding: '2px 6px',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'rgba(217, 119, 87, 0.15)',
-                color: 'var(--accent)',
-              }}
-            >
-              Admin
-            </span>
-          </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('wts_admin_user');
-              }
-              setLocalAdminUser(null);
-              logout().catch(() => {});
-            }}
-            title="Sign out of admin session"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              fontSize: 12,
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            <LogOut size={14} />
-            Exit Admin
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('wts_admin_user');
+                }
+                setLocalAdminUser(null);
+                logout().catch(() => {});
+              }}
+              title="Sign out of admin session"
+              className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 hover:text-white transition-all cursor-pointer"
+            >
+              <LogOut size={13} />
+              <span className="hidden sm:inline">Exit</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -677,15 +562,7 @@ export default function AdminPage() {
             }}
           >
             {/* Total & Active Users */}
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                padding: '20px 24px',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
+            <div className="bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl p-5 sm:p-6 shadow-sm">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>User Presence</span>
                 <Users size={18} style={{ color: 'var(--accent)' }} />
@@ -711,15 +588,7 @@ export default function AdminPage() {
             </div>
 
             {/* Total Scans & Health */}
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                padding: '20px 24px',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
+            <div className="bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl p-5 sm:p-6 shadow-sm">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>Synthetic Scans</span>
                 <Activity size={18} style={{ color: 'var(--pass)' }} />
@@ -744,15 +613,7 @@ export default function AdminPage() {
             </div>
 
             {/* AI Copilot Interactions */}
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                padding: '20px 24px',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
+            <div className="bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl p-5 sm:p-6 shadow-sm">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>AI Copilot Queries</span>
                 <Bot size={18} style={{ color: '#8b5cf6' }} />
@@ -766,16 +627,8 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Audit Logs Recorded */}
-            <div
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                padding: '20px 24px',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
+            {/* Audit Events Recorded */}
+            <div className="bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl p-5 sm:p-6 shadow-sm">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>Audit Events</span>
                 <Terminal size={18} style={{ color: 'var(--text-muted)' }} />
@@ -794,15 +647,7 @@ export default function AdminPage() {
         {/* ── Two-Column Layout: Users Roster & Live Audit Feed ── */}
         <div style={{ display: 'grid', gridTemplateColumns: selectedUser ? '1fr 380px' : '1.3fr 1fr', gap: 24 }}>
           {/* ── Column 1: Users Presence & Management Roster ── */}
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              overflow: 'hidden',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
+          <div className="bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl overflow-hidden shadow-sm">
             {/* Header & Filter Bar */}
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -1122,17 +967,7 @@ export default function AdminPage() {
           <div>
             {selectedUser ? (
               /* User Drill-down Pane */
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  overflow: 'hidden',
-                  boxShadow: 'var(--shadow-sm)',
-                  position: 'sticky',
-                  top: 90,
-                }}
-              >
+              <div className="bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl overflow-hidden shadow-sm sticky top-[80px]">
                 <div
                   style={{
                     padding: '18px 20px',
@@ -1301,15 +1136,7 @@ export default function AdminPage() {
               </div>
             ) : (
               /* General Live Audit Trail */
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  overflow: 'hidden',
-                  boxShadow: 'var(--shadow-sm)',
-                }}
-              >
+              <div className="bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl overflow-hidden shadow-sm">
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                     <div>
@@ -1477,15 +1304,7 @@ export default function AdminPage() {
 
         {/* ── Manage Admins Panel ── */}
         <div style={{ maxWidth: 900, margin: '40px auto 0', padding: '0 24px' }}>
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              padding: 28,
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
+          <div className="bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] rounded-2xl p-7 shadow-sm">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
               <ShieldCheck size={20} style={{ color: 'var(--accent)' }} />
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Manage Admins</h3>
