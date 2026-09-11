@@ -129,7 +129,8 @@ export default function Home() {
   const [activeLeftTab, setActiveLeftTab] = useState<'config' | 'results'>('config');
 
   // Live execution sandbox is displayed ONLY when a prompt is given / execution is active
-  const isExecutionActive = Boolean(running || runStartedAt || result || error);
+  const isExecutionActive = Boolean(running || runStartedAt || error);
+  const showResultsFullWidth = Boolean(!running && result);
 
   // PRD v2 Modals
   const [showHistoryModal, setShowHistoryModal] = useState(false);

@@ -225,15 +225,15 @@ function ExportDock({ result }: { result: RunResponse }) {
         <IconDownload /> Full JSON
       </button>
 
-      <button type="button" className="secondary" onClick={handleCsv} title="Download CSV Spreadsheet" style={{ fontSize: 12 }}>
+      <button type="button" className="secondary" onClick={handleCsv}  style={{ fontSize: 12 }}>
         <IconCsv /> CSV
       </button>
 
-      <button type="button" className="secondary" onClick={handleMarkdown} title="Download Markdown Audit Report" style={{ fontSize: 12 }}>
+      <button type="button" className="secondary" onClick={handleMarkdown}  style={{ fontSize: 12 }}>
         <IconMd /> Markdown
       </button>
 
-      <button type="button" className="secondary" onClick={handleCopy} title="Copy Raw JSON to Clipboard" style={{ fontSize: 12 }}>
+      <button type="button" className="secondary" onClick={handleCopy}  style={{ fontSize: 12 }}>
         <IconCopy /> {copied ? 'Copied to Clipboard!' : 'Copy JSON'}
       </button>
 
@@ -242,7 +242,7 @@ function ExportDock({ result }: { result: RunResponse }) {
           type="button"
           className="secondary"
           onClick={handleScraperJson}
-          title="Download Scraped Page Data"
+          
           style={{ fontSize: 12, background: 'var(--bg-hover)', borderColor: 'rgba(10, 132, 255, 0.4)', color: 'var(--accent)' }}
         >
           <IconDownload /> Scraped Content JSON
