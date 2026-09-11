@@ -1676,9 +1676,9 @@ export default function Home() {
 
                   <button 
                     type="button" 
-                    className="pill-action-btn" 
+                    className="w-full px-6 py-3 mt-2 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 hover:from-cyan-300 hover:via-sky-400 hover:to-blue-500 active:scale-[0.98] text-[#ffffff] font-semibold text-sm tracking-wide shadow-luminous hover:shadow-luminous-hover border border-white/35 transition-all duration-300 cursor-pointer overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed" 
                     onClick={handleSaveSchedule} 
-                    style={{ marginTop: 8, height: 40 }}
+                    
                   >
                     + Add Schedule
                   </button>

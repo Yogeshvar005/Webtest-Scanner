@@ -692,7 +692,7 @@ button:disabled {
 /* ============================================================
    Inputs & Textareas
    ============================================================ */
-input[type="text"], input[type="email"], input[type="password"], textarea, select {
+input[type="text"], input[type="email"], input[type="password"], input[type="url"], textarea, select {
   width: 100%;
   background-color: var(--bg);
   border: 1px solid var(--border);
@@ -705,7 +705,7 @@ input[type="text"], input[type="email"], input[type="password"], textarea, selec
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, textarea:focus, select:focus {
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="url"]:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.2), inset 0 1px 2px rgba(0, 0, 0, 0.04);
