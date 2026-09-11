@@ -759,9 +759,11 @@ export default function Home() {
             >
               <i className="ph ph-clock-counter-clockwise text-sm text-neutral-400" />
               <span className="hidden sm:inline">History</span>
-              <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-neutral-800 text-neutral-300 font-mono">
-                {historyRuns.length > 0 ? historyRuns.length : 20}
-              </span>
+              {historyRuns.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-neutral-800 text-neutral-300 font-mono">
+                  {historyRuns.length}
+                </span>
+              )}
             </button>
             {/* Ambient / Theme Toggle Indicator (Static Visual) */}
             <button 
