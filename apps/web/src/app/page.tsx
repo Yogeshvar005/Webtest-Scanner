@@ -870,8 +870,10 @@ export default function Home() {
                       <i className="ph-bold ph-sparkle text-amber-400 text-sm" />
                       <span>Audit Prompt &amp; Intent</span>
                     </div>
-                    <div className="flex items-center space-x-1 font-mono text-[11px] text-neutral-400 bg-neutral-900/90 border border-white/10 px-2 py-0.5 rounded-md">
-                      <kbd className="text-neutral-300">⌘</kbd> + <kbd className="text-neutral-300">Enter</kbd> <span>to inspect</span>
+                    <div className="flex items-center font-mono text-[10px] leading-none text-neutral-400 bg-neutral-900/90 border border-white/10 px-2 py-1 rounded-md uppercase tracking-wider">
+                      <span className="text-neutral-300 font-sans text-xs mr-0.5 mt-[-1px]">⌘</span>
+                      <span className="text-neutral-400 mr-1.5 mt-[-1px]">+</span>
+                      <span>ENTER TO INSPECT</span>
                     </div>
                   </div>
                   <div className="relative group">
