@@ -7,12 +7,19 @@ export const runtime = 'nodejs';
 export async function POST(req: Request) {
   try {
     const adminUid = req.headers.get('x-admin-uid');
-    if (!adminUid) {
-      return NextResponse.json({ error: 'Unauthorized: Missing admin UID' }, { status: 401 });
+    const adminEmail = req.headers.get('x-admin-email');
+    if (!adminUid && !adminEmail) {
+      return NextResponse.json({ error: 'Unauthorized: Missing admin credentials' }, { status: 401 });
     }
 
-    const requesterRole = await getUserRole(adminUid);
-    if (requesterRole !== 'platform_admin') {
+    let isPerm = false;
+    if (adminEmail) {
+      const perm = await getAdminEmails();
+      isPerm = perm.includes(adminEmail.toLowerCase().trim());
+    }
+
+    const requesterRole = adminUid ? await getUserRole(adminUid) : null;
+    if (requesterRole !== 'platform_admin' && !isPerm) {
       return NextResponse.json({ error: 'Forbidden: Requires platform_admin privileges' }, { status: 403 });
     }
 

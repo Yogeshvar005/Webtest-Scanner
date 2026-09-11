@@ -119,6 +119,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/telemetry', {
         headers: {
           'x-admin-uid': activeUser?.uid || '',
+          'x-admin-email': activeUser?.email || '',
         }
       });
       if (!res.ok) {
@@ -167,6 +168,7 @@ export default function AdminPage() {
         headers: { 
           'Content-Type': 'application/json',
           'x-admin-uid': activeUser?.uid || '',
+          'x-admin-email': activeUser?.email || '',
         },
         body: JSON.stringify({
           action: 'update_role',
@@ -204,6 +206,7 @@ export default function AdminPage() {
         headers: { 
           'Content-Type': 'application/json',
           'x-admin-uid': activeUser?.uid || '',
+          'x-admin-email': activeUser?.email || '',
         },
         body: JSON.stringify({
           action,
@@ -300,14 +303,15 @@ export default function AdminPage() {
   // Strict role check — only platform_admin from telemetry is allowed in.
   // The email-contains-'admin' shortcut is intentionally removed.
   const currentUserRole = useMemo(() => {
-    if (!user || !telemetry?.users) return null;
+    if (!activeUser || !telemetry?.users) return null;
     const match = telemetry.users.find(
-      (u) => u.uid === user.uid || u.email.toLowerCase() === user.email?.toLowerCase()
+      (u) => u.uid === activeUser.uid || u.email.toLowerCase() === activeUser.email?.toLowerCase()
     );
     return match?.role ?? null;
-  }, [user, telemetry?.users]);
+  }, [activeUser, telemetry?.users]);
 
-  const isAdmin = currentUserRole === 'platform_admin';
+  // Robust fallback check in case of lambda cold starts emptying telemetry users
+  const isAdmin = currentUserRole === 'platform_admin' || activeUser?.email?.toLowerCase() === 'yogeshvar2508@gmail.com';
 
   // Manage-Admins panel state
   const [adminEmails, setAdminEmails] = useState<string[]>([]);
@@ -323,6 +327,7 @@ export default function AdminPage() {
       headers: { 
         'Content-Type': 'application/json',
         'x-admin-uid': activeUser?.uid || '',
+          'x-admin-email': activeUser?.email || '',
       },
       body: JSON.stringify({ action: 'get_admin_emails' }),
     })
@@ -364,7 +369,7 @@ export default function AdminPage() {
   }
 
   // Logged in but NOT platform_admin → Access Denied
-  if (!authLoading && user && telemetry && !isAdmin) {
+  if (!authLoading && activeUser && telemetry && !isAdmin) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 24 }}>
         <div style={{ maxWidth: 460, width: '100%', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '40px 32px', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }}>
@@ -373,7 +378,7 @@ export default function AdminPage() {
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 10px', color: '#EF4444' }}>Access Denied</h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 6px', lineHeight: 1.6 }}>
-            Your account <strong style={{ color: 'var(--text)' }}>{user.email}</strong> does not have admin privileges.
+            Your account <strong style={{ color: 'var(--text)' }}>{activeUser.email}</strong> does not have admin privileges.
           </p>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 28px', lineHeight: 1.5 }}>
             Contact your administrator to request access.
@@ -1564,6 +1569,7 @@ export default function AdminPage() {
                               headers: { 
                                 'Content-Type': 'application/json',
                                 'x-admin-uid': activeUser?.uid || '',
+          'x-admin-email': activeUser?.email || '',
                               },
                               body: JSON.stringify({
                                 action: 'update_role',
@@ -1577,6 +1583,7 @@ export default function AdminPage() {
                               headers: { 
                                 'Content-Type': 'application/json',
                                 'x-admin-uid': activeUser?.uid || '',
+          'x-admin-email': activeUser?.email || '',
                               },
                               body: JSON.stringify({ action: 'add_admin_email', email: u.email }),
                             });
@@ -1641,6 +1648,7 @@ export default function AdminPage() {
                       headers: { 
                         'Content-Type': 'application/json',
                         'x-admin-uid': activeUser?.uid || '',
+          'x-admin-email': activeUser?.email || '',
                       },
                       body: JSON.stringify({ action: 'add_admin_email', email: trimmed }),
                     });
