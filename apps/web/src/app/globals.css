@@ -18,50 +18,6 @@
    Claude-Like Minimal Design System Tokens
    ============================================================ */
 :root {
-  /* Light Mode Palette */
-  --bg: #FAF8F5; /* Claude warm off-white */
-  --bg-image: url('/bg-light.jpg');
-  --bg-surface: #FFFFFF;
-  --bg-surface-rgb: 255, 255, 255;
-  --bg-surface-glass: rgba(255, 255, 255, 0.85);
-  --bg-hover: #F0EFEA;
-  
-  --accent-glow-1: rgba(14, 165, 233, 0.1);
-  --accent-glow-2: rgba(56, 189, 248, 0.08);
-  --accent-glow-3: rgba(2, 132, 199, 0.05);
-  --accent-glow-4: rgba(125, 211, 252, 0.12);
-  
-  --text: #1E1D19;
-  --text-secondary: #6B6965;
-  --text-muted: #8E8C85;
-  
-  --border: rgba(0, 0, 0, 0.1);
-  --border-focus: rgba(0, 0, 0, 0.25);
-  
-  --accent: #D97757; /* Claude-like orange/rust */
-  --accent-hover: #C56A4C;
-  
-  --radius-xl: 24px;
-  --radius: 16px;
-  --radius-md: 10px;
-  --radius-sm: 6px;
-  --radius-pill: 9999px;
-  
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.08);
-
-  /* Status Colors */
-  --pass: #2E7D32;
-  --pass-bg: #E8F5E9;
-  --fail: #D32F2F;
-  --fail-bg: #FFEBEE;
-  --warn: #F57F17;
-  --warn-bg: #FFF3E0;
-}
-
-.dark {
-  /* Ambient Telemetry & Operations Dark Palette */
   --bg: #0c0908;
   --bg-surface: rgba(23, 19, 17, 0.85);
   --bg-surface-rgb: 23, 19, 17;
@@ -83,18 +39,27 @@
   --accent: #f59e0b; /* Core Amber */
   --accent-hover: #d97706;
   --accent-sky: #0ea5e9; /* Sky Blue */
+  
+  --radius-xl: 24px;
+  --radius: 16px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+  --radius-pill: 9999px;
+  
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.08);
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
-
-  --pass: #34d399;
-  --pass-bg: rgba(52, 211, 153, 0.15);
-  --fail: #f87171;
-  --fail-bg: rgba(248, 113, 113, 0.15);
-  --warn: #fbbf24;
-  --warn-bg: rgba(251, 191, 36, 0.15);
+  /* Status Colors */
+  --pass: #10b981;
+  --pass-bg: rgba(16, 185, 129, 0.1);
+  --fail: #ef4444;
+  --fail-bg: rgba(239, 68, 68, 0.1);
+  --warn: #f59e0b;
+  --warn-bg: rgba(245, 158, 11, 0.1);
 }
+
+
 
 * {
   box-sizing: border-box;

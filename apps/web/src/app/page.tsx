@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import { 
   Sun, Moon, Search, Smartphone, Monitor, Tablet, Laptop, 
   Sparkles, Clock, History, Calendar, Bell, CheckCircle, 
@@ -103,7 +102,6 @@ interface RecommendedJourney {
 export default function Home() {
   const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
-  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -764,16 +762,6 @@ export default function Home() {
               <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-neutral-800 text-neutral-300 font-mono">
                 {historyRuns.length > 0 ? historyRuns.length : 20}
               </span>
-            </button>
-            {/* Theme Toggle */}
-            <button 
-              aria-label="Theme mode" 
-              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')} 
-              className="p-2 rounded-lg text-neutral-400 hover:text-amber-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/30 shadow-sm transition-all duration-200 cursor-pointer" 
-              type="button" 
-              title="Toggle theme"
-            >
-              <i className={`ph ${resolvedTheme === 'dark' ? 'ph-sun text-amber-400/90' : 'ph-moon text-sky-400/90'} text-base transition-transform duration-200`} />
             </button>
             {/* User Profile Pill */}
             <div className="flex items-center space-x-2 pl-2 border-l border-white/10">
