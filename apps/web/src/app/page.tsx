@@ -1079,9 +1079,9 @@ export default function Home() {
                           onChange={(e) => setAiProvider(e.target.value as any)}
                           className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
                         >
-                          <option value="auto">⚡ Auto (Claude 3.5)</option>
-                          <option value="local">🖥 Local LLM (Ollama)</option>
-                          <option value="gemini">✨ Gemini 1.5 Pro</option>
+                          <option value="auto">⚡ Auto</option>
+                          <option value="local">🖥 Local</option>
+                          <option value="gemini">✨ Cloud</option>
                         </select>
                         <i className="ph ph-caret-down absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 text-xs pointer-events-none" />
                       </div>

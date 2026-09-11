@@ -107,7 +107,7 @@ export function CopilotDrawer({
       role: 'assistant',
       content: siteRecon
         ? `Hello! I'm your AI QA Copilot. I've analyzed **${siteRecon.title || siteRecon.domain}**. You can ask me to test any flow, interact with specific buttons, or verify edge-case boundaries on this website.`
-        : `Hello! I'm your AI QA Copilot powered by your ${aiConfig?.provider === 'local' ? 'local Ollama model' : 'AI engine'}. Enter a website URL or tell me what you'd like to test!`,
+        : `Hello! I'm your AI QA Copilot powered by your ${aiConfig?.provider === 'local' ? 'Local AI' : 'AI engine'}. Enter a website URL or tell me what you'd like to test!`,
     },
   ]);
   const [input, setInput] = useState('');
@@ -184,7 +184,7 @@ export function CopilotDrawer({
         ...prev,
         {
           role: 'assistant',
-          content: 'Sorry, I encountered an issue processing your request with the AI engine. Please verify the local Ollama service is reachable.',
+          content: 'Sorry, I encountered an issue processing your request with the AI engine. Please verify the local AI service is reachable.',
         },
       ]);
     } finally {
@@ -277,7 +277,7 @@ export function CopilotDrawer({
                 }}
               >
                 <Cpu size={10} />
-                {aiConfig?.provider === 'local' ? `Local: ${aiConfig?.model || 'llama3.2'}` : 'Gemini'}
+                {aiConfig?.provider === 'local' ? 'Local' : 'Cloud'}
               </span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -414,7 +414,7 @@ export function CopilotDrawer({
         {loading && (
           <div style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 12 }}>
             <span className="spinner" style={{ width: 12, height: 12 }} />
-            {aiConfig?.provider === 'local' ? 'Local LLM thinking...' : 'Gemini thinking...'}
+            {aiConfig?.provider === 'local' ? 'Local AI thinking...' : 'Cloud AI thinking...'}
           </div>
         )}
         <div ref={chatEndRef} />
