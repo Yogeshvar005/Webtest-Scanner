@@ -849,7 +849,8 @@ export default function Home() {
                 </div>
                 {/* Striking Headline */}
                 <h1 className="text-3xl sm:text-4xl lg:text-[46px] font-semibold tracking-tight text-white leading-[1.14]">
-                  Intelligent Browser Audits in <span className="font-serif italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-300 to-amber-100 underline decoration-amber-500/40 decoration-wavy decoration-1 underline-offset-8">Plain English.</span>
+                  Intelligent Browser Audits in <br />
+                  <span className="font-serif italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-300 to-amber-100 underline decoration-amber-500/40 decoration-wavy decoration-1 underline-offset-8">Plain English.</span>
                 </h1>
                 {/* Refined Subtitle */}
                 <p className="mt-3 text-sm sm:text-base text-neutral-300/80 max-w-2xl mx-auto leading-relaxed font-normal">
@@ -945,7 +946,7 @@ export default function Home() {
                         <>
                           {/* Crisp Radiant Icon with Subtle Glow Aura */}
                           <div className="relative flex items-center justify-center">
-                            <span className="absolute w-4 h-4 rounded-full bg-cyan-300/40 blur-xs animate-pulse-subtle" />
+                            <span className="absolute w-4 h-4 rounded-full bg-cyan-300/40 blur-[2px] animate-pulse-subtle" />
                             <i className="ph-fill ph-play text-sm text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.85)] relative z-10" />
                           </div>
                           {/* CTA Text */}

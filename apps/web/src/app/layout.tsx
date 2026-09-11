@@ -26,6 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* Phosphor Icons for developer UI */}
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css" />
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css" />
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css" />
       </head>
       <body className="min-h-screen font-sans selection:bg-sky-500/30 selection:text-white relative pb-20">
         <div aria-hidden="true" className="ambient-noise" />
