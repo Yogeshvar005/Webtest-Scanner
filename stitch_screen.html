@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Webtest Scanner - Dark Mode Console</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter, Newsreader & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Lucide Icons via unpkg -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Newsreader', 'Georgia', 'serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+            },
+            amber: {
+              350: '#fbbf24',
+              450: '#f59e0b',
+              550: '#d97706',
+            }
+          },
+          boxShadow: {
+            'glow': '0 0 50px -10px rgba(217, 119, 6, 0.18), 0 0 30px -12px rgba(56, 189, 248, 0.16)',
+            'card-glass': '0 25px 50px -12px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+            'luminous': '0 0 25px -3px rgba(14, 165, 233, 0.65), 0 0 12px -1px rgba(56, 189, 248, 0.45), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.5)',
+            'luminous-hover': '0 0 38px 0px rgba(14, 165, 233, 0.85), 0 0 18px 2px rgba(56, 189, 248, 0.6), inset 0 1px 2px 0 rgba(255, 255, 255, 0.8)',
+          },
+          animation: {
+            'shimmer-slide': 'shimmerSlide 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'pulse-subtle': 'subtlePulse 2.8s ease-in-out infinite',
+            'ambient-drift': 'ambientDrift 14s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            shimmerSlide: {
+              '0%': { transform: 'translateX(-150%) skewX(-20deg)' },
+              '40%, 100%': { transform: 'translateX(260%) skewX(-20deg)' },
+            },
+            subtlePulse: {
+              '0%, 100%': { opacity: '0.8', transform: 'scale(1)' },
+              '50%': { opacity: '1', transform: 'scale(1.06)' },
+            },
+            ambientDrift: {
+              '0%': { transform: 'translate(0, 0) scale(1)' },
+              '50%': { transform: 'translate(25px, -30px) scale(1.08)' },
+              '100%': { transform: 'translate(-20px, 20px) scale(0.96)' },
+            }
+          }
+        }
+      }
+    }
+</script>
+<style>
+  /* Obsidian ambient background with breathing radial lights */
+  body {
+    background-color: #0c0908;
+    color: #f3f4f6;
+    overflow-x: hidden;
+  }
+
+  .ambient-gradient-mesh {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .gradient-orb-1 {
+    position: absolute;
+    top: 5%;
+    left: 12%;
+    width: 650px;
+    height: 650px;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(180, 83, 9, 0.22) 0%, rgba(120, 53, 15, 0.08) 50%, transparent 70%);
+    filter: blur(60px);
+    animation: ambientDrift 16s ease-in-out infinite alternate;
+  }
+
+  .gradient-orb-2 {
+    position: absolute;
+    top: 35%;
+    right: 8%;
+    width: 680px;
+    height: 680px;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(154, 52, 18, 0.24) 0%, rgba(69, 26, 3, 0.12) 50%, transparent 75%);
+    filter: blur(70px);
+    animation: ambientDrift 19s ease-in-out infinite alternate-reverse;
+  }
+
+  .gradient-orb-3 {
+    position: absolute;
+    bottom: -5%;
+    left: 30%;
+    width: 750px;
+    height: 600px;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(217, 119, 6, 0.15) 0%, rgba(14, 165, 233, 0.08) 55%, transparent 75%);
+    filter: blur(80px);
+    animation: ambientDrift 22s ease-in-out infinite alternate;
+  }
+
+  /* Material Symbols utility */
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+  }
+  .material-symbols-outlined.fill-1 {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(12, 9, 8, 0.6);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  /* Smooth transitions */
+  .theme-transition {
+    transition: background-color 0.4s ease, border-color 0.4s ease, color 0.3s ease;
+  }
+</style>
+</head>
+<body class="min-h-screen font-sans selection:bg-brand-500/30 selection:text-amber-200 relative pb-20 theme-transition">
+<!-- Ambient Glowing Orbs Background -->
+<div aria-hidden="true" class="ambient-gradient-mesh">
+<div class="gradient-orb-1"></div>
+<div class="gradient-orb-2"></div>
+<div class="gradient-orb-3"></div>
+</div>
+<!-- BEGIN: NavigationHeader -->
+<header class="sticky top-0 z-40 w-full border-b border-white/[0.08] bg-[#120e0c]/80 backdrop-blur-xl transition-colors">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+<!-- Brand & Workspace Identity -->
+<div class="flex items-center space-x-3.5">
+<!-- Modern High-Tech Logo Mark -->
+<div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/25 via-neutral-900 to-sky-500/20 border border-white/15 shadow-inner group cursor-pointer">
+<div class="absolute inset-0 rounded-xl bg-amber-500/15 blur-sm group-hover:bg-amber-500/30 transition-all"></div>
+<span class="material-symbols-outlined text-amber-400 relative z-10 text-[22px]">terminal</span>
+<span class="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-500"></span>
+</span>
+</div>
+<!-- Brand Title & Version -->
+<div class="flex items-center space-x-2.5">
+<div class="flex items-baseline space-x-1.5">
+<span class="font-bold tracking-tight text-lg text-white font-sans">Webtest</span>
+<span class="font-semibold tracking-tight text-lg text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-sky-300 to-amber-300 font-sans select-none">Scanner</span>
+</div>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-sky-500/10 text-sky-300 border border-sky-500/30 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>v2.0
+        </span>
+</div>
+<!-- Environment Selector -->
+<div class="hidden md:flex items-center pl-3.5 border-l border-white/10 text-xs font-medium">
+<button class="group hover:text-neutral-200 transition-all cursor-pointer flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/15" title="Switch Environment" type="button">
+<span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+<span class="font-mono text-neutral-300 text-[11px] font-medium tracking-tight">production-workspace</span>
+<span class="material-symbols-outlined text-neutral-400 group-hover:text-neutral-200 text-sm transition-transform">expand_more</span>
+</button>
+</div>
+</div>
+<!-- Action Navigation & User Status -->
+<div class="flex items-center space-x-2.5">
+<!-- Admin Console -->
+<a class="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-300/90 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 hover:border-amber-400/50 transition-all shadow-sm" href="#admin">
+<span class="material-symbols-outlined text-amber-400 text-sm">verified_user</span>
+<span>Admin Console</span>
+</a>
+<!-- Schedules Link -->
+<a class="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all" href="#schedules">
+<span class="material-symbols-outlined text-neutral-400 text-sm">calendar_month</span>
+<span>Schedules</span>
+</a>
+<!-- History with Run Counter -->
+<a class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all" href="#history">
+<span class="material-symbols-outlined text-neutral-400 text-sm">history</span>
+<span>History</span>
+<span class="ml-0.5 px-1.5 py-0.5 rounded text-[10px] bg-neutral-800/90 text-neutral-300 font-mono border border-white/10">20</span>
+</a>
+<!-- Functional Theme Toggle Button -->
+<button aria-label="Toggle light and dark mode" class="p-2 rounded-lg text-neutral-400 hover:text-amber-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/30 shadow-sm transition-all duration-300 cursor-pointer flex items-center justify-center relative group" id="theme-toggle-btn" title="Toggle Theme (Dark / Light)" type="button">
+<span class="material-symbols-outlined text-amber-400 text-lg transition-transform duration-300 group-hover:rotate-45" id="theme-icon-sun">light_mode</span>
+<span class="material-symbols-outlined text-sky-300 text-lg hidden transition-transform duration-300 group-hover:-rotate-12" id="theme-icon-moon">dark_mode</span>
+</button>
+<!-- User Profile Pill -->
+<div class="flex items-center space-x-2 pl-2 border-l border-white/10">
+<div class="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/10 hover:border-white/20 transition-colors">
+<div class="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-sky-600 flex items-center justify-center text-[10px] font-bold text-white uppercase shadow-sm">
+            Y
+          </div>
+<span class="hidden lg:inline-block text-xs text-neutral-300 font-mono tracking-tight max-w-[135px] truncate">yogeshvar2508@gmail.com</span>
+</div>
+<!-- Sign Out Button -->
+<button class="px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.06] transition-all" type="button">
+          Sign out
+        </button>
+</div>
+</div>
+</div>
+</header>
+<!-- END: NavigationHeader -->
+<!-- BEGIN: Toast Notification for Theme or Interactivity -->
+<div class="fixed top-20 right-6 z-50 transform translate-y-[-150%] opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1c1715] border border-amber-500/30 shadow-2xl text-xs font-mono text-neutral-200" id="status-toast">
+<span class="material-symbols-outlined text-amber-400 text-base">info</span>
+<span id="toast-message">Dark Mode active</span>
+</div>
+<!-- BEGIN: MainContent -->
+<main class="max-w-5xl mx-auto px-4 sm:px-6 pt-12 md:pt-16 relative z-10">
+<!-- Hero Title & Value Proposition -->
+<section class="text-center mb-10 md:mb-12 max-w-3xl mx-auto" data-purpose="hero-headline">
+<!-- Autonomous QA Badge -->
+<div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] border border-amber-500/30 mb-5 shadow-inner backdrop-blur-md">
+<span class="material-symbols-outlined text-amber-400 text-sm">auto_awesome</span>
+<span class="text-[11px] font-mono uppercase tracking-widest text-amber-200/90 font-semibold">Autonomous QA &amp; Visual Intelligence</span>
+</div>
+<!-- Striking Headline with Glowing Golden Serif -->
+<h1 class="text-4xl sm:text-5xl lg:text-[54px] font-semibold tracking-tight text-white leading-[1.12]">
+      Intelligent Browser Audits in 
+      <span class="font-serif italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-300 to-amber-100 underline decoration-amber-500/40 decoration-wavy decoration-1 underline-offset-8 drop-shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+        Plain English.
+      </span>
+</h1>
+<!-- Refined Subtitle -->
+<p class="mt-4 text-base sm:text-lg text-neutral-300/85 max-w-2xl mx-auto leading-relaxed font-normal">
+      Execute automated tests, visual diffs, and deep compliance audits using natural language commands.
+    </p>
+</section>
+<!-- Main Interactive Testing Console Card -->
+<section class="relative rounded-2xl bg-[#171311]/85 backdrop-blur-2xl border border-white/[0.09] shadow-card-glass shadow-glow p-5 sm:p-7 transition-all duration-300" data-purpose="audit-console">
+<!-- Top Subtle Gradient Glow Line -->
+<div class="absolute inset-x-8 -top-px h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent"></div>
+<!-- Natural Language Prompt Section -->
+<div class="space-y-2 mb-4">
+<div class="flex items-center justify-between text-xs tracking-wider uppercase font-semibold text-neutral-400">
+<div class="flex items-center space-x-1.5 text-neutral-300">
+<span class="material-symbols-outlined text-amber-400 text-base">edit_note</span>
+<span class="font-mono text-xs font-semibold tracking-wider uppercase text-neutral-300">Audit Prompt &amp; Intent</span>
+</div>
+<div class="flex items-center space-x-1 font-mono text-[11px] text-neutral-400 bg-neutral-900/90 border border-white/10 px-2 py-0.5 rounded-md">
+<kbd class="text-neutral-300 font-sans">⌘</kbd> + <kbd class="text-neutral-300">Enter</kbd> <span>to inspect</span>
+</div>
+</div>
+<div class="relative group">
+<textarea class="w-full bg-[#110e0c]/90 border border-white/10 group-hover:border-white/20 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 text-neutral-100 placeholder:text-neutral-500 text-sm sm:text-base rounded-xl p-4 transition-all duration-200 resize-none font-sans" id="prompt-input" placeholder="Describe what to test in plain English (e.g. 'Audit checkout flow, test responsive layout, check form validations, simulate 3G network throttle and verify WCAG contrast')..." rows="3"></textarea>
+</div>
+</div>
+<!-- URL Target Input Bar & Primary CTA -->
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6 p-1.5 sm:p-2 rounded-2xl bg-gradient-to-b from-white/[0.04] to-transparent border border-white/[0.08] shadow-inner">
+<div class="relative w-full flex-1">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+<span class="material-symbols-outlined text-sky-400 text-base">public</span>
+</div>
+<input class="w-full pl-10 pr-4 py-3 bg-[#100c0a]/95 border border-white/10 focus:border-sky-500/60 focus:ring-2 focus:ring-sky-500/20 rounded-xl text-neutral-200 placeholder:text-neutral-500 text-sm font-mono transition-all" id="url-input" placeholder="https://your-domain.com or web app URL..." type="url" value="https://webtest-scanner-web.vercel.app"/>
+</div>
+<!-- Redesigned Radiant Centerpiece CTA with Shimmer & Aura -->
+<div class="relative group shrink-0">
+<!-- Radial Glow Aura Background -->
+<div class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 opacity-70 blur-lg group-hover:opacity-100 group-hover:blur-xl transition duration-500"></div>
+<button class="relative w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 hover:from-cyan-300 hover:via-sky-400 hover:to-blue-500 active:scale-[0.98] text-white font-semibold text-sm tracking-wide flex items-center justify-center space-x-3 shadow-luminous hover:shadow-luminous-hover border border-white/35 transition-all duration-300 cursor-pointer overflow-hidden" id="run-audit-btn" type="button">
+<!-- Animated Light Shimmer Streak -->
+<div class="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/35 to-transparent -translate-x-full animate-shimmer-slide pointer-events-none"></div>
+<!-- Crisp Radiant Icon with Subtle Glow Aura -->
+<div class="relative flex items-center justify-center">
+<span class="absolute w-4 h-4 rounded-full bg-cyan-300/40 blur-xs animate-pulse-subtle"></span>
+<span class="material-symbols-outlined text-white text-base drop-shadow-[0_0_8px_rgba(255,255,255,0.85)] relative z-10 fill-1">play_arrow</span>
+</div>
+<!-- CTA Text -->
+<span class="relative z-10 text-white font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">Inspect &amp; Run Audit</span>
+<!-- Keyboard Shortcut Badge -->
+<span class="relative z-10 inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-black/30 backdrop-blur-md border border-white/25 text-cyan-100 font-mono text-[11px] font-medium tracking-tight shadow-inner">
+<span class="text-[10px] leading-none opacity-80">⌘</span><span class="leading-none">↵</span>
+</span>
+</button>
+</div>
+</div>
+<!-- Quick Starter Presets -->
+<div class="border-t border-white/[0.06] pt-4 mb-6">
+<div class="flex items-center space-x-2 text-xs font-medium text-neutral-400 mb-3">
+<span class="material-symbols-outlined text-amber-400 text-sm">auto_fix_high</span>
+<span class="tracking-wide uppercase text-[11px] font-semibold text-neutral-400 font-mono">Quick Presets</span>
+</div>
+<!-- Presets Pills Grid -->
+<div class="flex flex-wrap items-center gap-2" id="preset-container">
+<!-- Preset: Console Errors -->
+<button class="preset-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/10 hover:border-white/25 transition-all hover:-translate-y-0.5" data-prompt="Scan for unhandled console errors, JavaScript exceptions, and broken network assets across the primary viewports." type="button">
+<span class="material-symbols-outlined text-rose-400 text-sm">pest_control</span>
+<span>Console Errors Demo</span>
+</button>
+<!-- Preset: Full Health Scan -->
+<button class="preset-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-amber-200 border border-amber-500/30 hover:border-amber-400/60 shadow-[0_0_12px_rgba(245,158,11,0.12)] transition-all hover:-translate-y-0.5" data-prompt="Execute full browser health scan: Core Web Vitals, accessibility, console errors, broken internal links, and visual stability." type="button">
+<span class="material-symbols-outlined text-amber-400 text-sm">monitor_heart</span>
+<span>Full Health Scan</span>
+</button>
+<!-- Preset: E-Commerce Flow -->
+<button class="preset-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/10 hover:border-sky-400/40 transition-all hover:-translate-y-0.5" data-prompt="Test e-commerce flow: add item to cart, verify mini-cart badge, proceed to checkout page, and validate coupon inputs." type="button">
+<span class="material-symbols-outlined text-sky-400 text-sm">shopping_bag</span>
+<span>E-Commerce Flow</span>
+</button>
+<!-- Preset: Auth Security Check -->
+<button class="preset-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/10 hover:border-emerald-400/40 transition-all hover:-translate-y-0.5" data-prompt="Check authentication endpoints for CSRF protection, secure cookie flags, password field masking, and rate-limiting headers." type="button">
+<span class="material-symbols-outlined text-emerald-400 text-sm">encrypted</span>
+<span>Auth Security Check</span>
+</button>
+<!-- Preset: WCAG AA Audit -->
+<button class="preset-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-sky-200 border border-sky-500/30 hover:border-sky-400/60 transition-all hover:-translate-y-0.5" data-prompt="Run comprehensive WCAG 2.1 AA audit checking color contrast, missing alt attributes, ARIA roles, and keyboard navigation order." type="button">
+<span class="material-symbols-outlined text-sky-400 text-sm">accessibility_new</span>
+<span>WCAG 2.1 AA Audit</span>
+</button>
+<!-- Preset: Mobile Nav & Layout -->
+<button class="preset-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/10 hover:border-indigo-400/40 transition-all hover:-translate-y-0.5" data-prompt="Simulate iPhone 15 viewport (393x852). Verify hamburger toggle navigation opens correctly, touch targets exceed 48px, and no horizontal overflow exists." type="button">
+<span class="material-symbols-outlined text-indigo-400 text-sm">smartphone</span>
+<span>Mobile Nav &amp; Layout</span>
+</button>
+<!-- Preset: Auto-Generate Site Tests -->
+<button class="preset-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#1e1917] hover:bg-neutral-800 text-amber-300/90 border border-amber-500/20 hover:border-amber-500/50 transition-all hover:-translate-y-0.5" data-prompt="Crawl the target URL, discover primary user journeys, and auto-generate Playwright assertion suites for critical paths." type="button">
+<span class="material-symbols-outlined text-amber-400 text-sm">psychology</span>
+<span>Auto-Generate Site Tests</span>
+</button>
+</div>
+</div>
+<!-- Execution Profile & Environment Matrix -->
+<div class="border-t border-white/[0.06] pt-4 mb-6">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-neutral-400 text-sm">memory</span>
+<span class="text-xs font-semibold tracking-wide uppercase text-neutral-400 font-mono">AI Engine &amp; Execution Profile</span>
+</div>
+<div class="text-[11px] font-mono text-neutral-500 tracking-wider">
+          RUNTIME: DESKTOP • CHROMIUM 128
+        </div>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+<!-- AI Engine Dropdown Selector -->
+<div class="relative">
+<label class="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Intelligence</label>
+<div class="relative">
+<select class="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 cursor-pointer">
+<option selected="">⚡ Claude 3.5 Sonnet</option>
+<option>🖥 Local LLM (Ollama)</option>
+<option>✨ Gemini 1.5 Pro</option>
+<option>🧠 GPT-4o Vision</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-sm pointer-events-none">unfold_more</span>
+</div>
+</div>
+<!-- Browser Engine Selector -->
+<div class="relative">
+<label class="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Browser Core</label>
+<div class="relative">
+<select class="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 cursor-pointer">
+<option selected="">🌐 Chromium 128</option>
+<option>🦊 Firefox Gecko</option>
+<option>🧭 WebKit Safari</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-sm pointer-events-none">unfold_more</span>
+</div>
+</div>
+<!-- Viewport Dimensions -->
+<div class="relative">
+<label class="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Target Viewport</label>
+<div class="relative">
+<select class="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 cursor-pointer">
+<option selected="">💻 Desktop (1280×800)</option>
+<option>🖥 Large (1920×1080)</option>
+<option>📱 iPhone 15 (393×852)</option>
+<option>📟 iPad Pro (820×1180)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-sm pointer-events-none">unfold_more</span>
+</div>
+</div>
+<!-- Environment -->
+<div class="relative">
+<label class="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Environment</label>
+<div class="relative">
+<select class="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 cursor-pointer">
+<option selected="">QA Environment</option>
+<option>Staging Mirror</option>
+<option>Production (Read-Only)</option>
+<option>Localhost:3000</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-sm pointer-events-none">unfold_more</span>
+</div>
+</div>
+<!-- Safety Policy / Sandbox -->
+<div class="relative col-span-2 sm:col-span-1">
+<label class="block text-[10px] font-mono uppercase text-neutral-500 mb-1">Safety Policy</label>
+<div class="relative">
+<select class="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-xs rounded-lg py-2 pl-2.5 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 cursor-pointer">
+<option selected="">Tier 0 (Sandbox Safe)</option>
+<option>Tier 1 (Form Submissions)</option>
+<option>Tier 2 (Full Mutations)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-sm pointer-events-none">unfold_more</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Test Suites & Assertions Selection -->
+<div class="border-t border-white/[0.06] pt-4">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+<div class="flex items-center space-x-2">
+<span class="text-xs font-semibold tracking-wide uppercase text-neutral-400 font-mono">Test Suites &amp; Assertions</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-sky-500/20 text-sky-400 border border-sky-500/30 font-semibold" id="active-suite-count">5 ACTIVE</span>
+</div>
+<!-- Execution Flags / Checkboxes -->
+<div class="flex items-center space-x-4 text-xs text-neutral-400">
+<label class="inline-flex items-center space-x-2 cursor-pointer select-none group">
+<input class="rounded bg-[#120e0c] border-white/20 text-sky-500 focus:ring-sky-500/30 focus:ring-offset-0 w-3.5 h-3.5 transition-colors cursor-pointer" type="checkbox"/>
+<span class="group-hover:text-neutral-300 transition-colors">Strict assertions</span>
+</label>
+<label class="inline-flex items-center space-x-2 cursor-pointer select-none group">
+<input checked="" class="rounded bg-[#120e0c] border-white/20 text-sky-500 focus:ring-sky-500/30 focus:ring-offset-0 w-3.5 h-3.5 transition-colors cursor-pointer" type="checkbox"/>
+<span class="group-hover:text-neutral-300 transition-colors">Capture HAR &amp; Assets</span>
+</label>
+</div>
+</div>
+<!-- Suite Toggle Pills -->
+<div class="flex flex-wrap gap-2" id="suite-pills-container">
+<!-- Active Suite Pills -->
+<button class="suite-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 text-white border border-white/30 shadow-sm transition-all hover:bg-neutral-700 cursor-pointer" data-active="true" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]"></span>
+<span>Functional</span>
+</button>
+<button class="suite-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 text-white border border-white/30 shadow-sm transition-all hover:bg-neutral-700 cursor-pointer" data-active="true" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]"></span>
+<span>UI / Visual Diff</span>
+</button>
+<button class="suite-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 text-white border border-white/30 shadow-sm transition-all hover:bg-neutral-700 cursor-pointer" data-active="true" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]"></span>
+<span>Design &amp; Assets</span>
+</button>
+<button class="suite-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 text-white border border-white/30 shadow-sm transition-all hover:bg-neutral-700 cursor-pointer" data-active="true" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]"></span>
+<span>Accessibility (WCAG 2.1 AA)</span>
+</button>
+<button class="suite-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-800 text-white border border-white/30 shadow-sm transition-all hover:bg-neutral-700 cursor-pointer" data-active="true" type="button">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]"></span>
+<span>Security (Passive)</span>
+</button>
+<!-- Inactive Suite Pills -->
+<button class="suite-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#110e0c]/60 text-neutral-400 border border-white/5 hover:border-white/20 hover:text-neutral-200 transition-all cursor-pointer" data-active="false" type="button">
+<span>Performance &amp; Vitals</span>
+</button>
+<button class="suite-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#110e0c]/60 text-neutral-400 border border-white/5 hover:border-white/20 hover:text-neutral-200 transition-all cursor-pointer" data-active="false" type="button">
+<span>API &amp; Network Contract</span>
+</button>
+<button class="suite-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#110e0c]/60 text-neutral-400 border border-white/5 hover:border-white/20 hover:text-neutral-200 transition-all cursor-pointer" data-active="false" type="button">
+<span>Unit Tests (Source Code)</span>
+</button>
+<button class="suite-pill inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#110e0c]/60 text-neutral-400 border border-white/5 hover:border-white/20 hover:text-neutral-200 transition-all cursor-pointer" data-active="false" type="button">
+<span>Web Scraper &amp; Crawler</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- END: MainContent -->
+<!-- BEGIN: FloatingSupportWidget -->
+<aside aria-label="Support and feedback" class="fixed bottom-6 right-6 z-30">
+<button aria-label="Open support and assistant" class="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 hover:from-amber-500 hover:to-amber-300 text-white flex items-center justify-center shadow-lg shadow-amber-900/50 hover:scale-105 active:scale-95 transition-all duration-150 border border-amber-300/40 cursor-pointer" title="Need help? Ask AI assistant" type="button">
+<span class="material-symbols-outlined text-xl">forum</span>
+</button>
+</aside>
+<!-- END: FloatingSupportWidget -->
+<!-- Micro-interactions Script -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1. Toast Notification Helper
+    const toast = document.getElementById('status-toast');
+    const toastMsg = document.getElementById('toast-message');
+    function showToast(message) {
+      if (!toast || !toastMsg) return;
+      toastMsg.textContent = message;
+      toast.classList.remove('translate-y-[-150%]', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.add('translate-y-[-150%]', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2600);
+    }
+
+    // 2. Theme Toggle Switcher
+    const themeBtn = document.getElementById('theme-toggle-btn');
+    const sunIcon = document.getElementById('theme-icon-sun');
+    const moonIcon = document.getElementById('theme-icon-moon');
+    const htmlEl = document.documentElement;
+
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        const isDark = htmlEl.classList.contains('dark');
+        if (isDark) {
+          htmlEl.classList.remove('dark');
+          sunIcon.classList.add('hidden');
+          moonIcon.classList.remove('hidden');
+          showToast('Switched to Light preview mode');
+        } else {
+          htmlEl.classList.add('dark');
+          sunIcon.classList.remove('hidden');
+          moonIcon.classList.add('hidden');
+          showToast('Obsidian Dark Mode restored');
+        }
+      });
+    }
+
+    // 3. Quick Presets Injector
+    const promptInput = document.getElementById('prompt-input');
+    const presetPills = document.querySelectorAll('.preset-pill');
+    presetPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const text = pill.getAttribute('data-prompt');
+        if (promptInput && text) {
+          promptInput.value = text;
+          promptInput.focus();
+          // Subtle pulse effect on prompt
+          promptInput.classList.add('ring-2', 'ring-amber-500/40');
+          setTimeout(() => {
+            promptInput.classList.remove('ring-2', 'ring-amber-500/40');
+          }, 800);
+          showToast(`Preset loaded: ${pill.textContent.trim()}`);
+        }
+      });
+    });
+
+    // 4. Test Suites Multi-select Toggle Logic
+    const suitePills = document.querySelectorAll('.suite-pill');
+    const activeCountEl = document.getElementById('active-suite-count');
+
+    function updateActiveCount() {
+      const activeCount = document.querySelectorAll('.suite-pill[data-active="true"]').length;
+      if (activeCountEl) {
+        activeCountEl.textContent = `${activeCount} ACTIVE`;
+      }
+    }
+
+    suitePills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const isActive = pill.getAttribute('data-active') === 'true';
+        if (isActive) {
+          // Deactivate
+          pill.setAttribute('data-active', 'false');
+          const dot = pill.querySelector('span.rounded-full');
+          if (dot) dot.remove();
+          pill.classList.remove('bg-neutral-800', 'text-white', 'border-white/30', 'shadow-sm', 'hover:bg-neutral-700');
+          pill.classList.add('bg-[#110e0c]/60', 'text-neutral-400', 'border-white/5', 'hover:border-white/20', 'hover:text-neutral-200');
+        } else {
+          // Activate
+          pill.setAttribute('data-active', 'true');
+          pill.classList.remove('bg-[#110e0c]/60', 'text-neutral-400', 'border-white/5', 'hover:border-white/20', 'hover:text-neutral-200');
+          pill.classList.add('bg-neutral-800', 'text-white', 'border-white/30', 'shadow-sm', 'hover:bg-neutral-700');
+
+          const dot = document.createElement('span');
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.8)] mr-1.5';
+          pill.prepend(dot);
+        }
+        updateActiveCount();
+      });
+    });
+
+    // 5. Inspect & Run Audit Button Trigger
+    const runBtn = document.getElementById('run-audit-btn');
+    if (runBtn) {
+      runBtn.addEventListener('click', () => {
+        const urlVal = document.getElementById('url-input')?.value || 'Target';
+        showToast(`Dispatched test agent to ${urlVal.replace('https://', '')}`);
+      });
+    }
+
+    // Keyboard shortcut Cmd/Ctrl + Enter
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        runBtn?.click();
+      }
+    });
+  });
+</script>
+</body></html>
