@@ -1619,36 +1619,42 @@ export default function Home() {
                       value={url} 
                       onChange={(e) => setUrl(e.target.value)} 
                       placeholder="Enter website URL..." 
-                      style={{ width: '100%', fontSize: 14 }}
+                      className="w-full bg-[#120e0c] border border-white/10 text-neutral-200 text-sm rounded-lg py-2.5 px-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
                       <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Frequency</label>
-                      <select 
-                        value={scheduleFreq} 
-                        onChange={(e) => setScheduleFreq(e.target.value as any)} 
-                        style={{ width: '100%', fontSize: 14, height: 38 }}
-                      >
-                        <option value="hourly">Every Hour</option>
-                        <option value="daily">Daily at 08:00 AM</option>
-                        <option value="weekly">Weekly (Monday)</option>
-                      </select>
+                      <div className="relative">
+                        <select 
+                          value={scheduleFreq} 
+                          onChange={(e) => setScheduleFreq(e.target.value as any)} 
+                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-sm rounded-lg py-2.5 pl-3 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                        >
+                          <option value="hourly">Every Hour</option>
+                          <option value="daily">Daily at 08:00 AM</option>
+                          <option value="weekly">Weekly (Monday)</option>
+                        </select>
+                        <i className="ph ph-caret-down absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm pointer-events-none" />
+                      </div>
                     </div>
 
                     <div>
                       <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Device Profile</label>
-                      <select 
-                        value={device} 
-                        onChange={(e) => setDevice(e.target.value as DevicePreset)} 
-                        style={{ width: '100%', fontSize: 14, height: 38 }}
-                      >
-                        <option value="desktop">Desktop</option>
-                        <option value="laptop">Laptop</option>
-                        <option value="mobile">Mobile (iPhone 14)</option>
-                        <option value="tablet">Tablet (iPad)</option>
-                      </select>
+                      <div className="relative">
+                        <select 
+                          value={device} 
+                          onChange={(e) => setDevice(e.target.value as DevicePreset)} 
+                          className="w-full appearance-none bg-[#120e0c] border border-white/10 text-neutral-200 text-sm rounded-lg py-2.5 pl-3 pr-8 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none cursor-pointer"
+                        >
+                          <option value="desktop">Desktop</option>
+                          <option value="laptop">Laptop</option>
+                          <option value="mobile">Mobile (iPhone 14)</option>
+                          <option value="tablet">Tablet (iPad)</option>
+                        </select>
+                        <i className="ph ph-caret-down absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm pointer-events-none" />
+                      </div>
                     </div>
                   </div>
 
@@ -1660,7 +1666,7 @@ export default function Home() {
                         value={webhookUrl} 
                         onChange={(e) => setWebhookUrl(e.target.value)} 
                         placeholder="https://hooks.slack.com/services/..." 
-                        style={{ flex: 1, fontSize: 14 }}
+                        className="flex-1 w-full bg-[#120e0c] border border-white/10 text-neutral-200 text-sm rounded-lg py-2.5 px-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
                       />
                       <button 
                         type="button"
