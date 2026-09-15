@@ -712,7 +712,7 @@ export default function Home() {
                 <span className="font-bold tracking-tight text-lg text-foreground font-sans">Webtest</span>
                 <span className="font-semibold tracking-tight text-lg text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-sky-300 to-amber-300 font-sans animate-logo-shimmer inline-block select-none">Scanner</span>
               </div>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-sky-500/10 text-sky-300 border border-sky-500/30 shadow-sm">
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-sky-500/10 text-sky-300 border border-sky-500/30 shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />v2.0
               </span>
             </div>
@@ -730,7 +730,7 @@ export default function Home() {
             {/* Admin Console */}
             <Link 
               href="/admin" 
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-300/90 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all"
+              className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-300/90 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all"
               title="Admin Operations Console"
             >
               <i className="ph ph-shield-check text-sm text-amber-400" />
@@ -769,7 +769,7 @@ export default function Home() {
             {/* Ambient / Theme Toggle Indicator (Static Visual) */}
             <button 
               aria-label="Toggle light and dark mode" 
-              className="p-2 rounded-lg text-neutral-400 hover:text-amber-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/30 shadow-sm transition-all duration-300 cursor-pointer flex items-center justify-center relative group"
+              className="hidden sm:flex p-2 rounded-lg text-neutral-400 hover:text-amber-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/30 shadow-sm transition-all duration-300 cursor-pointer items-center justify-center relative group"
               title="Switch to Light Mode" 
               type="button"
             >
@@ -786,13 +786,8 @@ export default function Home() {
                   {user?.email || (typeof window !== 'undefined' && localStorage.getItem('wts_admin_user') ? JSON.parse(localStorage.getItem('wts_admin_user') || '{}').email : 'yogeshvar2508@gmail.com')}
                 </span>
               </div>
-              <button 
-                onClick={handleLogout} 
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.05] transition-all cursor-pointer" 
-                type="button"
-              >
-                Sign out
-              </button>
+              <button onClick={handleLogout} className="hidden sm:inline-flex px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.05] transition-all cursor-pointer" type="button">Sign out</button>
+              <button onClick={handleLogout} className="sm:hidden px-2 py-1.5 rounded-lg text-neutral-400 hover:text-rose-400 hover:bg-white/[0.05] transition-all cursor-pointer flex items-center" type="button" title="Sign out"><i className="ph ph-sign-out text-base" /></button>
             </div>
           </div>
         </div>
