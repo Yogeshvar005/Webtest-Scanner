@@ -1,0 +1,16 @@
+{
+  "name": "Webtest Scanner",
+  "short_name": "Webtest",
+  "description": "Intelligent Browser Audits in Plain English",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0808",
+  "theme_color": "#0a0808",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

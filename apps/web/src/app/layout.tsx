@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { uiSans, serif } from './fonts';
 import { AuthProvider } from '../lib/auth-context';
@@ -9,6 +9,20 @@ import './motion.css';
 export const metadata: Metadata = {
   title: 'Webtest Scanner | Intelligent Browser Audits in Plain English',
   description: 'Execute automated tests, visual diffs, and deep compliance audits using natural language commands.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Webtest Scanner',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#0a0808',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
