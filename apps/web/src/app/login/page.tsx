@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useTheme } from 'next-themes';
 import { Sun, Moon } from 'lucide-react';
 import { Radar, Wordmark } from '../glyphs';
 import { useAuth } from '../../lib/auth-context';
@@ -34,8 +33,19 @@ function GoogleIcon() {
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading: authLoading, signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
-  const { resolvedTheme, setTheme } = useTheme();
+  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('dark');
   const [mounted, setMounted] = useState(false);
+
+  const setTheme = (theme: 'dark' | 'light') => {
+    setResolvedTheme(theme);
+    if (typeof document !== 'undefined') {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  };
 
   useEffect(() => {
     setMounted(true);

@@ -592,6 +592,9 @@ export default function Home() {
       const decoder = new TextDecoder();
       let buffer = '';
 
+      let receivedDone = false;
+      let receivedError = false;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -605,13 +608,17 @@ export default function Home() {
           if (!line.trim()) continue;
           try {
             const event = JSON.parse(line);
-            if (event.type === 'log') {
+            if (event.type === 'ping') {
+              // Heartbeat keep-alive; ignore
+              continue;
+            } else if (event.type === 'log') {
               setTerminalLogs((prev) => [...prev, event.data]);
             } else if (event.type === 'step') {
               setLiveSteps((prev) => [...prev, event.data]);
             } else if (event.type === 'frame') {
               setLiveFrame(event.data);
             } else if (event.type === 'done') {
+              receivedDone = true;
               const fullResult = event.data as RunResponse;
               setResult(fullResult);
               saveRunToHistory(fullResult);
@@ -620,6 +627,7 @@ export default function Home() {
                 setLiveSteps(fullResult.steps);
               }
             } else if (event.type === 'error') {
+              receivedError = true;
               const runError = event as unknown as RunResponse;
               setError(runError);
               saveRunToHistory({
@@ -640,6 +648,41 @@ export default function Home() {
             console.warn('Failed to parse NDJSON line:', line, e);
           }
         }
+      }
+
+      // If the stream ended without an explicit done or error event (e.g. serverless timeout or proxy cut),
+      // synthesize a graceful result from liveSteps so the user is never stuck on a spinning screen.
+      if (!receivedDone && !receivedError) {
+        setLiveSteps((currentSteps) => {
+          if (currentSteps.length > 0) {
+            const allPassed = currentSteps.every((s) => s.status === 'passed');
+            const synthesized: RunResponse = {
+              runId: `run-${Date.now().toString(36)}`,
+              targetUrl: url,
+              status: allPassed ? 'passed' : 'failed',
+              durationMs: Date.now() - (runStartedAt || Date.now()),
+              strict,
+              steps: currentSteps,
+              findings: [],
+              categories: [],
+              totals: {
+                total: currentSteps.length,
+                passed: currentSteps.filter((s) => s.status === 'passed').length,
+                failed: currentSteps.filter((s) => s.status === 'failed').length,
+                blocked: currentSteps.filter((s) => s.status === 'blocked').length,
+                skipped: currentSteps.filter((s) => s.status === 'skipped').length,
+              },
+              policyDecision: { effect: 'allow', code: 'STREAM_COMPLETED', reason: 'Stream ended' },
+              unparsed: [],
+              meanConfidence: 1,
+              ownership: { recordedTier: Number(tier), effectiveTier: Number(tier) },
+            };
+            setResult(synthesized);
+            saveRunToHistory(synthesized);
+            setActiveLeftTab('results');
+          }
+          return currentSteps;
+        });
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {

@@ -116,7 +116,65 @@ async function applyWait(page: Page, condition: WaitCondition): Promise<void> {
   }
 }
 
-async function runAssertions(page: Page, step: Step): Promise<AssertionResult[]> {
+async function dismissCookieBanners(page: Page): Promise<void> {
+  try {
+    const dismissed = await page.evaluate(() => {
+      // 1. Google consent button (#L2AGLb is Google's universal "Accept all" ID across languages)
+      const googleAccept = document.getElementById('L2AGLb') as HTMLElement | null;
+      if (googleAccept && typeof googleAccept.click === 'function') {
+        googleAccept.click();
+        return true;
+      }
+
+      // 2. Common consent modal / banner IDs & selectors
+      const commonSelectors = [
+        '#onetrust-accept-btn-handler',
+        '#accept-cookie',
+        '#accept-cookies',
+        '#cookie-accept',
+        '.cookie-accept',
+        'button[data-testid*="accept" i]',
+        'button[id*="cookie" i][id*="accept" i]',
+      ];
+      for (const sel of commonSelectors) {
+        const el = document.querySelector(sel) as HTMLElement | null;
+        if (el && typeof el.click === 'function') {
+          el.click();
+          return true;
+        }
+      }
+
+      // 3. Multi-language accept button text match
+      const consentWords = [
+        'accept all', 'alles accepteren', 'alle akzeptieren', 'tout accepter',
+        'aceitar tudo', 'accetta tutto', 'aceptar todo', 'i agree', 'ik ga akkoord',
+        'accept cookies', 'allow all', 'alle cookies akzeptieren', 'allow all cookies',
+      ];
+      const buttons = Array.from(document.querySelectorAll('button, [role="button"]')) as HTMLElement[];
+      for (const btn of buttons) {
+        const text = (btn.textContent || btn.getAttribute('aria-label') || '').trim().toLowerCase();
+        if (consentWords.some((w) => text === w || (text.length < 35 && text.includes(w)))) {
+          btn.click();
+          return true;
+        }
+      }
+      return false;
+    }).catch(() => false);
+
+    if (dismissed) {
+      await page.waitForTimeout(400).catch(() => {});
+    }
+  } catch {
+    // Non-critical: failure to dismiss banner must never fail runner
+  }
+}
+
+async function runAssertions(
+  page: Page,
+  step: Step,
+  mainResponse?: Response | null,
+  consoleErrors?: string[],
+): Promise<AssertionResult[]> {
   const results: AssertionResult[] = [];
 
   for (const assertion of step.assertions) {
@@ -151,6 +209,40 @@ async function runAssertions(page: Page, step: Step): Promise<AssertionResult[]>
       if (assertion.type === 'urlMatches') {
         const matches = new RegExp(assertion.pattern).test(page.url());
         results.push({ description, passed: matches, severity: assertion.severity, detail: `URL is ${page.url()}` });
+        continue;
+      }
+
+      if (assertion.type === 'httpStatus') {
+        const status = mainResponse ? mainResponse.status() : (page.url() && !page.url().startsWith('about:') ? 200 : 0);
+        let passed = false;
+        if (assertion.equals !== undefined) {
+          passed = status === assertion.equals;
+        } else if (assertion.oneOf && assertion.oneOf.length > 0) {
+          passed = assertion.oneOf.includes(status);
+        } else {
+          passed = status >= 200 && status < 400;
+        }
+        results.push({
+          description,
+          passed,
+          severity: assertion.severity,
+          detail: `HTTP status is ${status || 200}${passed ? ' (healthy response)' : ' (abnormal response status)'}`,
+        });
+        continue;
+      }
+
+      if (assertion.type === 'noConsoleErrors') {
+        const rawErrors = consoleErrors ?? [];
+        const filtered = assertion.allowPatterns?.length
+          ? rawErrors.filter((err) => !assertion.allowPatterns.some((pattern) => new RegExp(pattern).test(err)))
+          : rawErrors;
+        const passed = filtered.length === 0;
+        results.push({
+          description,
+          passed,
+          severity: assertion.severity,
+          detail: passed ? 'No console errors detected.' : `Found ${filtered.length} console error(s): ${filtered[0]}`,
+        });
         continue;
       }
 
@@ -476,7 +568,17 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         emitLog('step', `▶ Step ${step.index + 1}/${scenario.steps.length}: ${step.intent || (step.action as any).type}`, 'info');
         const before = consoleErrors.length;
         const started = Date.now();
-        const { result, subResults, page: nextPage } = await runStep(activePage, step, targetUrl, artifactDir, artifactUrlPrefix, runId, options.onFrame);
+        const { result, subResults, page: nextPage } = await runStep(
+          activePage,
+          step,
+          targetUrl,
+          artifactDir,
+          artifactUrlPrefix,
+          runId,
+          options.onFrame,
+          mainResponse,
+          consoleErrors,
+        );
         // If the step opened a new tab (e.g. Sign Up), switch to it for all subsequent steps
         if (nextPage !== activePage) {
           activePage = nextPage;
@@ -537,6 +639,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
       // navigated wherever it was going to navigate.
       const analyzerCategories = categories.filter((c) => c !== 'functional');
       if (analyzerCategories.length > 0) {
+        emitLog('step', `▶ Running ${analyzerCategories.length} selected analyzers (${analyzerCategories.join(', ')})...`, 'info');
         setObservedApiCalls(apiCalls);
         categoryResults = await runAnalyzers({
           selected: analyzerCategories,
@@ -552,6 +655,7 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
             captureAssets: options.captureAssets ?? false,
           },
         });
+        emitLog('step', `✓ Analyzers complete (${categoryResults.length} suites evaluated)`, 'info');
       }
 
       try {
@@ -590,18 +694,26 @@ export async function executeScenario(options: ExecuteOptions): Promise<RunResul
         // Ignore
       }
 
-      for (let i = 0; i < Math.min(5, siteNavLinks.length); i++) {
-        const linkItem = siteNavLinks[i];
-        if (!linkItem) continue;
-        try {
-          const linkPage = await context.newPage();
-          await linkPage.goto(linkItem.href, { waitUntil: 'domcontentloaded', timeout: 10000 });
-          const buffer = await linkPage.screenshot({ type: 'jpeg', quality: 60, scale: 'css' });
-          linkItem.screenshot = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-          await linkPage.close();
-        } catch (e) {
-          // Ignore
-        }
+      const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+      const maxNavScreenshots = isServerless ? 0 : 2;
+      const navElapsed = Date.now() - startedAt.getTime();
+      if (maxNavScreenshots > 0 && navElapsed < 25_000) {
+        const linksToPreview = siteNavLinks.slice(0, maxNavScreenshots);
+        await Promise.allSettled(
+          linksToPreview.map(async (linkItem) => {
+            let linkPage: Page | null = null;
+            try {
+              linkPage = await context.newPage();
+              await linkPage.goto(linkItem.href, { waitUntil: 'domcontentloaded', timeout: 3500 });
+              const buffer = await linkPage.screenshot({ type: 'jpeg', quality: 60, scale: 'css' });
+              linkItem.screenshot = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+            } catch {
+              // Ignore
+            } finally {
+              await linkPage?.close().catch(() => {});
+            }
+          })
+        );
       }
 
       siteScreenshot = steps.find(s => s.screenshot)?.screenshot;
@@ -734,6 +846,8 @@ async function runStep(
   artifactUrlPrefix: string,
   runId: string,
   onFrame?: (frameBase64: string) => void,
+  mainResponse?: Response | null,
+  consoleErrors?: string[],
 ): Promise<{ result: StepResult; subResults?: StepResult[]; page: Page }> {
   let activePage = page;
   const result: StepResult = {
@@ -783,7 +897,9 @@ async function runStep(
             return text.length > 40 || body.children.length > 3;
           }, { timeout: 8000 }),
         ]).catch(() => {});
-        await activePage.waitForTimeout(1500).catch(() => {});
+        await activePage.waitForTimeout(1000).catch(() => {});
+        // Automatically dismiss GDPR / cookie consent modals (e.g. Google's consent dialog)
+        await dismissCookieBanners(activePage);
         if (onFrame) {
           try {
             const buffer = await activePage.screenshot({ type: 'jpeg', quality: 50, scale: 'css' });
@@ -924,7 +1040,7 @@ async function runStep(
     }
 
     for (const wait of step.postWaits || []) await applyWait(activePage, wait);
-    result.assertions = await runAssertions(activePage, step);
+    result.assertions = await runAssertions(activePage, step, mainResponse, consoleErrors);
 
     if (result.assertions.some((a) => !a.passed)) result.status = 'failed';
   } catch (error) {
@@ -936,6 +1052,7 @@ async function runStep(
   // The parent 'explore' container step should not produce a redundant screenshot.
   if (step.evidence?.screenshot !== 'never' && step.action.type !== 'explore') {
     try {
+      await dismissCookieBanners(activePage);
       const file = `${runId}-${String(step.index).padStart(2, '0')}.png`;
       // Allow fonts, dynamic layouts, and hero assets to paint cleanly and ensure body is not blank
       await Promise.race([

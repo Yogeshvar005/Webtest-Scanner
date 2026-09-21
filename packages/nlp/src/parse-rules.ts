@@ -74,7 +74,7 @@ type Rule = {
   name: string;
   pattern: RegExp;
   confidence: number;
-  build: (m: RegExpMatchArray, origin: Provenance) => { action: Action; intent: string; assertText?: string };
+  build: (m: RegExpMatchArray, origin: Provenance) => { action: Action; intent: string; assertText?: string; assertHealth?: boolean };
 };
 
 const RULES: Rule[] = [
@@ -91,11 +91,12 @@ const RULES: Rule[] = [
   },
   {
     name: 'health-check',
-    pattern: /^(?:verify|check|ensure|confirm|test)\s+(?:that\s+)?(?:the\s+)?(?:site|website|page|app|application|server)\s+(?:is\s+)?(?:running|working|up|online|alive|loaded|ok|healthy)$/i,
+    pattern: /^(?:verify|check|ensure|confirm|test|see|tell\s+me)\s+(?:if\s+|that\s+)?(?:the|this|a|our)?\s*(?:site|website|page|app|application|server|service|url|link)?\s*(?:is\s+)?(?:running|working|up|online|alive|loaded|ok|healthy|responsive|accessible)(?:\s+or\s+not)?$|^(?:is\s+)?(?:the|this|a|our)\s+(?:site|website|page|app)\s+(?:working|up|running|online|ok|healthy|alive)\??$|^(?:check|test|verify|inspect|health\s+check)\s+(?:the|this|a|our)?\s*(?:site|website|page|app)$/i,
     confidence: 0.95,
     build: () => ({
       action: { type: 'screenshot', label: 'Health check' },
       intent: 'Verify website is online and responsive',
+      assertHealth: true,
     }),
   },
   {
@@ -234,7 +235,28 @@ export function parseLine(line: string, index: number): ParsedLine {
     if (!match) continue;
 
     const origin = provenance(rule.confidence, `Matched the "${rule.name}" phrasing rule.`);
-    const { action, intent, assertText } = rule.build(match, origin);
+    const { action, intent, assertText, assertHealth } = rule.build(match, origin);
+
+    const assertions = assertHealth
+      ? [{
+          type: 'httpStatus' as const,
+          of: 'main',
+          oneOf: [200, 201, 202, 203, 204, 301, 302, 304, 307, 308],
+          origin,
+          severity: 'critical' as const,
+          describe: 'Website returned a successful HTTP status code',
+        }]
+      : assertText
+      ? [{
+          type: 'textPresent' as const,
+          text: { kind: 'literal' as const, value: assertText },
+          match: 'contains' as const,
+          negate: false,
+          origin,
+          severity: 'high' as const,
+          describe: `Expected to find "${assertText}" on the page.`,
+        }]
+      : [];
 
     const step: Step = {
       id: `s${index}`,
@@ -243,18 +265,8 @@ export function parseLine(line: string, index: number): ParsedLine {
       action,
       preWaits: [],
       postWaits: action.type === 'click' || action.type === 'navigate' ? [{ type: 'networkQuiescent', idleMs: 500, ignorePatterns: [] }] : [],
-      assertions: assertText
-        ? [{
-            type: 'textPresent',
-            text: { kind: 'literal', value: assertText },
-            match: 'contains',
-            negate: false,
-            origin,
-            severity: 'high',
-            describe: `Expected to find "${assertText}" on the page.`,
-          }]
-        : [],
-      expected: assertText ? `"${assertText}" is visible` : undefined,
+      assertions,
+      expected: assertHealth ? 'Website responds with status 200 OK' : (assertText ? `"${assertText}" is visible` : undefined),
       evidence: { screenshot: 'always', fullPage: false, console: true, network: true, domSnapshot: 'on-failure' },
       onFailure: 'continue',
       timeoutMs: 30_000,

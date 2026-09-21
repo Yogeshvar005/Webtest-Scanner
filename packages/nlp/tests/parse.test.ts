@@ -38,10 +38,25 @@ describe('rule ordering', () => {
     expect(parseLine('check the order total', 0).step?.assertions[0]?.type).toBe('textPresent');
   });
 
-  test('"verify X" is still a text assertion', async () => {
-    const steps = await stepsFor('go to /\nverify Welcome');
-    const verify = steps[1]!;
-    expect(verify.assertions[0]!.type).toBe('textPresent');
+  test('"check this website is working" parses as health-check with httpStatus assertion', () => {
+    const parsed = parseLine('check this website is working', 0);
+    expect(parsed.step?.action.type).toBe('screenshot');
+    expect(parsed.step?.assertions[0]?.type).toBe('httpStatus');
+    expect(parsed.step?.intent).toContain('online and responsive');
+  });
+
+  test('various health check phrasings parse as health-check', () => {
+    const phrasings = [
+      'check if website is working',
+      'verify the site is up',
+      'test this website',
+      'is this website working',
+      'confirm site is healthy',
+    ];
+    for (const phrase of phrasings) {
+      const parsed = parseLine(phrase, 0);
+      expect(parsed.step?.assertions[0]?.type).toBe('httpStatus');
+    }
   });
 });
 

@@ -160,6 +160,7 @@ export async function POST(request: Request) {
     }
 
     let isClosed = false;
+    let pingTimer: NodeJS.Timeout | null = null;
     const safeEnqueue = (payload: unknown) => {
       if (isClosed) return;
       try {
@@ -171,6 +172,10 @@ export async function POST(request: Request) {
     };
 
     const safeClose = () => {
+      if (pingTimer) {
+        clearInterval(pingTimer);
+        pingTimer = null;
+      }
       if (isClosed) return;
       isClosed = true;
       try {
@@ -184,6 +189,11 @@ export async function POST(request: Request) {
     const stream = new ReadableStream({
       start(ctrl) {
         controller = ctrl;
+        // Keep-alive heartbeat to prevent edge proxy, load balancer, or Vercel timeouts on long scans
+        pingTimer = setInterval(() => {
+          safeEnqueue({ type: 'ping' });
+        }, 4000);
+
         (async () => {
           try {
             const result = await executeScenario({
@@ -251,10 +261,19 @@ export async function POST(request: Request) {
               detail: error instanceof Error ? error.message : String(error),
             });
             safeClose();
+          } finally {
+            if (pingTimer) {
+              clearInterval(pingTimer);
+              pingTimer = null;
+            }
           }
         })();
       },
       cancel() {
+        if (pingTimer) {
+          clearInterval(pingTimer);
+          pingTimer = null;
+        }
         isClosed = true;
       },
     });
