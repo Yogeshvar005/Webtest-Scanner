@@ -221,19 +221,19 @@ function ExportDock({ result }: { result: RunResponse }) {
     <div className="export-dock no-print">
       <span className="export-dock-label">Export Intelligence:</span>
 
-      <button type="button" className="secondary" onClick={handleJson} title="Download Full Inspection JSON" style={{ fontSize: 12 }}>
+      <button type="button" className="secondary" onClick={handleJson} title="Download Full Inspection JSON">
         <IconDownload /> Full JSON
       </button>
 
-      <button type="button" className="secondary" onClick={handleCsv}  style={{ fontSize: 12 }}>
+      <button type="button" className="secondary" onClick={handleCsv}>
         <IconCsv /> CSV
       </button>
 
-      <button type="button" className="secondary" onClick={handleMarkdown}  style={{ fontSize: 12 }}>
+      <button type="button" className="secondary" onClick={handleMarkdown}>
         <IconMd /> Markdown
       </button>
 
-      <button type="button" className="secondary" onClick={handleCopy}  style={{ fontSize: 12 }}>
+      <button type="button" className="secondary" onClick={handleCopy}>
         <IconCopy /> {copied ? 'Copied to Clipboard!' : 'Copy JSON'}
       </button>
 
@@ -242,8 +242,6 @@ function ExportDock({ result }: { result: RunResponse }) {
           type="button"
           className="secondary"
           onClick={handleScraperJson}
-          
-          style={{ fontSize: 12, background: 'var(--bg-hover)', borderColor: 'rgba(10, 132, 255, 0.4)', color: 'var(--accent)' }}
         >
           <IconDownload /> Scraped Content JSON
         </button>
@@ -1804,7 +1802,6 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
             className="primary"
             onClick={onDownload}
             disabled={pdfing}
-            style={{ fontSize: 13 }}
           >
             {pdfing ? (
               <>
