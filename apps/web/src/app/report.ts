@@ -82,7 +82,7 @@ function cleanEvidence(evidence: string[]): string {
  * Renders the full run as a standalone, gap-free HTML document:
  * Inline CSS, compact spacing, zero orphaned headers, and clean page breaks.
  */
-export async function buildReportHtml(result: RunResponse): Promise<string> {
+export async function buildReportHtml(result: RunResponse, aiSummary?: string): Promise<string> {
   const budget = { remaining: MAX_INLINE_BYTES };
   const generatedAt = new Date().toLocaleString();
 
@@ -263,126 +263,260 @@ export async function buildReportHtml(result: RunResponse): Promise<string> {
     }
   }
 
+  let aiSummaryHtml = '';
+  if (aiSummary) {
+    const formattedSummary = aiSummary
+      .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
+      .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
+      .replace(/\\n/g, '<br/>')
+      .replace(/\\d+\\.\\s/g, '<br/>• ');
+    aiSummaryHtml = `
+      <div class="ai-block">
+        <div class="ai-header">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 10px;"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+          Executive AI Summary
+        </div>
+        <div class="ai-content">
+          ${formattedSummary}
+        </div>
+      </div>
+    `;
+  }
+
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Webtest Scanner report — ${escapeHtml(result.targetUrl)}</title>
+<title>Security & Quality Audit — ${escapeHtml(result.targetUrl)}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   * { box-sizing: border-box; }
   @page {
-    margin: 12mm 10mm;
+    margin: 0;
     size: A4 portrait;
   }
   body {
-    font: 13.5px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #0f172a;
-    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background: #f1f5f9;
     margin: 0;
-    padding: 20px;
-    max-width: 860px;
-    margin-inline: auto;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  h1 {
-    font-size: 20px;
+  .page-container {
+    background: #ffffff;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 40px 50px;
+  }
+  
+  /* PREMIUM HERO */
+  .hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    padding: 40px;
+    border-radius: 16px;
+    margin-bottom: 40px;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  }
+  .hero-title {
+    font-size: 36px;
     font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 0 0 4px;
-    color: #0f172a;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.03em;
+    color: #ffffff;
   }
-  h2 {
-    font-size: 11.5px;
+  .hero-url {
+    font-size: 16px;
+    color: #94a3b8;
+    font-weight: 500;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: .06em;
-    color: #475569;
-    margin: 20px 0 8px;
-    page-break-after: avoid;
-    break-after: avoid;
+    letter-spacing: 0.05em;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
   }
-  .meta-line {
-    color: #64748b;
-    font-size: 12px;
-    margin-bottom: 12px;
-    line-height: 1.4;
-  }
-  .stats {
+  
+  .hero-stats {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 8px;
-    margin: 12px 0;
+    gap: 16px;
+    margin-top: 32px;
+    padding-top: 32px;
+    border-top: 1px solid rgba(255,255,255,0.1);
   }
-  .stat {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 8px 10px;
+  .hero-stat-val {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 6px;
   }
-  .stat .n {
+  .hero-stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    font-weight: 600;
+  }
+
+  /* AI SUMMARY */
+  .ai-block {
+    background: linear-gradient(to right, #fdf4ff, #faf5ff);
+    border: 1px solid #e879f9;
+    border-radius: 16px;
+    margin-bottom: 40px;
+    box-shadow: 0 4px 6px -1px rgba(217, 70, 239, 0.1);
+    page-break-inside: avoid;
+  }
+  .ai-header {
+    background: linear-gradient(to right, #d946ef, #a855f7);
+    color: #ffffff;
+    padding: 16px 24px;
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+    letter-spacing: 0.02em;
+  }
+  .ai-content {
+    padding: 24px;
+    color: #4c1d95;
+    font-size: 14.5px;
+    line-height: 1.7;
+  }
+  .ai-content strong {
+    color: #3b0764;
+    font-weight: 700;
+  }
+
+  /* SECTIONS */
+  h2 {
     font-size: 18px;
     font-weight: 800;
-    line-height: 1.1;
-  }
-  .stat .k {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: #64748b;
-    margin-top: 3px;
-  }
-  .report-header {
-    margin-bottom: 14px;
+    letter-spacing: -0.01em;
+    color: #0f172a;
+    margin: 40px 0 20px 0;
     padding-bottom: 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 2px solid #e2e8f0;
+    page-break-after: avoid;
   }
+  
+  .finding-item {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    page-break-inside: avoid;
+  }
+  .finding-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: #0f172a;
+    margin-bottom: 8px;
+  }
+  .finding-detail {
+    font-size: 13.5px;
+    color: #475569;
+    line-height: 1.6;
+  }
+  pre {
+    margin: 12px 0 0;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #334155;
+  }
+
+  .footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 12px;
+    page-break-inside: avoid;
+  }
+
   @media print {
-    body { padding: 0; }
-    .category-block { page-break-inside: auto; break-inside: auto; }
-    .check-item { page-break-inside: auto; break-inside: auto; }
-    .finding-item { page-break-inside: avoid; break-inside: avoid; }
-    .step-card { page-break-inside: avoid; break-inside: avoid; }
-    h2 { page-break-after: avoid; break-after: avoid; }
-    pre { max-height: none !important; overflow: visible !important; }
+    body { background: #ffffff; }
+    .page-container { padding: 0; box-shadow: none; }
   }
 </style>
 </head>
 <body>
-  <div class="report-header">
-    <h1>Webtest Scanner Report</h1>
-    <div class="meta-line">
-      <strong>${escapeHtml(result.targetUrl)}</strong> · Run ID: ${escapeHtml(result.runId)} · Generated: ${escapeHtml(generatedAt)} · ${(result.durationMs / 1000).toFixed(1)}s
+<div class="page-container">
+  <div class="hero">
+    <h1 class="hero-title">Quality & Security Audit</h1>
+    <div class="hero-url">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+      ${escapeHtml(result.targetUrl)}
+    </div>
+    
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span class="status-badge" style="background: ${result.status === 'passed' ? 'rgba(16,185,129,0.2)' : result.status === 'failed' ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)'}; border-color: ${result.status === 'passed' ? 'rgba(16,185,129,0.4)' : result.status === 'failed' ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.2)'}; color: ${result.status === 'passed' ? '#34d399' : result.status === 'failed' ? '#f87171' : '#fff'}">
+        ${escapeHtml(result.status)}
+      </span>
+      ${result.strict ? '<span class="status-badge" style="background:rgba(239,68,68,0.2);border-color:rgba(239,68,68,0.4);color:#f87171">Strict Mode</span>' : ''}
+      <span style="font-size:12px;color:#94a3b8">Run ID: ${escapeHtml(result.runId.substring(0,8))}</span>
     </div>
 
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      ${pill(result.status)}
-      ${result.strict ? '<span style="font-size:11px;color:#64748b;font-weight:600">Strict Mode</span>' : ''}
-    </div>
-
-    <div class="stats">
-      <div class="stat"><div class="n">${result.totals.total}</div><div class="k">Steps</div></div>
-      <div class="stat"><div class="n" style="color:#059669">${result.totals.passed}</div><div class="k">Passed</div></div>
-      <div class="stat"><div class="n" style="color:#dc2626">${result.totals.failed}</div><div class="k">Failed</div></div>
-      <div class="stat"><div class="n" style="color:#7c3aed">${result.totals.blocked}</div><div class="k">Blocked</div></div>
-      <div class="stat"><div class="n">${Math.round(result.meanConfidence * 100)}%</div><div class="k">Confidence</div></div>
-    </div>
-
-    <div class="meta-line" style="margin:8px 0 0">
-      Policy: <strong>${escapeHtml(result.policyDecision.effect)}</strong> · Ownership Tier: <strong>${result.ownership.effectiveTier}</strong>
-      ${result.policyDecision.reason ? ` · ${escapeHtml(result.policyDecision.reason)}` : ''}
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-val" style="color: #ffffff">${result.totals.total}</div>
+        <div class="hero-stat-label">Steps</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-val" style="color: #34d399">${result.totals.passed}</div>
+        <div class="hero-stat-label">Passed</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-val" style="color: #f87171">${result.totals.failed}</div>
+        <div class="hero-stat-label">Failed</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-val" style="color: #a78bfa">${result.totals.blocked}</div>
+        <div class="hero-stat-label">Blocked</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-val" style="color: #60a5fa">${Math.round(result.meanConfidence * 100)}%</div>
+        <div class="hero-stat-label">Confidence</div>
+      </div>
     </div>
   </div>
 
+  ${aiSummaryHtml}
   ${reconHtml}
   ${privacyHtml}
-  ${result.categories.length > 0 ? `<h2>Categories (${result.categories.length})</h2>${categoriesHtml}` : ''}
-  ${regularFindings.length > 0 ? `<h2>Findings (${regularFindings.length})</h2>${findingsHtml}` : ''}
-  ${result.steps.length > 0 ? `<h2>Steps &amp; Screenshots (${result.steps.length})</h2>${stepsHtml.join('')}` : ''}
+  ${result.categories.length > 0 ? `<h2>Category Breakdown</h2>${categoriesHtml}` : ''}
+  ${regularFindings.length > 0 ? `<h2>Detailed Findings</h2>${findingsHtml.replace(/class="finding-item" style="border:1px solid #e2e8f0;border-left:3.5px solid (.*?);/g, 'class="finding-item" style="border-left:4px solid $1;')}` : ''}
+  ${result.steps.length > 0 ? `<h2>Execution Timeline</h2>${stepsHtml.join('')}` : ''}
 
-  <div style="color:#94a3b8;font-size:10.5px;margin-top:20px;padding-top:10px;border-top:1px solid #e2e8f0;text-align:center">
-    Generated by Webtest Scanner. Screenshots and data extracted from live browser execution.
+  <div class="footer">
+    <strong>Webtest Scanner</strong> · Automated Enterprise Audit Report · Generated ${escapeHtml(generatedAt)}
   </div>
+</div>
 </body>
 </html>`;
 }
@@ -407,8 +541,27 @@ export async function downloadReport(result: RunResponse): Promise<void> {
  * Exports the run as a PDF by sending the pre-built HTML to the /api/pdf
  * server route, which uses Playwright to render it and return the bytes.
  */
-export async function printReport(result: RunResponse): Promise<void> {
-  const html = await buildReportHtml(result);
+export async function printReport(result: RunResponse, aiSummary?: string): Promise<void> {
+  let finalSummary = aiSummary;
+  
+  // If the summary wasn't provided from the UI, automatically fetch it now so the PDF isn't missing it.
+  if (!finalSummary) {
+    try {
+      const res = await fetch('/api/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resultsJSON: result })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        finalSummary = data.summary;
+      }
+    } catch (e) {
+      console.error('Failed to auto-generate AI summary for PDF', e);
+    }
+  }
+
+  const html = await buildReportHtml(result, finalSummary);
 
   const response = await fetch('/api/pdf', {
     method: 'POST',

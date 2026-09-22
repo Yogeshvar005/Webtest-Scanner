@@ -8,7 +8,7 @@ import { Sparkles, AlertTriangle, ShieldCheck, CheckCircle2, Copy, Download, Ref
 
 interface ResultsPanelProps {
   result: RunResponse;
-  onDownload: () => void;
+  onDownload: (aiSummary?: string) => void;
   pdfing: boolean;
   device?: DevicePreset;
   onApplyFix?: (instructions: string) => void;
@@ -544,7 +544,21 @@ function CodeExportTab({ result }: { result: RunResponse }) {
 }
 
 /* ── Overview Tab ── */
-function OverviewTab({ result, onGoTo, onApplyFix }: { result: RunResponse; onGoTo: (tab: TabId) => void; onApplyFix?: (instructions: string) => void }) {
+function OverviewTab({ 
+  result, 
+  onGoTo, 
+  onApplyFix,
+  aiSummary,
+  isGeneratingSummary,
+  onGenerateSummary
+}: { 
+  result: RunResponse; 
+  onGoTo: (tab: TabId) => void; 
+  onApplyFix?: (instructions: string) => void;
+  aiSummary: string | null;
+  isGeneratingSummary: boolean;
+  onGenerateSummary: () => void;
+}) {
   const notPassing = result.categories.filter((c) => c.status === 'failed' || c.status === 'warning');
   const topFindings = [...result.findings]
     .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9))
@@ -574,6 +588,34 @@ function OverviewTab({ result, onGoTo, onApplyFix }: { result: RunResponse; onGo
           <AIDiagnosticCard failedStep={firstFailedStep} targetUrl={result.targetUrl} onApplyFix={onApplyFix} />
         </div>
       )}
+
+      {/* ── AI Executive Summary ── */}
+      <div style={{ marginBottom: 24, padding: 20, background: 'var(--bg-hover)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: aiSummary ? 16 : 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            <Sparkles size={18} className="text-amber-400" /> Executive AI Summary
+          </div>
+          {!aiSummary && (
+            <button type="button" className="secondary" onClick={onGenerateSummary} disabled={isGeneratingSummary} style={{ height: 32, fontSize: 12, padding: '0 12px' }}>
+              {isGeneratingSummary ? (
+                <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} /> Generating...</>
+              ) : (
+                <><Wand2 size={14} /> Generate Summary</>
+              )}
+            </button>
+          )}
+        </div>
+        {aiSummary && (
+          <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }} dangerouslySetInnerHTML={{ 
+            // Simple markdown parsing for the AI summary
+            __html: aiSummary
+              .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
+              .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
+              .replace(/\\n/g, '<br/>')
+              .replace(/\\d+\\.\\s/g, '<br/>• ')
+          }} />
+        )}
+      </div>
 
       <div className="stats-strip">
         <div className="stat-box">
@@ -1761,6 +1803,29 @@ function PixelDiffOverlay({ baselineUrl, currentUrl }: { baselineUrl: string; cu
 /* ── Main ResultsPanel Export ── */
 export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }: ResultsPanelProps) {
   const [tab, setTab] = useState<TabId>('overview');
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+
+  const handleGenerateSummary = async () => {
+    setIsGeneratingSummary(true);
+    try {
+      const res = await fetch('/api/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resultsJSON: result })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiSummary(data.summary);
+      } else {
+        console.error('Failed to generate AI summary');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
   const hasScraperData = result.categories.some((c) => c.category === 'scraper');
   const hasScreenshots = (result.steps ?? []).some((s) => Boolean(s.screenshot));
 
@@ -1800,7 +1865,7 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
           <button
             type="button"
             className="primary"
-            onClick={onDownload}
+            onClick={() => onDownload(aiSummary ?? undefined)}
             disabled={pdfing}
           >
             {pdfing ? (
@@ -1836,7 +1901,7 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
 
       {/* ── Tab View Panels ── */}
       <div style={{ marginTop: 12 }}>
-        {tab === 'overview' && <OverviewTab result={result} onGoTo={setTab} onApplyFix={onApplyFix} />}
+        {tab === 'overview' && <OverviewTab result={result} onGoTo={setTab} onApplyFix={onApplyFix} aiSummary={aiSummary} isGeneratingSummary={isGeneratingSummary} onGenerateSummary={handleGenerateSummary} />}
         {tab === 'categories' && <CategoriesTab result={result} />}
         {tab === 'findings' && <FindingsTab result={result} />}
         {tab === 'steps' && <StepsTab result={result} onApplyFix={onApplyFix} />}
