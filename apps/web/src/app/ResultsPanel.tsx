@@ -1828,7 +1828,7 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
       } else {
         const errText = await res.text();
         console.error('Failed to generate AI summary:', errText);
-        alert('Failed to generate AI summary. Check console for details.');
+        alert(`API Error: ${errText}`);
       }
     } catch (e: any) {
       console.error(e);

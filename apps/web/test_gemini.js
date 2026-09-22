@@ -1,10 +1,10 @@
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 async function test() {
-  process.env.GOOGLE_GENERATIVE_AI_API_KEY = "this_is_fake_xyz123";
+  process.env.GOOGLE_GENERATIVE_AI_API_KEY = "AQ.Ab8RN6LFVqyM8tI03NUqyoWcCM7Th42s9Mom9nv3akmsqIOIrA";
   try {
     const { text } = await generateText({
-      model: google('gemini-1.5-flash'),
+      model: google('gemini-pro-latest'),
       prompt: 'Hello',
     });
     console.log("Success:", text);
