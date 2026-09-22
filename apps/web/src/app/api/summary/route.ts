@@ -40,7 +40,7 @@ Structure your response using Markdown:
 Do not use raw JSON or technical jargon that a non-technical executive wouldn't understand. Keep it concise.`;
 
     const { text } = await generateText({
-      model: google('gemini-3.1-pro'), // Upgraded to the latest Pro model for highest quality
+      model: google('gemini-1.5-pro'), 
       prompt,
     });
 
