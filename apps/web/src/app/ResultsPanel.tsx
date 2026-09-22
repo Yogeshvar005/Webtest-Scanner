@@ -1809,19 +1809,30 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
   const handleGenerateSummary = async () => {
     setIsGeneratingSummary(true);
     try {
+      // Strip massive base64 screenshots before sending to avoid Vercel 413 Payload Too Large
+      const strippedResult = {
+        ...result,
+        siteScreenshot: undefined,
+        steps: result.steps.map((s) => ({ ...s, screenshot: undefined })),
+        siteNavLinks: result.siteNavLinks?.map((l) => ({ ...l, screenshot: undefined })),
+      };
+
       const res = await fetch('/api/summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resultsJSON: result })
+        body: JSON.stringify({ resultsJSON: strippedResult })
       });
       if (res.ok) {
         const data = await res.json();
         setAiSummary(data.summary);
       } else {
-        console.error('Failed to generate AI summary');
+        const errText = await res.text();
+        console.error('Failed to generate AI summary:', errText);
+        alert('Failed to generate AI summary. Check console for details.');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert('Network error while generating AI summary.');
     } finally {
       setIsGeneratingSummary(false);
     }

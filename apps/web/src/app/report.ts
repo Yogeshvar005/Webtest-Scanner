@@ -547,10 +547,18 @@ export async function printReport(result: RunResponse, aiSummary?: string): Prom
   // If the summary wasn't provided from the UI, automatically fetch it now so the PDF isn't missing it.
   if (!finalSummary) {
     try {
+      // Strip screenshots to avoid 413 Payload Too Large
+      const strippedResult = {
+        ...result,
+        siteScreenshot: undefined,
+        steps: result.steps.map((s) => ({ ...s, screenshot: undefined })),
+        siteNavLinks: result.siteNavLinks?.map((l) => ({ ...l, screenshot: undefined })),
+      };
+
       const res = await fetch('/api/summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resultsJSON: result })
+        body: JSON.stringify({ resultsJSON: strippedResult })
       });
       if (res.ok) {
         const data = await res.json();
