@@ -46,6 +46,7 @@ Structure your response using Markdown:
 Do not use raw JSON or technical jargon that a non-technical executive wouldn't understand. Keep it concise.`;
 
     const { text } = await generateText({
+      // @ts-ignore: Version mismatch between @ai-sdk/openai and ai package
       model: bazaarlink('auto'), // 'auto' model automatically selects the best available model on BazaarLink
       prompt,
     });
