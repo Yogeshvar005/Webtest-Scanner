@@ -1915,27 +1915,35 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
         const medFindings = result.findings.filter((f) => f.severity === 'medium');
         const allPassed = result.totals.failed === 0 && failedCats.length === 0;
 
-        // ── Health score: weighted deduction from 100 ──
+        // ── Health score: properly weighted by failure TYPE ──
+        // Functional step failures are real breakage (-20 each).
+        // Passive inspection category failures are advisory (-6 each) — missing headers,
+        // accessibility hints, etc. do NOT make a site "broken".
+        // Findings are informational context, not execution failures.
         let score = 100;
-        score -= failedCats.length * 12;
-        score -= warnCats.length * 5;
-        score -= critFindings.length * 8;
-        score -= medFindings.length * 3;
-        if (result.totals.blocked > 0) score -= 5;
+        score -= result.totals.failed * 20;               // actual functional step failures
+        score -= failedCats.length * 6;                   // passive inspection advisory fails
+        score -= warnCats.length * 3;                     // warnings
+        score -= critFindings.length * 4;                 // findings are informational
+        score -= medFindings.length * 1;
+        if (result.totals.blocked > 0) score -= 3;
         score = Math.max(0, Math.min(100, score));
 
+        // Verdict: only "failed" if there are REAL functional step failures.
+        // Inspection-only failures should be "warning" at worst.
         const verdict: 'passed' | 'failed' | 'warning' =
-          allPassed && score >= 80 ? 'passed' : failedCats.length > 0 || score < 60 ? 'failed' : 'warning';
+          result.totals.failed > 0
+            ? 'failed'
+            : failedCats.length === 0 && warnCats.length === 0
+            ? 'passed'
+            : 'warning';
 
         // ── Overview paragraph ──
         const domain = (() => { try { return new URL(result.targetUrl).hostname; } catch { return result.targetUrl; } })();
-        const overview = allPassed
-          ? `The autonomous security and quality audit of ${domain} completed with all ${result.totals.total} functional steps passing at ${conf}% inference confidence. The target demonstrates a sound overall posture. Continued vigilance and periodic re-auditing are recommended to maintain this standard.`
-          : `The autonomous audit of ${domain} concluded with a ${result.status.toUpperCase()} verdict across ${result.totals.total} steps at ${conf}% inference confidence. ${
-              failedCats.length > 0
-                ? `${failedCats.length} inspection categor${failedCats.length === 1 ? 'y' : 'ies'} — ${failedCats.map((c) => c.label).join(', ')} — require immediate remediation before this target can be considered production-ready.`
-                : 'All functional steps passed; however, inspection categories revealed concerns requiring engineering attention.'
-            }`;
+        const functionallyOk = result.totals.failed === 0;
+        const overview = functionallyOk
+          ? `The autonomous audit of ${domain} completed with all ${result.totals.total} functional steps passing at ${conf}% inference confidence.${failedCats.length > 0 ? ` Passive inspection identified ${failedCats.length} categor${failedCats.length === 1 ? 'y' : 'ies'} (${failedCats.map((c) => c.label).join(', ')}) with hardening opportunities — these are advisory findings that do not indicate functional breakage.` : ' The target demonstrates a sound overall posture.'}`
+          : `The autonomous audit of ${domain} concluded with ${result.totals.failed} functional step failure${result.totals.failed !== 1 ? 's' : ''} across ${result.totals.total} total steps at ${conf}% inference confidence. ${failedCats.length > 0 ? `Inspection also flagged ${failedCats.length} categor${failedCats.length === 1 ? 'y' : 'ies'} requiring attention.` : ''}`;
 
         // ── Structured findings ──
         const findings: SummaryFinding[] = [];

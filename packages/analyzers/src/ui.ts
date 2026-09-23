@@ -33,10 +33,15 @@ export const uiAnalyzer: Analyzer = {
         return `${el.tagName.toLowerCase()}${id}${cls}`;
       };
 
-      // Broken images: loaded but with no intrinsic dimensions.
+      // Broken images: has a real src that failed to load (naturalWidth===0 after complete).
+      // Skip: empty src, data URIs, SVG placeholders, 1×1 tracking pixels, and
+      // lazy-loaded images that haven't been given a src yet — these are not broken.
       for (const img of Array.from(document.images)) {
-        if (img.complete && img.naturalWidth === 0 && img.naturalHeight === 0) {
-          broken.push(`${describe(img)} src=${(img.getAttribute('src') ?? '').slice(0, 120)}`);
+        const src = img.getAttribute('src') ?? '';
+        const isRealSrc = src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/');
+        const isTiny = img.width <= 2 && img.height <= 2; // 1×1 tracking pixels
+        if (img.complete && img.naturalWidth === 0 && img.naturalHeight === 0 && isRealSrc && !isTiny) {
+          broken.push(`${describe(img)} src=${src.slice(0, 120)}`);
         }
         if (!img.hasAttribute('alt')) emptyAlt.push(describe(img));
       }
