@@ -700,12 +700,12 @@ function OverviewTab({
                 }}
                 onClick={() => onGoTo('categories')}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span className={`pill ${statusClass(c.status)}`}>{c.status}</span>
-                  <Glyph id={c.category} />
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{c.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, overflow: 'hidden' }}>
+                  <span className={`pill ${statusClass(c.status)}`} style={{ flexShrink: 0 }}>{c.status}</span>
+                  <span style={{ flexShrink: 0 }}><Glyph id={c.category} /></span>
+                  <span style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.label}</span>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', flexShrink: 0, marginLeft: 12, whiteSpace: 'nowrap' }}>
                   {c.skippedReason ?? `${c.totals.failed} failed · ${c.totals.warning} warnings`} →
                 </div>
               </div>
