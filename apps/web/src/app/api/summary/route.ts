@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
-import { google } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 
 export const maxDuration = 60; // Allow more time for generation
+
+// Configure the OpenAI SDK to use BazaarLink
+const bazaarlink = createOpenAI({
+  baseURL: 'https://api.bazaarlink.ai/v1',
+  apiKey: process.env.BAZAARLINK_API_KEY || '',
+});
 
 export async function POST(req: Request) {
   try {
@@ -12,9 +18,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No scan results provided' }, { status: 400 });
     }
 
-    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    if (!process.env.BAZAARLINK_API_KEY) {
       return NextResponse.json(
-        { error: 'GOOGLE_GENERATIVE_AI_API_KEY is not set in the environment variables.' },
+        { error: 'BAZAARLINK_API_KEY is not set in the environment variables.' },
         { status: 500 }
       );
     }
@@ -40,7 +46,7 @@ Structure your response using Markdown:
 Do not use raw JSON or technical jargon that a non-technical executive wouldn't understand. Keep it concise.`;
 
     const { text } = await generateText({
-      model: google('gemini-1.5-pro'), 
+      model: bazaarlink('auto'), // 'auto' model automatically selects the best available model on BazaarLink
       prompt,
     });
 
