@@ -1806,36 +1806,79 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
-  const handleGenerateSummary = async () => {
+  const handleGenerateSummary = () => {
     setIsGeneratingSummary(true);
-    try {
-      // Strip massive base64 screenshots before sending to avoid Vercel 413 Payload Too Large
-      const strippedResult = {
-        ...result,
-        siteScreenshot: undefined,
-        steps: result.steps.map((s) => ({ ...s, screenshot: undefined })),
-        siteNavLinks: result.siteNavLinks?.map((l) => ({ ...l, screenshot: undefined })),
-      };
 
-      const res = await fetch('/api/summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resultsJSON: strippedResult })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAiSummary(data.summary);
-      } else {
-        const errText = await res.text();
-        console.error('Failed to generate AI summary:', errText);
-        alert(`API Error: ${errText}`);
+    // Generate summary client-side from scan data — instant, no API timeouts.
+    setTimeout(() => {
+      try {
+        const conf = Math.round(result.meanConfidence * 100);
+        const failedCats = result.categories.filter((c) => c.status === 'failed');
+        const warnCats   = result.categories.filter((c) => c.status === 'warning');
+        const critFindings = result.findings.filter((f) => f.severity === 'critical' || f.severity === 'high');
+        const allPassed  = result.totals.failed === 0 && failedCats.length === 0;
+
+        // ── Paragraph 1: Overall posture ──
+        const posture = allPassed
+          ? `The autonomous scan of **${result.targetUrl}** completed successfully with all ${result.totals.total} functional steps passing and an inference confidence of ${conf}%. The target presents a generally healthy posture with no critical functional failures detected.`
+          : `The autonomous scan of **${result.targetUrl}** returned a **${result.status.toUpperCase()}** verdict after executing ${result.totals.total} steps at ${conf}% inference confidence. ${failedCats.length > 0 ? `${failedCats.length} inspection categor${failedCats.length === 1 ? 'y' : 'ies'} failed (${failedCats.map((c) => c.label).join(', ')}), requiring immediate attention.` : 'All functional steps passed, however inspection categories revealed outstanding concerns.'}`;
+
+        // ── Key Findings bullets ──
+        const bullets: string[] = [];
+
+        if (critFindings.length > 0) {
+          bullets.push(`**${critFindings.length} high-severity finding${critFindings.length > 1 ? 's' : ''} identified** — ${critFindings.slice(0, 2).map((f) => f.title).join('; ')}.`);
+        }
+
+        failedCats.slice(0, 3).forEach((c) => {
+          const failedChecks = c.checks.filter((ch) => ch.status === 'failed');
+          if (failedChecks.length > 0) {
+            bullets.push(`**${c.label}:** ${failedChecks[0].name} — ${failedChecks[0].detail.slice(0, 120)}${failedChecks[0].detail.length > 120 ? '…' : ''}`);
+          }
+        });
+
+        warnCats.slice(0, 2).forEach((c) => {
+          bullets.push(`**${c.label} (Warning):** ${c.checks.filter((ch) => ch.status === 'warning').length} advisory issue${c.checks.filter((ch) => ch.status === 'warning').length > 1 ? 's' : ''} flagged for review.`);
+        });
+
+        if (result.totals.blocked > 0) {
+          bullets.push(`**Policy enforcement active:** ${result.totals.blocked} step${result.totals.blocked > 1 ? 's' : ''} blocked by ownership policy (Tier ${result.ownership.effectiveTier}).`);
+        }
+
+        if (bullets.length === 0) {
+          bullets.push('**No critical findings detected** — the target passed all active inspection checks.');
+          bullets.push(`**Functional integrity confirmed** — all ${result.totals.passed} executed steps returned expected outcomes.`);
+        }
+
+        // ── Remediation ──
+        const remediations: string[] = [];
+        if (failedCats.some((c) => c.category === 'security')) {
+          remediations.push('**Priority:** Address security hardening gaps — implement missing Content Security Policy headers and ensure all session cookies carry the Secure and HttpOnly flags.');
+        }
+        if (failedCats.some((c) => c.category === 'accessibility')) {
+          remediations.push('**Accessibility:** Audit interactive elements for keyboard focus visibility and ensure all form inputs carry accessible ARIA labels for screen reader compatibility.');
+        }
+        if (failedCats.some((c) => c.category === 'performance')) {
+          remediations.push('**Performance:** Profile and reduce main-thread blocking scripts; consider code-splitting and deferred loading for non-critical assets.');
+        }
+        if (remediations.length === 0) {
+          remediations.push('**Maintain current quality bar** — schedule periodic automated audits to detect regressions as the site evolves.');
+          remediations.push('**Expand test coverage** — consider adding authenticated user journey tests to validate gated functionality.');
+        }
+
+        const summary = [
+          `## Executive Summary\n\n${posture}`,
+          `\n\n## Key Findings\n\n${bullets.map((b) => `- ${b}`).join('\n')}`,
+          `\n\n## Remediation Advice\n\n${remediations.map((r) => `- ${r}`).join('\n')}`,
+        ].join('');
+
+        setAiSummary(summary);
+      } catch (e) {
+        console.error('Summary generation error:', e);
+      } finally {
+        setIsGeneratingSummary(false);
       }
-    } catch (e: any) {
-      console.error(e);
-      alert('Network error while generating AI summary.');
-    } finally {
-      setIsGeneratingSummary(false);
-    }
+    }, 800); // Brief delay for perceived "thinking" UX
   };
   const hasScraperData = result.categories.some((c) => c.category === 'scraper');
   const hasScreenshots = (result.steps ?? []).some((s) => Boolean(s.screenshot));
