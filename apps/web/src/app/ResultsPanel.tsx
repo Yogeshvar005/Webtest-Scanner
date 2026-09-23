@@ -589,32 +589,115 @@ function OverviewTab({
         </div>
       )}
 
-      {/* ── AI Executive Summary ── */}
-      <div style={{ marginBottom: 24, padding: 20, background: 'var(--bg-hover)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: aiSummary ? 16 : 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-            <Sparkles size={18} className="text-amber-400" /> Executive AI Summary
+      {/* ── Executive AI Summary ── */}
+      <div style={{ marginBottom: 24, borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+        {/* Header bar */}
+        <div style={{ padding: '14px 20px', background: 'linear-gradient(135deg, rgba(217,119,87,0.15) 0%, rgba(139,92,246,0.10) 100%)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sparkles size={16} style={{ color: '#f59e0b' }} />
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)', letterSpacing: '0.01em' }}>Executive AI Summary</span>
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: 'rgba(217,119,87,0.18)', color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.04em' }}>AUTO-GENERATED</span>
           </div>
-          {!aiSummary && (
-            <button type="button" className="secondary" onClick={onGenerateSummary} disabled={isGeneratingSummary} style={{ height: 32, fontSize: 12, padding: '0 12px' }}>
-              {isGeneratingSummary ? (
-                <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} /> Generating...</>
-              ) : (
-                <><Wand2 size={14} /> Generate Summary</>
-              )}
+          {isGeneratingSummary && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+              <span className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} /> Analysing…
+            </div>
+          )}
+          {summaryData && !isGeneratingSummary && (
+            <button type="button" onClick={onGenerateSummary} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <RefreshCw size={11} /> Regenerate
             </button>
           )}
         </div>
-        {aiSummary && (
-          <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }} dangerouslySetInnerHTML={{ 
-            // Simple markdown parsing for the AI summary
-            __html: aiSummary
-              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-              .replace(/\*(.*?)\*/g, '<em>$1</em>')
-              .replace(/\n/g, '<br/>')
-              .replace(/\d+\.\s/g, '<br/>• ')
-          }} />
+
+        {/* Loading skeleton */}
+        {isGeneratingSummary && !summaryData && (
+          <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[80, 95, 60, 75].map((w, i) => (
+              <div key={i} style={{ height: 12, borderRadius: 6, background: 'var(--bg-hover)', width: `${w}%`, opacity: 0.6, animation: 'pulse 1.5s ease-in-out infinite' }} />
+            ))}
+          </div>
         )}
+
+        {/* Rich summary content */}
+        {summaryData && !isGeneratingSummary && (() => {
+          const sd = summaryData;
+          const scoreColor = sd.score >= 80 ? '#22c55e' : sd.score >= 60 ? '#eab308' : '#ef4444';
+          const verdictBg = sd.verdict === 'passed' ? 'rgba(34,197,94,0.1)' : sd.verdict === 'failed' ? 'rgba(239,68,68,0.1)' : 'rgba(234,179,8,0.1)';
+          const verdictBorder = sd.verdict === 'passed' ? 'rgba(34,197,94,0.3)' : sd.verdict === 'failed' ? 'rgba(239,68,68,0.3)' : 'rgba(234,179,8,0.3)';
+          const verdictLabel = sd.verdict === 'passed' ? 'HEALTHY' : sd.verdict === 'failed' ? 'AT RISK' : 'NEEDS ATTENTION';
+
+          return (
+            <div>
+              {/* Score + Overview row */}
+              <div style={{ padding: '20px', display: 'flex', gap: 20, alignItems: 'flex-start', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                {/* Score ring */}
+                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 16px', background: verdictBg, border: `1px solid ${verdictBorder}`, borderRadius: 10 }}>
+                  <div style={{ fontSize: 30, fontWeight: 800, color: scoreColor, lineHeight: 1 }}>{sd.score}</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: scoreColor, letterSpacing: '0.06em' }}>HEALTH SCORE</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: verdictBg, border: `1px solid ${verdictBorder}`, color: scoreColor }}>{verdictLabel}</div>
+                </div>
+                {/* Overview text */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 6, textTransform: 'uppercase' }}>Overview</div>
+                  <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--text-secondary)' }}>{sd.overview}</p>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
+                    {[
+                      { label: 'Steps', value: result.totals.total, color: 'var(--text)' },
+                      { label: 'Passed', value: result.totals.passed, color: '#22c55e' },
+                      { label: 'Failed', value: result.totals.failed, color: result.totals.failed > 0 ? '#ef4444' : 'var(--text-muted)' },
+                      { label: 'Confidence', value: `${Math.round(result.meanConfidence * 100)}%`, color: 'var(--accent)' },
+                    ].map((m) => (
+                      <div key={m.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
+                        <span style={{ fontWeight: 700, color: m.color }}>{m.value}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{m.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Findings */}
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={12} /> Key Findings
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {sd.findings.map((f, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--bg-surface)', border: `1px solid var(--border)`, borderLeft: `3px solid ${f.color}` }}>
+                      <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1.4 }}>{f.icon}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                          <span style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--text)' }}>{f.label}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, color: f.color, background: `${f.color}18`, letterSpacing: '0.04em' }}>{f.tag}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{f.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Remediation */}
+              <div style={{ padding: '16px 20px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 12, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ShieldCheck size={12} /> Remediation Advice
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {sd.remediation.map((r, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 12px', borderRadius: 8, background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.15)' }}>
+                      <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1.4 }}>{r.icon}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 12.5, color: 'var(--text)', marginBottom: 3 }}>{r.title}</div>
+                        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary)' }}>{r.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="stats-strip">
@@ -1803,87 +1886,141 @@ function PixelDiffOverlay({ baselineUrl, currentUrl }: { baselineUrl: string; cu
 /* ── Main ResultsPanel Export ── */
 export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }: ResultsPanelProps) {
   const [tab, setTab] = useState<TabId>('overview');
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  type SummaryFinding = { label: string; detail: string; tag: string; color: string; icon: string };
+  type SummaryData = {
+    verdict: 'passed' | 'failed' | 'warning';
+    score: number;
+    overview: string;
+    findings: SummaryFinding[];
+    remediation: Array<{ title: string; detail: string; icon: string }>;
+  };
+  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
+  const [aiSummary, setAiSummary] = useState<string | null>(null); // kept for PDF export
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const handleGenerateSummary = () => {
     setIsGeneratingSummary(true);
 
-    // Generate summary client-side from scan data — instant, no API timeouts.
+    // Generate rich structured summary client-side — instant, no API timeouts.
     setTimeout(() => {
       try {
         const conf = Math.round(result.meanConfidence * 100);
         const failedCats = result.categories.filter((c) => c.status === 'failed');
-        const warnCats   = result.categories.filter((c) => c.status === 'warning');
+        const warnCats = result.categories.filter((c) => c.status === 'warning');
         const critFindings = result.findings.filter((f) => f.severity === 'critical' || f.severity === 'high');
-        const allPassed  = result.totals.failed === 0 && failedCats.length === 0;
+        const medFindings = result.findings.filter((f) => f.severity === 'medium');
+        const allPassed = result.totals.failed === 0 && failedCats.length === 0;
 
-        // ── Paragraph 1: Overall posture ──
-        const posture = allPassed
-          ? `The autonomous scan of **${result.targetUrl}** completed successfully with all ${result.totals.total} functional steps passing and an inference confidence of ${conf}%. The target presents a generally healthy posture with no critical functional failures detected.`
-          : `The autonomous scan of **${result.targetUrl}** returned a **${result.status.toUpperCase()}** verdict after executing ${result.totals.total} steps at ${conf}% inference confidence. ${failedCats.length > 0 ? `${failedCats.length} inspection categor${failedCats.length === 1 ? 'y' : 'ies'} failed (${failedCats.map((c) => c.label).join(', ')}), requiring immediate attention.` : 'All functional steps passed, however inspection categories revealed outstanding concerns.'}`;
+        // ── Health score: weighted deduction from 100 ──
+        let score = 100;
+        score -= failedCats.length * 12;
+        score -= warnCats.length * 5;
+        score -= critFindings.length * 8;
+        score -= medFindings.length * 3;
+        if (result.totals.blocked > 0) score -= 5;
+        score = Math.max(0, Math.min(100, score));
 
-        // ── Key Findings bullets ──
-        const bullets: string[] = [];
+        const verdict: 'passed' | 'failed' | 'warning' =
+          allPassed && score >= 80 ? 'passed' : failedCats.length > 0 || score < 60 ? 'failed' : 'warning';
+
+        // ── Overview paragraph ──
+        const domain = (() => { try { return new URL(result.targetUrl).hostname; } catch { return result.targetUrl; } })();
+        const overview = allPassed
+          ? `The autonomous security and quality audit of ${domain} completed with all ${result.totals.total} functional steps passing at ${conf}% inference confidence. The target demonstrates a sound overall posture. Continued vigilance and periodic re-auditing are recommended to maintain this standard.`
+          : `The autonomous audit of ${domain} concluded with a ${result.status.toUpperCase()} verdict across ${result.totals.total} steps at ${conf}% inference confidence. ${
+              failedCats.length > 0
+                ? `${failedCats.length} inspection categor${failedCats.length === 1 ? 'y' : 'ies'} — ${failedCats.map((c) => c.label).join(', ')} — require immediate remediation before this target can be considered production-ready.`
+                : 'All functional steps passed; however, inspection categories revealed concerns requiring engineering attention.'
+            }`;
+
+        // ── Structured findings ──
+        const findings: SummaryFinding[] = [];
 
         if (critFindings.length > 0) {
-          bullets.push(`**${critFindings.length} high-severity finding${critFindings.length > 1 ? 's' : ''} identified** — ${critFindings.slice(0, 2).map((f) => f.title).join('; ')}.`);
+          findings.push({
+            label: `${critFindings.length} Critical/High Severity Finding${critFindings.length > 1 ? 's' : ''}`,
+            detail: critFindings.slice(0, 3).map((f) => f.title).join(' · '),
+            tag: 'CRITICAL',
+            color: '#ef4444',
+            icon: '🔴',
+          });
         }
 
-        failedCats.slice(0, 3).forEach((c) => {
-          const failedChecks = c.checks.filter((ch) => ch.status === 'failed');
-          if (failedChecks.length > 0) {
-            bullets.push(`**${c.label}:** ${failedChecks[0].name} — ${failedChecks[0].detail.slice(0, 120)}${failedChecks[0].detail.length > 120 ? '…' : ''}`);
+        failedCats.forEach((c) => {
+          const fc = c.checks.filter((ch) => ch.status === 'failed');
+          if (fc.length > 0) {
+            findings.push({
+              label: c.label,
+              detail: `${fc[0].name} — ${fc[0].detail.slice(0, 160)}${fc[0].detail.length > 160 ? '…' : ''}`,
+              tag: 'FAILED',
+              color: '#f97316',
+              icon: '⚠️',
+            });
           }
         });
 
-        warnCats.slice(0, 2).forEach((c) => {
-          bullets.push(`**${c.label} (Warning):** ${c.checks.filter((ch) => ch.status === 'warning').length} advisory issue${c.checks.filter((ch) => ch.status === 'warning').length > 1 ? 's' : ''} flagged for review.`);
+        warnCats.forEach((c) => {
+          const wc = c.checks.filter((ch) => ch.status === 'warning');
+          findings.push({
+            label: `${c.label} — Advisory`,
+            detail: wc.length > 0 ? `${wc[0].name}: ${wc[0].detail.slice(0, 140)}${wc[0].detail.length > 140 ? '…' : ''}` : `${wc.length} advisory issue${wc.length !== 1 ? 's' : ''} flagged for review.`,
+            tag: 'WARNING',
+            color: '#eab308',
+            icon: '🟡',
+          });
         });
 
         if (result.totals.blocked > 0) {
-          bullets.push(`**Policy enforcement active:** ${result.totals.blocked} step${result.totals.blocked > 1 ? 's' : ''} blocked by ownership policy (Tier ${result.ownership.effectiveTier}).`);
+          findings.push({
+            label: 'Policy Enforcement Active',
+            detail: `${result.totals.blocked} step${result.totals.blocked > 1 ? 's' : ''} were blocked by ownership policy (Effective Tier ${result.ownership.effectiveTier}). Review policy configuration to ensure legitimate flows are not gated.`,
+            tag: 'POLICY',
+            color: '#8b5cf6',
+            icon: '🛡️',
+          });
         }
 
-        if (bullets.length === 0) {
-          bullets.push('**No critical findings detected** — the target passed all active inspection checks.');
-          bullets.push(`**Functional integrity confirmed** — all ${result.totals.passed} executed steps returned expected outcomes.`);
+        if (findings.length === 0) {
+          findings.push({ label: 'All Checks Passed', detail: `All ${result.totals.passed} executed steps returned expected outcomes with no failures or warnings detected.`, tag: 'PASSED', color: '#22c55e', icon: '✅' });
         }
 
-        // ── Remediation ──
-        const remediations: string[] = [];
+        // ── Remediation items ──
+        const remediation: Array<{ title: string; detail: string; icon: string }> = [];
         if (failedCats.some((c) => c.category === 'security')) {
-          remediations.push('**Priority:** Address security hardening gaps — implement missing Content Security Policy headers and ensure all session cookies carry the Secure and HttpOnly flags.');
+          remediation.push({ icon: '🔒', title: 'Harden Security Headers', detail: 'Implement a Content Security Policy (CSP), set Strict-Transport-Security, and ensure all session cookies carry Secure and HttpOnly flags to protect against XSS and MITM attacks.' });
         }
         if (failedCats.some((c) => c.category === 'accessibility')) {
-          remediations.push('**Accessibility:** Audit interactive elements for keyboard focus visibility and ensure all form inputs carry accessible ARIA labels for screen reader compatibility.');
+          remediation.push({ icon: '♿', title: 'Resolve Accessibility Gaps', detail: 'Audit all interactive elements for keyboard focus rings, ensure every form input has an accessible ARIA label, and verify colour contrast meets WCAG 2.1 AA (4.5:1) requirements.' });
         }
         if (failedCats.some((c) => c.category === 'performance')) {
-          remediations.push('**Performance:** Profile and reduce main-thread blocking scripts; consider code-splitting and deferred loading for non-critical assets.');
+          remediation.push({ icon: '⚡', title: 'Improve Page Performance', detail: 'Profile and defer non-critical JavaScript, enable compression (gzip/brotli), adopt a CDN for static assets, and implement code-splitting to reduce Time-to-Interactive.' });
         }
-        if (remediations.length === 0) {
-          remediations.push('**Maintain current quality bar** — schedule periodic automated audits to detect regressions as the site evolves.');
-          remediations.push('**Expand test coverage** — consider adding authenticated user journey tests to validate gated functionality.');
+        if (failedCats.some((c) => c.category === 'ui' || c.category === 'visual')) {
+          remediation.push({ icon: '🎨', title: 'Fix Visual Regressions', detail: 'Review viewport meta tag configuration for mobile responsiveness, validate image aspect ratios, and resolve any broken or zero-size rendering artefacts reported by the visual scanner.' });
+        }
+        if (remediation.length === 0) {
+          remediation.push({ icon: '📅', title: 'Maintain Audit Cadence', detail: 'Schedule recurring automated audits (weekly or on each deployment) to detect regressions early before they reach production users.' });
+          remediation.push({ icon: '🧪', title: 'Expand Test Coverage', detail: 'Add authenticated user-journey tests and cross-browser visual regression checks to increase confidence across the full application surface.' });
         }
 
-        const summary = [
-          `## Executive Summary\n\n${posture}`,
-          `\n\n## Key Findings\n\n${bullets.map((b) => `- ${b}`).join('\n')}`,
-          `\n\n## Remediation Advice\n\n${remediations.map((r) => `- ${r}`).join('\n')}`,
-        ].join('');
-
-        setAiSummary(summary);
+        const sd: SummaryData = { verdict, score, overview, findings, remediation };
+        setSummaryData(sd);
+        // Also produce a plain-text string for PDF export
+        setAiSummary(
+          `Executive Summary\n\n${overview}\n\nKey Findings\n\n${findings.map((f) => `• [${f.tag}] ${f.label}: ${f.detail}`).join('\n')}\n\nRemediation Advice\n\n${remediation.map((r) => `• ${r.title}: ${r.detail}`).join('\n')}`
+        );
       } catch (e) {
         console.error('Summary generation error:', e);
       } finally {
         setIsGeneratingSummary(false);
       }
-    }, 800); // Brief delay for perceived "thinking" UX
+    }, 800);
   };
 
   // Auto-generate summary whenever a new scan result arrives (keyed on runId)
   useEffect(() => {
     setAiSummary(null);
+    setSummaryData(null);
     handleGenerateSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result.runId]);
