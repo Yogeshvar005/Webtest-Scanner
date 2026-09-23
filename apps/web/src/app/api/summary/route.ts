@@ -46,7 +46,7 @@ Structure your response using Markdown:
 Do not use raw JSON or technical jargon that a non-technical executive wouldn't understand. Keep it concise.`;
 
     const { text } = await generateText({
-      model: bazaarlink('auto'), // 'auto' model automatically selects the best available model on BazaarLink
+      model: bazaarlink('auto:free'), // Use the strictly free rate-limited tier since credits are empty
       prompt,
     });
 
