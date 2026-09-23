@@ -609,10 +609,10 @@ function OverviewTab({
           <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }} dangerouslySetInnerHTML={{ 
             // Simple markdown parsing for the AI summary
             __html: aiSummary
-              .replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>')
-              .replace(/\\*(.*?)\\*/g, '<em>$1</em>')
-              .replace(/\\n/g, '<br/>')
-              .replace(/\\d+\\.\\s/g, '<br/>• ')
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\*(.*?)\*/g, '<em>$1</em>')
+              .replace(/\n/g, '<br/>')
+              .replace(/\d+\.\s/g, '<br/>• ')
           }} />
         )}
       </div>
