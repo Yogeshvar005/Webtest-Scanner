@@ -3,6 +3,7 @@ import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
 export const maxDuration = 60; // Allow more time for generation
+export const runtime = 'edge'; // Use Edge runtime to bypass Vercel's strict 10s Node.js timeout
 
 // Configure the OpenAI SDK to use BazaarLink
 const bazaarlink = createOpenAI({
@@ -25,9 +26,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Limit JSON string length to avoid extreme token usage, taking the first chunk of findings.
-    // Usually, the first ~50k chars of the JSON is enough to get the gist of the issues.
-    const contextStr = JSON.stringify(resultsJSON).slice(0, 50000);
+    // Limit JSON string length heavily to speed up the free API processing and prevent timeout.
+    // 8k chars is enough for the core findings without blowing up the inference time.
+    const contextStr = JSON.stringify(resultsJSON).slice(0, 8000);
 
     const prompt = `You are a Principal Application Security Engineer and Web Auditor. 
 A comprehensive web scan was just performed on a target website. 
