@@ -1880,6 +1880,14 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
       }
     }, 800); // Brief delay for perceived "thinking" UX
   };
+
+  // Auto-generate summary whenever a new scan result arrives (keyed on runId)
+  useEffect(() => {
+    setAiSummary(null);
+    handleGenerateSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result.runId]);
+
   const hasScraperData = result.categories.some((c) => c.category === 'scraper');
   const hasScreenshots = (result.steps ?? []).some((s) => Boolean(s.screenshot));
 
