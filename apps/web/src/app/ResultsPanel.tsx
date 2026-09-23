@@ -543,12 +543,23 @@ function CodeExportTab({ result }: { result: RunResponse }) {
   );
 }
 
+/* ── Summary structured types (module-scope so OverviewTab can use them) ── */
+type SummaryFinding = { label: string; detail: string; tag: string; color: string; icon: string };
+type SummaryData = {
+  verdict: 'passed' | 'failed' | 'warning';
+  score: number;
+  overview: string;
+  findings: SummaryFinding[];
+  remediation: Array<{ title: string; detail: string; icon: string }>;
+};
+
 /* ── Overview Tab ── */
 function OverviewTab({ 
   result, 
   onGoTo, 
   onApplyFix,
   aiSummary,
+  summaryData,
   isGeneratingSummary,
   onGenerateSummary
 }: { 
@@ -556,6 +567,7 @@ function OverviewTab({
   onGoTo: (tab: TabId) => void; 
   onApplyFix?: (instructions: string) => void;
   aiSummary: string | null;
+  summaryData: SummaryData | null;
   isGeneratingSummary: boolean;
   onGenerateSummary: () => void;
 }) {
@@ -1886,14 +1898,6 @@ function PixelDiffOverlay({ baselineUrl, currentUrl }: { baselineUrl: string; cu
 /* ── Main ResultsPanel Export ── */
 export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }: ResultsPanelProps) {
   const [tab, setTab] = useState<TabId>('overview');
-  type SummaryFinding = { label: string; detail: string; tag: string; color: string; icon: string };
-  type SummaryData = {
-    verdict: 'passed' | 'failed' | 'warning';
-    score: number;
-    overview: string;
-    findings: SummaryFinding[];
-    remediation: Array<{ title: string; detail: string; icon: string }>;
-  };
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [aiSummary, setAiSummary] = useState<string | null>(null); // kept for PDF export
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
@@ -2100,7 +2104,7 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
 
       {/* ── Tab View Panels ── */}
       <div style={{ marginTop: 12 }}>
-        {tab === 'overview' && <OverviewTab result={result} onGoTo={setTab} onApplyFix={onApplyFix} aiSummary={aiSummary} isGeneratingSummary={isGeneratingSummary} onGenerateSummary={handleGenerateSummary} />}
+        {tab === 'overview' && <OverviewTab result={result} onGoTo={setTab} onApplyFix={onApplyFix} aiSummary={aiSummary} summaryData={summaryData} isGeneratingSummary={isGeneratingSummary} onGenerateSummary={handleGenerateSummary} />}
         {tab === 'categories' && <CategoriesTab result={result} />}
         {tab === 'findings' && <FindingsTab result={result} />}
         {tab === 'steps' && <StepsTab result={result} onApplyFix={onApplyFix} />}
