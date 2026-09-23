@@ -50,19 +50,44 @@ export async function POST(request: Request) {
       });
     } else {
       const { chromium } = await import('playwright');
-      browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+      try {
+        browser = await chromium.launch({
+          channel: 'chrome',
+          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
+      } catch {
+        browser = await chromium.launch({
+          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
+      }
     }
-    
+
     const page = await browser.newPage();
 
-    // Set content directly and wait for load event
+    // Set content and ensure images / fonts are loaded
     await page.setContent(html, { waitUntil: 'load' });
+    await page.evaluate(() => (document as any).fonts?.ready).catch(() => {});
+
+    const targetUrlMatch = html.match(/<meta\s+name=["']target-url["']\s+content=["'](.*?)["']/i);
+    const targetUrl = targetUrlMatch ? targetUrlMatch[1] : '';
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
-      margin: { top: '20mm', right: '16mm', bottom: '20mm', left: '16mm' },
-      displayHeaderFooter: false,
+      margin: { top: '16mm', right: '14mm', bottom: '18mm', left: '14mm' },
+      displayHeaderFooter: true,
+      headerTemplate: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 8px; color: #94a3b8; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 14mm; box-sizing: border-box;">
+          <span style="font-weight: 700; color: #475569; letter-spacing: 0.04em;">WEBTEST SCANNER <span style="font-weight: 400; color: #94a3b8;">· ENTERPRISE AUDIT REPORT</span></span>
+          <span style="letter-spacing: 0.04em; text-transform: uppercase;">CONFIDENTIAL</span>
+        </div>
+      `,
+      footerTemplate: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 8px; color: #94a3b8; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 14mm; box-sizing: border-box;">
+          <span>Target: <strong style="color: #475569;">${targetUrl || 'Web Target'}</strong> · Enterprise Audit</span>
+          <span style="font-weight: 600; color: #475569;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+        </div>
+      `,
     });
 
     return new NextResponse(pdfBuffer as unknown as BodyInit, {

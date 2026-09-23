@@ -8,7 +8,7 @@ import { Sparkles, AlertTriangle, ShieldCheck, CheckCircle2, Copy, Download, Ref
 
 interface ResultsPanelProps {
   result: RunResponse;
-  onDownload: (aiSummary?: string) => void;
+  onDownload: (aiSummary?: string, summaryData?: SummaryData | null) => void;
   pdfing: boolean;
   device?: DevicePreset;
   onApplyFix?: (instructions: string) => void;
@@ -2076,7 +2076,7 @@ export function ResultsPanel({ result, onDownload, pdfing, device, onApplyFix }:
           <button
             type="button"
             className="primary"
-            onClick={() => onDownload(aiSummary ?? undefined)}
+            onClick={() => onDownload(aiSummary ?? undefined, summaryData)}
             disabled={pdfing}
           >
             {pdfing ? (

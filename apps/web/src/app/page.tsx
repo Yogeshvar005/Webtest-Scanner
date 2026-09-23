@@ -1287,10 +1287,10 @@ export default function Home() {
                   setInstructions((prev) => (prev ? `${fix}\n${prev}` : fix));
                   setActiveLeftTab('config');
                 }}
-                onDownload={async (aiSummary?: string) => {
+                onDownload={async (aiSummary?: string, summaryData?: any) => {
                   setPdfing(true);
                   try {
-                    await printReport(result, aiSummary);
+                    await printReport(result, aiSummary, summaryData);
                   } catch (e) {
                     console.error('PDF generation error:', e);
                   } finally {
