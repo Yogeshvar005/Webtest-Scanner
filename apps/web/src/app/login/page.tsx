@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sun, Moon } from 'lucide-react';
-import { Radar, Wordmark } from '../glyphs';
 import { useAuth } from '../../lib/auth-context';
 
 function GoogleIcon() {
@@ -33,23 +31,7 @@ function GoogleIcon() {
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading: authLoading, signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
-  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('dark');
-  const [mounted, setMounted] = useState(false);
 
-  const setTheme = (theme: 'dark' | 'light') => {
-    setResolvedTheme(theme);
-    if (typeof document !== 'undefined') {
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    }
-  };
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -113,41 +95,49 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-[#0c0908]/80 backdrop-blur-xl px-4 lg:px-8 py-3.5 mb-8">
+      <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#0c0908]/85 backdrop-blur-2xl px-4 lg:px-8 py-4 sm:py-5 mb-8">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-3 group text-left">
-            <div className="relative w-8 h-8 rounded-lg bg-[#1a1412] border border-white/10 flex items-center justify-center text-sky-400 group-hover:border-sky-500/40 transition-colors shadow-sm">
-              <i className="ph ph-terminal-window text-lg" />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400" />
+          <Link href="/" className="flex items-center space-x-3.5 sm:space-x-4 group text-left cursor-pointer transition-transform duration-200 active:scale-[0.99]">
+            {/* Designer Glowing Brand Mark */}
+            <div className="relative flex items-center justify-center">
+              <div className="absolute -inset-1.5 rounded-2xl bg-gradient-to-r from-amber-500/30 via-orange-500/20 to-sky-500/30 blur-md opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500" />
+              <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-b from-[#241c19] via-[#16110f] to-[#0c0908] border border-white/20 group-hover:border-amber-400/50 shadow-[0_8px_20px_-4px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.25)] flex items-center justify-center transition-all duration-300 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+                <i className="ph-bold ph-terminal-window text-2xl sm:text-[26px] text-amber-400 group-hover:text-amber-300 transition-colors drop-shadow-[0_2px_10px_rgba(251,191,36,0.45)]" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-gradient-to-tr from-cyan-400 to-sky-400 border border-[#0c0908] shadow-[0_0_8px_rgba(34,211,238,0.9)]" />
+                </span>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-base font-semibold tracking-tight text-white group-hover:text-neutral-100 transition-colors">
-                Webtest <span className="animate-logo-shimmer font-serif italic text-amber-400/90 font-normal">Scanner</span>
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20">
+
+            {/* Designer Typography & Badge */}
+            <div className="flex items-center space-x-2.5 sm:space-x-3.5">
+              <div className="flex items-baseline space-x-1 sm:space-x-1.5">
+                <span className="text-xl sm:text-2xl lg:text-[26px] font-extrabold tracking-tight text-white font-sans drop-shadow-sm group-hover:text-neutral-100 transition-colors">
+                  Webtest
+                </span>
+                <span className="text-xl sm:text-2xl lg:text-[26px] font-serif italic font-normal tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-orange-400 animate-logo-shimmer select-none drop-shadow-[0_2px_16px_rgba(251,191,36,0.4)]">
+                  Scanner
+                </span>
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold uppercase tracking-wider bg-gradient-to-r from-sky-500/10 via-amber-500/10 to-transparent border border-sky-500/30 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.15)] backdrop-blur-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" />
                 v2.0
               </span>
             </div>
           </Link>
 
-          <button
-              type="button"
-              className="p-2 rounded-lg bg-[#15110f] hover:bg-[#1f1916] text-neutral-400 hover:text-white transition-colors border border-white/5 cursor-pointer"
-              onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-              title={mounted && resolvedTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              aria-label="Toggle light / dark mode"
-            >
-              {mounted ? (
-                resolvedTheme === 'dark' ? (
-                  <Sun size={16} className="text-amber-400" />
-                ) : (
-                  <Moon size={16} className="text-sky-400" />
-                )
-              ) : (
-                <Sun size={16} className="text-amber-400" />
-              )}
-            </button>
+          {/* Designer Telemetry Pill */}
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono text-neutral-300 bg-white/[0.04] border border-white/10 shadow-inner backdrop-blur-md">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+              </span>
+              <span className="tracking-tight text-neutral-400">Engine Online</span>
+            </div>
+          </div>
         </div>
       </header>
 
