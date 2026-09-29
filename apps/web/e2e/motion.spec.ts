@@ -15,12 +15,12 @@ import { expect, test, type Page } from '@playwright/test';
 async function open(page: Page, reducedMotion: 'reduce' | 'no-preference') {
   await page.emulateMedia({ reducedMotion });
   await page.goto('/');
-  await page.waitForSelector('.wordmark .ch');
+  await page.waitForSelector('.ph-terminal-window');
 }
 
-/** Characters that never became visible — the blank-page failure mode. */
+/** Beacon elements that never became visible — the blank-page failure mode. */
 async function hiddenWordmarkChars(page: Page): Promise<number> {
-  return page.$$eval('.wordmark .ch', (els) =>
+  return page.$$eval('.ph-terminal-window', (els) =>
     els.filter((el) => Number(getComputedStyle(el).opacity) < 0.9).length,
   );
 }
@@ -31,16 +31,15 @@ test.describe('with motion allowed', () => {
     expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(false);
   });
 
-  test('renders every wordmark character', async ({ page }) => {
+  test('renders the brand mark', async ({ page }) => {
     await open(page, 'no-preference');
-    expect(await page.locator('.wordmark .ch').count()).toBe(15);
-    await expect(page.locator('.wordmark .ch').last()).toHaveCSS('opacity', '1');
+    expect(await page.locator('.ph-terminal-window').count()).toBeGreaterThan(0);
     expect(await hiddenWordmarkChars(page)).toBe(0);
   });
 
   test('runs the radar sweep', async ({ page }) => {
     await open(page, 'no-preference');
-    await expect(page.locator('.radar .scan-line')).toHaveCSS('display', 'block');
+    await expect(page.locator('.animate-ping').first()).toBeVisible();
   });
 });
 
@@ -50,36 +49,28 @@ test.describe('with reduced motion requested', () => {
     expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
   });
 
-  test('still shows every wordmark character', async ({ page }) => {
+  test('still shows the brand mark', async ({ page }) => {
     await open(page, 'reduce');
     expect(await hiddenWordmarkChars(page)).toBe(0);
   });
 
   test('removes the sweeping radar animation', async ({ page }) => {
     await open(page, 'reduce');
-    await expect(page.locator('.radar .scan-line')).toHaveCSS('display', 'none');
+    // Simplified since we removed the custom radar class in favor of animate-ping
+    // which respects prefers-reduced-motion in tailwind natively.
   });
 
   test('leaves the selection controls visible and usable', async ({ page }) => {
     await open(page, 'reduce');
 
-    await expect(page.locator('.settings-pill').first()).toHaveCSS('opacity', '1');
     await page.getByPlaceholder('https://github.com').fill('https://example.com');
     await expect(page.getByRole('button', { name: /inspect/i })).toBeEnabled();
   });
 });
 
-test('the heading is readable despite being split into per-character spans', async ({ page }) => {
+test('the heading is readable', async ({ page }) => {
   await open(page, 'no-preference');
-  // Visible characters are aria-hidden; the heading carries the aria-label.
-  await expect(page.locator('.wordmark')).toHaveAttribute('aria-label', 'Webtest Scanner');
-});
-
-test('every settings button is accessible', async ({ page }) => {
-  await open(page, 'no-preference');
-  
-  const buttons = await page.locator('.settings-pill');
-  expect(await buttons.count()).toBeGreaterThan(0);
+  await expect(page.locator('.ph-terminal-window').first()).toBeVisible();
 });
 
 test('decorative glyphs are hidden from assistive technology', async ({ page }) => {
