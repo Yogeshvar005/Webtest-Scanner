@@ -34,12 +34,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Failsafe timeout for auth loading
+    const fallbackTimer = setTimeout(() => {
+      console.log("Auth loading timed out, proceeding anyway.");
+      setLoading(false);
+    }, 2000);
+
+    console.log("AuthProvider mounted, setting up onAuthStateChanged...");
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      clearTimeout(fallbackTimer);
+      console.log("onAuthStateChanged triggered:", { currentUser });
       setUser(currentUser);
+      setLoading(false);
+    }, (error) => {
+      clearTimeout(fallbackTimer);
+      console.error("onAuthStateChanged error:", error);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(fallbackTimer);
+      console.log("AuthProvider unmounting...");
+      unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async () => {

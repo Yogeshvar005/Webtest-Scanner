@@ -258,6 +258,7 @@ export function suiteToScenario(
             severity: 'medium',
             negate: false,
             describe: `Verify text "${s.assertionText}" is visible`,
+            origin: { source: 'inferred', confidence: 0.9, rationale: 'Site-aware generated' },
           },
         ]
       : [],

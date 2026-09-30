@@ -107,10 +107,10 @@ export default function AdminPage() {
   const fetchTelemetry = useCallback(async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     try {
+      const token = user ? await user.getIdToken() : 'local-dev-token';
       const res = await fetch('/api/admin/telemetry', {
         headers: {
-          'x-admin-uid': activeUser?.uid || '',
-          'x-admin-email': activeUser?.email || '',
+          'Authorization': `Bearer ${token}`
         }
       });
       if (!res.ok) {
@@ -154,12 +154,12 @@ export default function AdminPage() {
   const handleRoleChange = async (targetUid: string, newRole: Role) => {
     setUpdatingUid(targetUid);
     try {
+      const token = user ? await user.getIdToken() : 'local-dev-token';
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-admin-uid': activeUser?.uid || '',
-          'x-admin-email': activeUser?.email || '',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           action: 'update_role',
@@ -192,12 +192,12 @@ export default function AdminPage() {
 
     setUpdatingUid(targetUid);
     try {
+      const token = user ? await user.getIdToken() : 'local-dev-token';
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-admin-uid': activeUser?.uid || '',
-          'x-admin-email': activeUser?.email || '',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           action,
@@ -313,19 +313,24 @@ export default function AdminPage() {
   // Load current admin emails list (only for platform_admin users)
   useEffect(() => {
     if (!isAdmin) return;
-    fetch('/api/admin/users', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-admin-uid': activeUser?.uid || '',
-          'x-admin-email': activeUser?.email || '',
-      },
-      body: JSON.stringify({ action: 'get_admin_emails' }),
-    })
-      .then((r) => r.json())
-      .then((d) => { if (d.emails) setAdminEmails(d.emails); })
-      .catch(() => {});
-  }, [isAdmin]);
+    
+    const fetchEmails = async () => {
+      const token = user ? await user.getIdToken() : 'local-dev-token';
+      fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: 'get_admin_emails' }),
+      })
+        .then((r) => r.json())
+        .then((d) => { if (d.emails) setAdminEmails(d.emails); })
+        .catch(() => {});
+    };
+    
+    fetchEmails();
+  }, [isAdmin, user]);
 
   if (authLoading && !localAdminUser) {
     return (
@@ -1386,12 +1391,12 @@ export default function AdminPage() {
                         onClick={async () => {
                           setUpdatingUid(u.uid);
                           try {
+                            const token = user ? await user.getIdToken() : 'local-dev-token';
                             const r = await fetch('/api/admin/users', {
                               method: 'POST',
                               headers: { 
                                 'Content-Type': 'application/json',
-                                'x-admin-uid': activeUser?.uid || '',
-          'x-admin-email': activeUser?.email || '',
+                                'Authorization': `Bearer ${token}`,
                               },
                               body: JSON.stringify({
                                 action: 'update_role',
@@ -1404,8 +1409,7 @@ export default function AdminPage() {
                               method: 'POST',
                               headers: { 
                                 'Content-Type': 'application/json',
-                                'x-admin-uid': activeUser?.uid || '',
-          'x-admin-email': activeUser?.email || '',
+                                'Authorization': `Bearer ${token}`,
                               },
                               body: JSON.stringify({ action: 'add_admin_email', email: u.email }),
                             });
@@ -1465,12 +1469,12 @@ export default function AdminPage() {
                   setAddingAdmin(true);
                   setAdminEmailError(null);
                   try {
+                    const token = user ? await user.getIdToken() : 'local-dev-token';
                     const res = await fetch('/api/admin/users', {
                       method: 'POST',
                       headers: { 
                         'Content-Type': 'application/json',
-                        'x-admin-uid': activeUser?.uid || '',
-          'x-admin-email': activeUser?.email || '',
+                        'Authorization': `Bearer ${token}`,
                       },
                       body: JSON.stringify({ action: 'add_admin_email', email: trimmed }),
                     });

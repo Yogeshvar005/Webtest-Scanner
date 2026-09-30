@@ -6,7 +6,6 @@ import { Inter, Lora } from 'next/font/google';
  */
 export const uiSans = Inter({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800', '900'],
   variable: '--font-ui',
   display: 'swap',
 });

@@ -316,9 +316,13 @@ export default function Home() {
 
     const pingHeartbeat = async () => {
       try {
+        const token = user ? await user.getIdToken() : 'local-dev-token';
         const res = await fetch("/api/admin/heartbeat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
           body: JSON.stringify({
             uid: effectiveUid,
             email: effectiveEmail,

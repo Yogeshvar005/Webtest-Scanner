@@ -5,13 +5,23 @@ export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
   try {
-    const adminUid = req.headers.get('x-admin-uid');
-    const adminEmail = req.headers.get('x-admin-email');
-    if (!adminUid && !adminEmail) {
-      return NextResponse.json({ error: 'Unauthorized: Missing admin credentials' }, { status: 401 });
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized: Missing or invalid token' }, { status: 401 });
     }
+    
+    const token = authHeader.split('Bearer ')[1];
+    const { verifyIdToken } = await import('../../../../lib/firebase-admin');
+    
+    const decodedToken = await verifyIdToken(token);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized: Invalid token' }, { status: 401 });
+    }
+    
+    const adminUid = decodedToken.uid;
+    const adminEmail = decodedToken.email;
 
-    const { getAdminEmails } = await import('../../../../lib/admin-store');
+    const { getAdminEmails, getUserRole } = await import('../../../../lib/admin-store');
     
     let isPerm = false;
     if (adminEmail) {
