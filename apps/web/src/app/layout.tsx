@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { uiSans, serif } from './fonts';
 import { AuthProvider } from '../lib/auth-context';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import AmbientBackground from '../components/AmbientBackground';
 import './tailwind-compiled.css';
 import './motion.css';
 
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css" />
       </head>
       <body className="min-h-screen font-sans selection:bg-brand-500/30 selection:text-white relative pb-20">
+        <AmbientBackground />
         <AuthProvider>{children}</AuthProvider>
         <aside aria-label="Support and feedback" className="fixed bottom-6 right-6 z-30">
           <div className="relative flex items-center justify-center">

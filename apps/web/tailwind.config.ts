@@ -127,76 +127,59 @@ const config: Config = {
       },
       boxShadow: {
         'glow': '0 0 50px -10px rgba(217, 119, 6, 0.18), 0 0 30px -12px rgba(56, 189, 248, 0.16)',
-        'card-glass': '0 25px 50px -12px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+        'card-glass': '0 25px 50px -12px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
         'pill-active': '0 0 15px rgba(56, 189, 248, 0.35)',
-        'luminous': '0 0 25px -3px rgba(14, 165, 233, 0.65), 0 0 12px -1px rgba(56, 189, 248, 0.45), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.5)',
-        'luminous-hover': '0 0 38px 0px rgba(14, 165, 233, 0.85), 0 0 18px 2px rgba(56, 189, 248, 0.6), inset 0 1px 2px 0 rgba(255, 255, 255, 0.8)',
+        'luminous': '0 0 25px -2px rgba(14, 165, 233, 0.7), 0 0 14px -1px rgba(56, 189, 248, 0.5), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.6)',
+        'luminous-hover': '0 0 38px 2px rgba(14, 165, 233, 0.85), 0 0 22px 4px rgba(56, 189, 248, 0.65), inset 0 1px 2px 0 rgba(255, 255, 255, 0.8)',
       },
       animation: {
-        'shimmer-slide': 'shimmerSlide 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'gleam-slide': 'gleamSlide 3.2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'pulse-subtle': 'subtlePulse 2.8s ease-in-out infinite',
+        'gleam-slide': 'gleamSlide 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite',
         'ambient-drift': 'ambientDrift 14s ease-in-out infinite alternate',
-        'aurora-spin': 'auroraRotate 6s linear infinite',
         'badge-float': 'badgeFloat 2.4s ease-in-out infinite alternate',
-        'icon-float': 'iconFloat 2s ease-in-out infinite alternate',
         'amber-breathe': 'amberBreathe 3s ease-in-out infinite alternate',
-        'radar-wave-1': 'radarPing 2.5s cubic-bezier(0, 0, 0.2, 1) infinite',
-        'radar-wave-2': 'radarPing 2.5s cubic-bezier(0, 0, 0.2, 1) 1.25s infinite',
-        'logo-shimmer': 'logoShimmer 3s ease-in-out infinite',
-        'gradient-pan': 'gradientPan 6s linear infinite',
-        'gradient-flow': 'gradientFlow 3s linear infinite',
+        'radar-wave-1': 'radarPing 3s cubic-bezier(0, 0, 0.2, 1) infinite',
+        'radar-wave-2': 'radarPing 3s cubic-bezier(0, 0, 0.2, 1) 1.5s infinite',
+        'radar-wave-3': 'radarPing 3s cubic-bezier(0, 0, 0.2, 1) 2.25s infinite',
+        'shimmer-wave': 'shimmerWave 3.5s ease-in-out infinite',
+        'cta-flow': 'ctaGradientFlow 5s linear infinite',
+        'halo-pulse': 'haloPulse 2.8s ease-in-out infinite alternate',
       },
       keyframes: {
-        shimmerSlide: {
-          '0%': { transform: 'translateX(-150%) skewX(-20deg)' },
-          '40%, 100%': { transform: 'translateX(260%) skewX(-20deg)' },
-        },
         gleamSlide: {
-          '0%': { transform: 'translateX(-150%) skewX(-20deg)' },
-          '40%, 100%': { transform: 'translateX(250%) skewX(-20deg)' },
+          '0%': { transform: 'translateX(-160%) skewX(-20deg)', opacity: '0' },
+          '15%': { opacity: '1' },
+          '45%': { transform: 'translateX(260%) skewX(-20deg)', opacity: '1' },
+          '46%, 100%': { transform: 'translateX(260%) skewX(-20deg)', opacity: '0' },
         },
-        subtlePulse: {
-          '0%, 100%': { opacity: '0.8', transform: 'scale(1)' },
-          '50%': { opacity: '1', transform: 'scale(1.06)' },
-        },
-        ambientDrift: {
-          '0%': { transform: 'translate(0, 0) scale(1)' },
-          '50%': { transform: 'translate(25px, -30px) scale(1.08)' },
-          '100%': { transform: 'translate(-20px, 20px) scale(0.96)' },
-        },
-        auroraRotate: {
-          '0%': { transform: 'rotate(0deg)' },
-          '100%': { transform: 'rotate(360deg)' },
-        },
-        badgeFloat: {
-          '0%': { transform: 'translateY(0)' },
-          '100%': { transform: 'translateY(-2px)' },
-        },
-        iconFloat: {
-          '0%': { transform: 'translateX(0) scale(1)' },
-          '100%': { transform: 'translateX(2px) scale(1.1)' },
-        },
-        amberBreathe: {
-          '0%': { boxShadow: '0 0 0 0 rgba(245, 158, 11, 0.2)', borderColor: 'rgba(245, 158, 11, 0.3)' },
-          '100%': { boxShadow: '0 0 16px 2px rgba(245, 158, 11, 0.45)', borderColor: 'rgba(251, 191, 36, 0.65)' },
-        },
-        radarPing: {
-          '0%': { transform: 'scale(0.95)', opacity: '0.8' },
-          '70%, 100%': { transform: 'scale(2.1)', opacity: '0' },
-        },
-        logoShimmer: {
-          '0%, 100%': { opacity: '0.9' },
-          '50%': { opacity: '1' }
-        },
-        gradientPan: {
+        ctaGradientFlow: {
           '0%': { backgroundPosition: '0% 50%' },
           '50%': { backgroundPosition: '100% 50%' },
           '100%': { backgroundPosition: '0% 50%' },
         },
-        gradientFlow: {
-          '0%': { backgroundPosition: '200% center' },
-          '100%': { backgroundPosition: '-200% center' },
+        haloPulse: {
+          '0%': { opacity: '0.65', transform: 'scale(0.98)' },
+          '100%': { opacity: '1', transform: 'scale(1.04)' },
+        },
+        ambientDrift: {
+          '0%': { transform: 'translate(0, 0) scale(1)' },
+          '50%': { transform: 'translate(30px, -35px) scale(1.1)' },
+          '100%': { transform: 'translate(-25px, 25px) scale(0.95)' },
+        },
+        badgeFloat: {
+          '0%': { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(-2.5px)' },
+        },
+        amberBreathe: {
+          '0%': { boxShadow: '0 0 0 0 rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)' },
+          '100%': { boxShadow: '0 0 16px 2px rgba(245, 158, 11, 0.45)', borderColor: 'rgba(251, 191, 36, 0.7)' },
+        },
+        radarPing: {
+          '0%': { transform: 'scale(0.95)', opacity: '0.85' },
+          '75%, 100%': { transform: 'scale(2.4)', opacity: '0' },
+        },
+        shimmerWave: {
+          '0%, 100%': { backgroundPosition: '0% 50%', filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.3))' },
+          '50%': { backgroundPosition: '100% 50%', filter: 'drop-shadow(0 0 20px rgba(245,158,11,0.65))' },
         }
       }
     }
