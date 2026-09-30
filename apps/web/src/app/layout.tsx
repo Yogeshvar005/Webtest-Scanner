@@ -29,11 +29,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={`dark ${uiSans.variable} ${serif.variable}`}>
       <head>
-        {/* Google Fonts: Inter, Newsreader for editorial display & JetBrains Mono for telemetry */}
+        {/* Google Fonts: Geist, Inter, Newsreader, JetBrains Mono, Material Symbols */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
         {/* Phosphor Icons for developer UI */}
@@ -41,8 +41,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css" />
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css" />
       </head>
-      <body className="min-h-screen font-sans selection:bg-sky-500/30 selection:text-white relative pb-20">
-        <div aria-hidden="true" className="ambient-noise" />
+      <body className="min-h-screen font-sans selection:bg-brand-500/30 selection:text-white relative pb-20">
         <AuthProvider>{children}</AuthProvider>
         <SpeedInsights />
       </body>
