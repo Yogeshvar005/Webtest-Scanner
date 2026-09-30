@@ -1,10 +1,12 @@
-import admin from 'firebase-admin';
+import * as admin from 'firebase-admin';
+import { getApps, initializeApp, applicationDefault } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
 // Avoid initializing multiple times
-if (admin && admin.apps && admin.apps.length === 0) {
+if (getApps().length === 0) {
   try {
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
+    initializeApp({
+      credential: applicationDefault(),
     });
   } catch (error) {
     console.error('Firebase admin initialization error', error);
@@ -20,7 +22,7 @@ export async function verifyIdToken(token: string) {
   }
   
   try {
-    return await admin.auth().verifyIdToken(token);
+    return await getAuth().verifyIdToken(token);
   } catch (error) {
     console.error('Firebase token verification error', error);
     return null;
