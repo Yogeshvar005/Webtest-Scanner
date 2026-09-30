@@ -43,6 +43,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="min-h-screen font-sans selection:bg-brand-500/30 selection:text-white relative pb-20">
         <AuthProvider>{children}</AuthProvider>
+        <aside aria-label="Support and feedback" className="fixed bottom-6 right-6 z-30">
+          <div className="relative flex items-center justify-center">
+            {/* Continuous Radar Ripple Waves */}
+            <span className="absolute inset-0 rounded-full bg-amber-500/40 animate-radar-wave-1 pointer-events-none"></span>
+            <span className="absolute inset-0 rounded-full bg-amber-400/30 animate-radar-wave-2 pointer-events-none"></span>
+            <button aria-label="Open support and assistant" className="relative z-10 w-11 h-11 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 hover:from-amber-500 hover:to-amber-300 text-white flex items-center justify-center shadow-lg shadow-amber-900/50 hover:shadow-amber-500/50 hover:scale-110 active:scale-90 transition-all duration-300 border border-amber-300/40 cursor-pointer group" title="Need help? Ask AI assistant" type="button">
+              <span className="material-symbols-outlined text-xl group-hover:rotate-12 transition-transform duration-200">forum</span>
+            </button>
+          </div>
+        </aside>
         <SpeedInsights />
       </body>
     </html>

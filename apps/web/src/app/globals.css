@@ -1739,3 +1739,49 @@ input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focu
     flex-wrap: wrap !important;
   }
 }
+
+/* Radiant Aurora Rotating Glow on Primary Button */
+.aurora-border-glow {
+  background: conic-gradient(from 0deg, #38bdf8, #0ea5e9, #6366f1, #f59e0b, #38bdf8);
+}
+
+/* Interactive Pill Sheen Effect */
+.preset-pill-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.preset-pill-sheen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.65s ease;
+  pointer-events: none;
+}
+.preset-pill-sheen:hover::after {
+  left: 160%;
+}
+
+/* Pulse for Suite Pills Active Glow Dot */
+.active-pulse-dot {
+  animation: dotPulse 1.8s ease-in-out infinite alternate;
+}
+@keyframes dotPulse {
+  0% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 4px rgba(56, 189, 248, 0.6); }
+  100% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 10px rgba(56, 189, 248, 1); }
+}
+
+/* Material Symbols utility */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+}
+.material-symbols-outlined.fill-1 {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}

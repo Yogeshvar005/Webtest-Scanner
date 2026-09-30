@@ -241,22 +241,34 @@ export default function LoginPage() {
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting || !email || !password}
-              className="w-full mt-2 inline-flex items-center justify-center py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-md shadow-sky-950/40 border border-sky-400/30 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? (
-                <>
-                  <span className="spinner mr-2" />
-                  {mode === 'signin' ? 'Signing in…' : 'Creating account…'}
-                </>
-              ) : mode === 'signin' ? (
-                'Sign In'
-              ) : (
-                'Create Account'
-              )}
-            </button>
+            <div className="relative group w-full mt-2">
+              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 opacity-70 blur-lg group-hover:opacity-100 group-hover:blur-xl transition duration-500"></div>
+              <button
+                type="submit"
+                disabled={submitting || !email || !password}
+                className="relative w-full inline-flex items-center justify-center py-3 px-4 rounded-xl text-sm font-semibold tracking-wide text-white bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 hover:from-cyan-300 hover:via-sky-400 hover:to-blue-500 hover:scale-[1.03] active:scale-[0.97] shadow-luminous hover:shadow-[0_0_35px_rgba(6,182,212,0.7)] border border-white/40 transition-all duration-300 cursor-pointer overflow-hidden group/btn disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                <div className="absolute inset-0 w-3/4 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-gleam-slide pointer-events-none"></div>
+                {submitting ? (
+                  <>
+                    <span className="spinner mr-2 relative z-10" />
+                    <span className="relative z-10 text-white font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+                      {mode === 'signin' ? 'Signing in…' : 'Creating account…'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <div className="relative flex items-center justify-center animate-icon-float mr-2">
+                      <span className="absolute w-4 h-4 rounded-full bg-cyan-300/50 blur-xs animate-pulse-subtle"></span>
+                      <i className="ph-bold ph-arrow-right text-white text-base drop-shadow-[0_0_8px_rgba(255,255,255,0.9)] relative z-10 group-hover/btn:scale-115 transition-transform duration-200" />
+                    </div>
+                    <span className="relative z-10 text-white font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+                      {mode === 'signin' ? 'Sign In' : 'Create Account'}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
           </form>
 
           <div className="text-center mt-6 pt-5 border-t border-white/[0.08]">
