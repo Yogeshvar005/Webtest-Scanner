@@ -10,6 +10,7 @@
 }
 
 .scanner-text {
+  font-weight: 900;
   background: linear-gradient(
     90deg,
     #fde68a,   /* amber-200 */

@@ -451,10 +451,10 @@ export default function AdminPage() {
               </Link>
               <div>
                 <div className="flex items-center space-x-2.5 sm:space-x-3">
-                  <div className="flex items-baseline space-x-1 sm:space-x-1.5">
-                    <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-white font-sans drop-shadow-sm">Webtest</span>
-                    <span className="font-serif italic font-normal text-xl sm:text-2xl tracking-wide select-none scanner-text">Scanner</span>
-                    <span className="text-sm font-semibold uppercase tracking-wider text-amber-400/90 font-mono ml-1.5 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">Admin</span>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-2xl sm:text-3xl font-black tracking-tight text-white font-sans leading-none select-none">Webtest</span>
+                    <span className="text-2xl sm:text-3xl font-black tracking-tight leading-none select-none scanner-text" style={{ fontStyle: 'italic', fontFamily: 'var(--font-serif, Georgia, serif)' }}>Scanner</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-amber-400/90 font-mono ml-2 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">Admin</span>
                   </div>
                   <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold uppercase tracking-wider bg-gradient-to-r from-sky-500/10 via-amber-500/10 to-transparent border border-sky-500/30 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.15)] backdrop-blur-sm">
                     <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />Telemetry v2.0
