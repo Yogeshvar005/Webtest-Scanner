@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
     const result = await recordHeartbeat({
       uid,
-      email,
+      email: email || '',
       displayName,
       avatarUrl,
       ip,
