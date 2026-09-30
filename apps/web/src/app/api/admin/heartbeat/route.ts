@@ -5,7 +5,9 @@ export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const text = await req.text();
+    if (!text) return NextResponse.json({ error: 'Empty body' }, { status: 400 });
+    const body = JSON.parse(text);
     const { uid, email, displayName, avatarUrl, currentAction } = body;
 
     if (!uid || !email) {

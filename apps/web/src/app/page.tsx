@@ -820,7 +820,7 @@ export default function Home() {
                   {(user?.email?.[0] || 'Y').toUpperCase()}
                 </div>
                 <span className="hidden lg:inline-block text-xs text-neutral-300 font-mono tracking-tight">
-                  {user?.email || (typeof window !== 'undefined' && localStorage.getItem('wts_admin_user') ? JSON.parse(localStorage.getItem('wts_admin_user') || '{}').email : 'yogeshvar2508@gmail.com')}
+                  {user?.email || (typeof window !== 'undefined' && localStorage.getItem('wts_admin_user') ? JSON.parse(localStorage.getItem('wts_admin_user') || '{}').email : 'guest@webtest.dev')}
                 </span>
               </div>
               <button onClick={handleLogout} className="hidden sm:inline-flex px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.05] transition-all cursor-pointer" type="button">Sign out</button>
