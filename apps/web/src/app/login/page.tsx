@@ -114,15 +114,8 @@ export default function LoginPage() {
             {/* Designer Typography & Badge */}
             <div className="flex items-center space-x-3 sm:space-x-4">
               <div className="flex items-baseline space-x-1.5">
-                <span className="font-black tracking-tighter text-2xl sm:text-[26px] text-white font-sans drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">Webtest</span>
-                <span className="font-black tracking-tighter text-2xl sm:text-[26px] font-sans select-none animate-gradient-flow" style={{
-                  backgroundImage: 'linear-gradient(90deg, #38bdf8, #818cf8, #38bdf8)',
-                  backgroundSize: '200% auto',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  color: 'transparent'
-                }}>Scanner</span>
+                <span className="font-bold tracking-tight text-lg text-white font-sans">Webtest</span>
+                <span className="font-bold tracking-tight text-lg font-sans select-none flowing-gradient-scanner">Scanner</span>
               </div>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold uppercase tracking-wider bg-gradient-to-r from-sky-500/10 via-amber-500/10 to-transparent border border-sky-500/30 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.15)] backdrop-blur-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" />

@@ -766,15 +766,8 @@ export default function Home() {
             
             <div className="flex items-center space-x-3 sm:space-x-4 cursor-pointer" onClick={resetToOriginal}>
               <div className="flex items-baseline space-x-1.5">
-                <span className="font-black tracking-tighter text-2xl sm:text-[26px] text-white font-sans drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">Webtest</span>
-                <span className="font-black tracking-tighter text-2xl sm:text-[26px] font-sans select-none animate-gradient-flow" style={{
-                  backgroundImage: 'linear-gradient(90deg, #38bdf8, #818cf8, #38bdf8)',
-                  backgroundSize: '200% auto',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  color: 'transparent'
-                }}>Scanner</span>
+                <span className="font-bold tracking-tight text-lg text-white font-sans">Webtest</span>
+                <span className="font-bold tracking-tight text-lg font-sans select-none flowing-gradient-scanner">Scanner</span>
               </div>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider bg-sky-500/10 text-sky-300 border border-sky-500/30 shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>v2.0
