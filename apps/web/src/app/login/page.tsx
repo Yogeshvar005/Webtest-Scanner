@@ -113,9 +113,9 @@ export default function LoginPage() {
 
             {/* Designer Typography & Badge */}
             <div className="flex items-center space-x-2.5 sm:space-x-3.5">
-              <div className="flex items-center gap-0.5">
-                <span className="text-2xl sm:text-3xl font-black tracking-tight text-white font-sans leading-none select-none">Webtest</span>
-                <span className="text-2xl sm:text-3xl font-black tracking-tight leading-none select-none scanner-text" style={{ fontStyle: 'italic', fontFamily: 'var(--font-serif, Georgia, serif)' }}>Scanner</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[26px] sm:text-[30px] font-black tracking-tight text-white leading-none select-none" style={{ fontFamily: 'Inter, sans-serif' }}>Webtest</span>
+                <span className="text-[26px] sm:text-[30px] leading-none select-none scanner-text">Scanner</span>
               </div>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold uppercase tracking-wider bg-gradient-to-r from-sky-500/10 via-amber-500/10 to-transparent border border-sky-500/30 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.15)] backdrop-blur-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_#34d399]" />
