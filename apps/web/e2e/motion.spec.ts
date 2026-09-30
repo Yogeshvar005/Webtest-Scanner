@@ -63,7 +63,7 @@ test.describe('with reduced motion requested', () => {
   test('leaves the selection controls visible and usable', async ({ page }) => {
     await open(page, 'reduce');
 
-    await page.getByPlaceholder('https://github.com').fill('https://example.com');
+    await page.getByPlaceholder('Enter target URL to inspect...').fill('https://example.com');
     await expect(page.getByRole('button', { name: /inspect/i })).toBeEnabled();
   });
 });

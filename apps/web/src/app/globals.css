@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Scanner wordmark: flowing gradient + glow ── */
+@keyframes scanner-glow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.scanner-text {
+  background: linear-gradient(
+    90deg,
+    #fde68a,   /* amber-200 */
+    #f59e0b,   /* amber-400 */
+    #fb923c,   /* orange-400 */
+    #fcd34d,   /* amber-300 */
+    #fde68a    /* back to amber-200 */
+  );
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: scanner-glow 4s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.75))
+          drop-shadow(0 0 16px rgba(251, 140, 0, 0.45));
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
