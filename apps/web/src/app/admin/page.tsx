@@ -453,7 +453,10 @@ export default function AdminPage() {
                 <div className="flex items-center space-x-2.5 sm:space-x-3">
                   <div className="flex items-baseline space-x-1 sm:space-x-1.5">
                     <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-white font-sans drop-shadow-sm">Webtest</span>
-                    <span className="text-xl sm:text-2xl font-serif italic font-normal tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-orange-400 animate-logo-shimmer select-none drop-shadow-[0_2px_16px_rgba(251,191,36,0.4)]">Scanner</span>
+                    <span className="relative inline-block">
+                      <span className="absolute inset-0 text-xl sm:text-2xl font-serif italic font-normal tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-500 to-amber-300 bg-[size:200%_auto] animate-gradient-pan blur-[8px] opacity-80 select-none">Scanner</span>
+                      <span className="relative text-xl sm:text-2xl font-serif italic font-normal tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-orange-400 to-amber-200 bg-[size:200%_auto] animate-gradient-pan select-none drop-shadow-[0_0_2px_rgba(251,191,36,0.8)]">Scanner</span>
+                    </span>
                     <span className="text-sm font-semibold uppercase tracking-wider text-amber-400/90 font-mono ml-1.5 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">Admin</span>
                   </div>
                   <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold uppercase tracking-wider bg-gradient-to-r from-sky-500/10 via-amber-500/10 to-transparent border border-sky-500/30 text-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.15)] backdrop-blur-sm">
