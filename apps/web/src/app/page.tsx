@@ -944,7 +944,7 @@ export default function Home() {
   const tierNumber = Number(tier);
 
   return (
-    <div className="min-h-screen font-sans selection:bg-brand-500/30 selection:text-amber-200 relative pb-20 theme-transition">
+    <div className={`min-h-screen font-sans selection:bg-brand-500/30 selection:text-amber-200 relative pb-20 theme-transition ${!isExecutionActive ? "overflow-hidden h-screen" : ""}`}>
       {/* Ambient Glowing Orbs Background */}
       <div aria-hidden="true" className="ambient-gradient-mesh">
         <div className="gradient-orb-1"></div>
